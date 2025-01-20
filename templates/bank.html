@@ -1,10 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>银行信息</h1>
-<section>
-    <h2>{{ bank.name }}</h2>
-    <p>银行资金: ¥{{ "{:,.2f}".format(bank.capital) }}</p>
-    <p>贷款总额: ¥{{ "{:,.2f}".format(sum(bank.loans.values())) }}</p>
+<h1>银行</h1>
+
+<section class="loan">
+    <h2>贷款</h2>
+    <form method="POST" action="{{ url_for('loan') }}">
+        <label for="company_id">公司ID:</label>
+        <input type="number" id="company_id" name="company_id" required>
+        <label for="amount">金额:</label>
+        <input type="number" id="amount" name="amount" required>
+        <button type="submit">申请贷款</button>
+    </form>
+</section>
+
+<section class="deposit">
+    <h2>存款</h2>
+    <form method="POST" action="{{ url_for('deposit') }}">
+        <label for="company_id">公司ID:</label>
+        <input type="number" id="company_id" name="company_id" required>
+        <label for="amount">金额:</label>
+        <input type="number" id="amount" name="amount" required>
+        <button type="submit">存款</button>
+    </form>
+</section>
+
+<section class="interest-calculation">
+    <h2>利息计算</h2>
+    <form method="POST" action="{{ url_for('calculate_interest') }}">
+        <label for="company_id">公司ID:</label>
+        <input type="number" id="company_id" name="company_id" required>
+        <label for="rate">利率:</label>
+        <input type="number" id="rate" name="rate" step="0.01" required>
+        <label for="period">期限:</label>
+        <input type="number" id="period" name="period" required>
+        <button type="submit">计算</button>
+    </form>
 </section>
 {% endblock %}

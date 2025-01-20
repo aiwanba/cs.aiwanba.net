@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>股票详情</h1>
+<section class="stock-info">
+    <p>公司: {{ stock.company.name }}</p>
+    <p>当前价格: {{ stock.get_share_price() }}</p>
+</section>
+
+<section class="buy-sell">
+    <h2>买卖股票</h2>
+    <form method="POST" action="{{ url_for('buy_stock', stock_id=stock.id) }}">
+        <label for="shares">购买数量:</label>
+        <input type="number" id="shares" name="shares" required>
+        <button type="submit">购买</button>
+    </form>
+    <form method="POST" action="{{ url_for('sell_stock', stock_id=stock.id) }}">
+        <label for="shares">出售数量:</label>
+        <input type="number" id="shares" name="shares" required>
+        <button type="submit">出售</button>
+    </form>
+</section>
+
+<section class="dividend">
+    <h2>分红</h2>
+    <form method="POST" action="{{ url_for('distribute_dividend', stock_id=stock.id) }}">
+        <label for="amount">分红金额:</label>
+        <input type="number" id="amount" name="amount" required>
+        <button type="submit">分红</button>
+    </form>
+</section>
+{% endblock %} 

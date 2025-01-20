@@ -1,22 +1,25 @@
 # 交易所模块
-class Exchange:
-    def __init__(self):
-        self.listed_companies = set()  # 上市公司集合
-        self.stocks = {}  # 股票信息 {公司ID: Stock对象}
+from flask_sqlalchemy import SQLAlchemy
+from extensions import db
+from models.company import Company
 
-    def list_company(self, company_id, stock):
-        """公司上市"""
-        if company_id in self.listed_companies:
-            raise ValueError("公司已上市")
-        self.listed_companies.add(company_id)
-        self.stocks[company_id] = stock
+class Exchange(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    listed = db.Column(db.Boolean, default=False)
 
-    def delist_company(self, company_id):
-        """公司退市"""
-        if company_id not in self.listed_companies:
-            raise ValueError("公司未上市")
-        self.listed_companies.remove(company_id)
-        del self.stocks[company_id]
+    @staticmethod
+    def list_company(company_id):
+        exchange = Exchange(company_id=company_id, listed=True)
+        db.session.add(exchange)
+        db.session.commit()
+
+    @staticmethod
+    def delist_company(company_id):
+        exchange = Exchange.query.filter_by(company_id=company_id).first()
+        if exchange:
+            db.session.delete(exchange)
+            db.session.commit()
 
     def calculate_market_cap(self):
         """计算总市值"""
@@ -31,4 +34,11 @@ class Exchange:
         for company_id, stock in self.stocks.items():
             market_cap = stock.price * stock.total_shares
             companies.append((company_id, market_cap))
-        return sorted(companies, key=lambda x: x[1], reverse=True)[:n] 
+        return sorted(companies, key=lambda x: x[1], reverse=True)[:n]
+
+    def margin_trading(self, company_id, amount):
+        """融资融券"""
+        company = Company.query.get(company_id)
+        if company:
+            company.capital += amount
+            db.session.commit() 

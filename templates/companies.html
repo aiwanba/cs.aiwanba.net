@@ -2,8 +2,44 @@
 
 {% block content %}
 <h1>公司列表</h1>
-<section>
-    <p>这里将显示所有公司信息</p>
-    <!-- 待实现公司列表展示 -->
-</section>
+<form method="GET" action="{{ url_for('list_companies') }}">
+    <input type="text" name="search" placeholder="搜索公司名称">
+    <select name="industry">
+        <option value="">所有行业</option>
+        <!-- 动态生成行业选项 -->
+    </select>
+    <button type="submit">搜索</button>
+</form>
+<table>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>名称</th>
+            <th>行业</th>
+            <th>资本</th>
+            <th>股票数量</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for company in companies %}
+        <tr>
+            <td>{{ company.id }}</td>
+            <td><a href="{{ url_for('company_detail', company_id=company.id) }}">{{ company.name }}</a></td>
+            <td>{{ company.industry }}</td>
+            <td>{{ company.capital }}</td>
+            <td>{{ company.stock_count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<div class="pagination">
+    {% if companies.has_prev %}
+        <a href="{{ url_for('list_companies', page=companies.prev_num) }}">上一页</a>
+    {% endif %}
+    <span>第 {{ companies.page }} 页，共 {{ companies.pages }} 页</span>
+    {% if companies.has_next %}
+        <a href="{{ url_for('list_companies', page=companies.next_num) }}">下一页</a>
+    {% endif %}
+</div>
+<a href="{{ url_for('create_company') }}" class="btn">创建新公司</a>
 {% endblock %}

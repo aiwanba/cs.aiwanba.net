@@ -1,41 +1,51 @@
+from extensions import db
+
 # 股票交易模块
-class Stock:
-    def __init__(self, company_id, total_shares, price):
-        self.company_id = company_id  # 所属公司ID
-        self.total_shares = total_shares  # 总股数
-        self.price = price  # 当前股价
-        self.holders = {}  # 股东持股信息 {股东ID: 持股数量}
+class Stock(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'))
+    shareholder_id = db.Column(db.Integer)
+    shares = db.Column(db.Integer)
+
+    @staticmethod
+    def buy_stock(company_id, shareholder_id, shares):
+        stock = Stock(company_id=company_id, shareholder_id=shareholder_id, shares=shares)
+        db.session.add(stock)
+        db.session.commit()
+
+    @staticmethod
+    def sell_stock(stock_id):
+        stock = Stock.query.get(stock_id)
+        if stock:
+            db.session.delete(stock)
+            db.session.commit()
 
     def buy(self, buyer_id, shares):
         """购买股票"""
-        if shares > self.total_shares:
-            raise ValueError("购买数量超过总股数")
-        self.holders[buyer_id] = self.holders.get(buyer_id, 0) + shares
-        self.total_shares -= shares
+        if shares > self.shares:
+            raise ValueError("购买数量超过持有数量")
+        self.shareholder_id = buyer_id
+        self.shares -= shares
 
     def sell(self, seller_id, shares):
         """出售股票"""
-        if self.holders.get(seller_id, 0) < shares:
+        if self.shares < shares:
             raise ValueError("出售数量超过持有数量")
-        self.holders[seller_id] -= shares
-        self.total_shares += shares
+        self.shareholder_id = seller_id
+        self.shares -= shares
 
     def split_shares(self, ratio):
         """股票分割"""
         if ratio <= 1:
             raise ValueError("分割比例必须大于1")
-        self.total_shares *= ratio
-        for holder in self.holders:
-            self.holders[holder] *= ratio
+        self.shares *= ratio
 
     def reverse_split(self, ratio):
         """股票合并"""
         if ratio <= 1:
             raise ValueError("合并比例必须大于1")
-        self.total_shares //= ratio
-        for holder in self.holders:
-            self.holders[holder] //= ratio
+        self.shares //= ratio
 
     def calculate_dividend(self, amount):
         """计算每股分红"""
-        return amount / self.total_shares 
+        return amount / self.shares 

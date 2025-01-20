@@ -7,7 +7,7 @@ class Company(db.Model):
     industry = db.Column(db.String(50), nullable=False)
     capital = db.Column(db.Float, default=0.0)
     stock_count = db.Column(db.Integer, default=0)
-    shareholders = db.Column(db.JSON)
+    shareholders = db.Column(db.JSON, default={})
     partners = db.Column(db.JSON)
 
     def __repr__(self):
@@ -24,6 +24,16 @@ class Company(db.Model):
         if self.partners is None:
             self.partners = set()
         self.partners.add(company_id)
+
+    def remove_partner(self, company_id):
+        """移除合作伙伴"""
+        if self.partners and company_id in self.partners:
+            self.partners.remove(company_id)
+
+    def remove_shareholder(self, shareholder_id):
+        """移除股东"""
+        if self.shareholders and shareholder_id in self.shareholders:
+            del self.shareholders[shareholder_id]
 
     def issue_shares(self, amount):
         """发行新股"""
@@ -45,3 +55,19 @@ class Company(db.Model):
         for shareholder, shares in self.shareholders.items():
             dividend = (shares / total_shares) * amount
             # 这里需要实现向股东发放分红 
+
+    def buyback_shares(self, amount):
+        """股票回购"""
+        if amount > self.stock_count:
+            raise ValueError("回购数量超过公司股票数量")
+        self.stock_count -= amount
+        self.capital -= amount * self.get_share_price()
+
+    def issue_rights_shares(self, ratio):
+        """配股"""
+        self.stock_count *= (1 + ratio)
+        self.capital *= (1 + ratio)
+
+    def bonus_shares(self, ratio):
+        """转增股本"""
+        self.stock_count *= (1 + ratio) 
