@@ -1,17 +1,38 @@
 from flask import Flask, render_template, request, redirect, url_for
+from extensions import db
+from dotenv import load_dotenv
+import os
+
+load_dotenv()  # 加载环境变量
+
+app = Flask(__name__)
+
+# 数据库配置
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 初始化数据库
+db.init_app(app)
+
+# 在db初始化之后导入模型
 from models.company import Company
 from models.stock import Stock
 from models.exchange import Exchange
 from models.bank import Bank
 from models.ai_company import AICompany
-from flask_sqlalchemy import SQLAlchemy
-import os
 
-app = Flask(__name__)
+# 创建数据库表
+def initialize_database():
+    with app.app_context():
+        try:
+            db.create_all()
+            print("数据库表已成功创建")
+        except Exception as e:
+            print(f"数据库初始化失败: {str(e)}")
+            # 可以根据需要添加重试逻辑或退出应用
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+# 初始化数据库
+initialize_database()
 
 # 添加sum函数到Jinja2环境
 app.jinja_env.globals.update(sum=sum)

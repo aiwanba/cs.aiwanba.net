@@ -1,19 +1,28 @@
 # 公司模块
-class Company:
-    def __init__(self, name, industry, capital, stock_count):
-        self.name = name  # 公司名称
-        self.industry = industry  # 所属行业
-        self.capital = capital  # 公司资金
-        self.stock_count = stock_count  # 股票数量
-        self.shareholders = {}  # 股东信息 {股东ID: 持股数量}
-        self.partners = set()  # 合作伙伴公司ID集合
+from extensions import db
+
+class Company(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    industry = db.Column(db.String(50), nullable=False)
+    capital = db.Column(db.Float, default=0.0)
+    stock_count = db.Column(db.Integer, default=0)
+    shareholders = db.Column(db.JSON)
+    partners = db.Column(db.JSON)
+
+    def __repr__(self):
+        return f'<Company {self.name}>'
 
     def add_shareholder(self, shareholder_id, shares):
         """添加股东"""
+        if self.shareholders is None:
+            self.shareholders = {}
         self.shareholders[shareholder_id] = shares
 
     def add_partner(self, company_id):
         """添加合作伙伴"""
+        if self.partners is None:
+            self.partners = set()
         self.partners.add(company_id)
 
     def issue_shares(self, amount):
