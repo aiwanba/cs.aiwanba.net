@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>交易所信息</h1>
+<section>
+    <h2>市场概况</h2>
+    <p>总市值: ¥{{ "{:,.2f}".format(market_cap) }}</p>
+
+    <h3>市值最高的公司</h3>
+    <ol>
+        {% for company, cap in top_companies %}
+        <li>公司 {{ company }}: ¥{{ "{:,.2f}".format(cap) }}</li>
+        {% endfor %}
+    </ol>
+</section>
+{% endblock %}

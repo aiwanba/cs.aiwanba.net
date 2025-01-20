@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>银行信息</h1>
+<section>
+    <h2>{{ bank.name }}</h2>
+    <p>银行资金: ¥{{ "{:,.2f}".format(bank.capital) }}</p>
+    <p>贷款总额: ¥{{ "{:,.2f}".format(sum(bank.loans.values())) }}</p>
+</section>
+{% endblock %}
