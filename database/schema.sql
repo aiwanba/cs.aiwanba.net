@@ -20,4 +20,13 @@ CREATE TABLE IF NOT EXISTS transaction (
     transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (company_id) REFERENCES company(id),
     FOREIGN KEY (target_company_id) REFERENCES company(id)
+);
+
+CREATE TABLE IF NOT EXISTS stock_holding (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL,
+    target_company_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 0,
+    FOREIGN KEY (company_id) REFERENCES company(id),
+    FOREIGN KEY (target_company_id) REFERENCES company(id)
 ); 

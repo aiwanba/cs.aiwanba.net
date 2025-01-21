@@ -31,6 +31,13 @@ class Transaction(db.Model):
     transaction_type = db.Column(db.Enum('buy', 'sell'), nullable=False)
     transaction_date = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
 
+# 股票持有模型
+class StockHolding(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    target_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+
 @app.route('/')
 def index():
     return jsonify({"message": "Welcome to the Stock Trading Game!"})
@@ -108,6 +115,31 @@ def delete_company(company_id):
 def buy_stock():
     try:
         data = request.get_json()
+        # 检查买方余额是否足够
+        buyer = Company.query.get(data['company_id'])
+        if not buyer or buyer.balance < data['quantity'] * data['price']:
+            return jsonify({"error": "Insufficient balance"}), 400
+
+        # 创建或更新持股记录
+        holding = StockHolding.query.filter_by(
+            company_id=data['company_id'],
+            target_company_id=data['target_company_id']
+        ).first()
+        
+        if not holding:
+            holding = StockHolding(
+                company_id=data['company_id'],
+                target_company_id=data['target_company_id'],
+                quantity=data['quantity']
+            )
+            db.session.add(holding)
+        else:
+            holding.quantity += data['quantity']
+
+        # 更新买方余额
+        buyer.balance -= data['quantity'] * data['price']
+
+        # 创建交易记录
         new_transaction = Transaction(
             company_id=data['company_id'],
             target_company_id=data['target_company_id'],
@@ -117,7 +149,7 @@ def buy_stock():
         )
         db.session.add(new_transaction)
         db.session.commit()
-        return jsonify({"id": new_transaction.id, "company_id": new_transaction.company_id, "target_company_id": new_transaction.target_company_id, "quantity": new_transaction.quantity, "price": new_transaction.price, "transaction_type": new_transaction.transaction_type, "transaction_date": new_transaction.transaction_date}), 201
+        return jsonify({"message": "Stock bought successfully"}), 201
     except Exception as e:
         print(f"Error buying stock: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -126,6 +158,23 @@ def buy_stock():
 def sell_stock():
     try:
         data = request.get_json()
+        # 检查是否持有足够的股票
+        holding = StockHolding.query.filter_by(
+            company_id=data['company_id'],
+            target_company_id=data['target_company_id']
+        ).first()
+        
+        if not holding or holding.quantity < data['quantity']:
+            return jsonify({"error": "Insufficient stock"}), 400
+
+        # 更新持股记录
+        holding.quantity -= data['quantity']
+
+        # 更新卖方余额
+        seller = Company.query.get(data['company_id'])
+        seller.balance += data['quantity'] * data['price']
+
+        # 创建交易记录
         new_transaction = Transaction(
             company_id=data['company_id'],
             target_company_id=data['target_company_id'],
@@ -135,7 +184,7 @@ def sell_stock():
         )
         db.session.add(new_transaction)
         db.session.commit()
-        return jsonify({"id": new_transaction.id, "company_id": new_transaction.company_id, "target_company_id": new_transaction.target_company_id, "quantity": new_transaction.quantity, "price": new_transaction.price, "transaction_type": new_transaction.transaction_type, "transaction_date": new_transaction.transaction_date}), 201
+        return jsonify({"message": "Stock sold successfully"}), 201
     except Exception as e:
         print(f"Error selling stock: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -196,33 +245,55 @@ def transfer():
 # AI 交易逻辑
 def ai_trade():
     try:
-        # 获取所有 AI 公司
+        # 获取所有 AI 公司和非 AI 公司
         ai_companies = Company.query.filter_by(is_ai=True).all()
-        for company in ai_companies:
-            # 示例：如果公司余额大于 1000，则买入股票
-            if company.balance > 1000:
-                # 买入股票
-                new_transaction = Transaction(
-                    company_id=company.id,
-                    target_company_id=company.id,  # 买入股票到自己公司
-                    quantity=10,         # 买入数量
-                    price=150,           # 买入价格
-                    transaction_type='buy'
-                )
-                db.session.add(new_transaction)
-                company.balance -= 10 * 150  # 更新公司余额
-            # 示例：如果公司余额小于 500，则卖出股票
-            elif company.balance < 500:
-                # 卖出股票
-                new_transaction = Transaction(
-                    company_id=company.id,
-                    target_company_id=company.id,  # 卖出股票到自己公司
-                    quantity=5,          # 卖出数量
-                    price=150,           # 卖出价格
-                    transaction_type='sell'
-                )
-                db.session.add(new_transaction)
-                company.balance += 5 * 150  # 更新公司余额
+        other_companies = Company.query.filter_by(is_ai=False).all()
+
+        for ai_company in ai_companies:
+            # 分析每个公司的表现
+            for target_company in other_companies:
+                # 获取目标公司的历史交易数据
+                recent_transactions = Transaction.query.filter_by(
+                    target_company_id=target_company.id
+                ).order_by(Transaction.transaction_date.desc()).limit(10).all()
+
+                # 计算平均价格趋势
+                if recent_transactions:
+                    avg_price = sum(t.price for t in recent_transactions) / len(recent_transactions)
+                    latest_price = recent_transactions[0].price
+
+                    # 如果当前价格低于平均价格，考虑买入
+                    if latest_price < avg_price and ai_company.balance > latest_price * 10:
+                        new_transaction = Transaction(
+                            company_id=ai_company.id,
+                            target_company_id=target_company.id,
+                            quantity=10,
+                            price=latest_price,
+                            transaction_type='buy'
+                        )
+                        db.session.add(new_transaction)
+                        ai_company.balance -= latest_price * 10
+
+                    # 如果当前价格高于平均价格，考虑卖出
+                    elif latest_price > avg_price:
+                        holding = StockHolding.query.filter_by(
+                            company_id=ai_company.id,
+                            target_company_id=target_company.id
+                        ).first()
+                        
+                        if holding and holding.quantity > 0:
+                            sell_quantity = min(holding.quantity, 5)
+                            new_transaction = Transaction(
+                                company_id=ai_company.id,
+                                target_company_id=target_company.id,
+                                quantity=sell_quantity,
+                                price=latest_price,
+                                transaction_type='sell'
+                            )
+                            db.session.add(new_transaction)
+                            ai_company.balance += latest_price * sell_quantity
+                            holding.quantity -= sell_quantity
+
         db.session.commit()
     except Exception as e:
         print(f"Error in AI trade: {e}")
