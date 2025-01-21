@@ -25,7 +25,7 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     asset_type = db.Column(db.Enum('stock', 'futures', 'forex'), nullable=False, default='stock')
-    stock_symbol = db.Column(db.String(10), nullable=False)
+    target_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
     transaction_type = db.Column(db.Enum('buy', 'sell'), nullable=False)
@@ -101,14 +101,14 @@ def buy_stock():
         data = request.get_json()
         new_transaction = Transaction(
             company_id=data['company_id'],
-            stock_symbol=data['stock_symbol'],
+            target_company_id=data['target_company_id'],
             quantity=data['quantity'],
             price=data['price'],
             transaction_type='buy'
         )
         db.session.add(new_transaction)
         db.session.commit()
-        return jsonify({"id": new_transaction.id, "company_id": new_transaction.company_id, "stock_symbol": new_transaction.stock_symbol, "quantity": new_transaction.quantity, "price": new_transaction.price, "transaction_type": new_transaction.transaction_type, "transaction_date": new_transaction.transaction_date}), 201
+        return jsonify({"id": new_transaction.id, "company_id": new_transaction.company_id, "target_company_id": new_transaction.target_company_id, "quantity": new_transaction.quantity, "price": new_transaction.price, "transaction_type": new_transaction.transaction_type, "transaction_date": new_transaction.transaction_date}), 201
     except Exception as e:
         print(f"Error buying stock: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -119,14 +119,14 @@ def sell_stock():
         data = request.get_json()
         new_transaction = Transaction(
             company_id=data['company_id'],
-            stock_symbol=data['stock_symbol'],
+            target_company_id=data['target_company_id'],
             quantity=data['quantity'],
             price=data['price'],
             transaction_type='sell'
         )
         db.session.add(new_transaction)
         db.session.commit()
-        return jsonify({"id": new_transaction.id, "company_id": new_transaction.company_id, "stock_symbol": new_transaction.stock_symbol, "quantity": new_transaction.quantity, "price": new_transaction.price, "transaction_type": new_transaction.transaction_type, "transaction_date": new_transaction.transaction_date}), 201
+        return jsonify({"id": new_transaction.id, "company_id": new_transaction.company_id, "target_company_id": new_transaction.target_company_id, "quantity": new_transaction.quantity, "price": new_transaction.price, "transaction_type": new_transaction.transaction_type, "transaction_date": new_transaction.transaction_date}), 201
     except Exception as e:
         print(f"Error selling stock: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -195,7 +195,7 @@ def ai_trade():
                 # 买入股票
                 new_transaction = Transaction(
                     company_id=company.id,
-                    stock_symbol="AAPL",  # 示例股票代码
+                    target_company_id=company.id,  # 买入股票到自己公司
                     quantity=10,         # 买入数量
                     price=150,           # 买入价格
                     transaction_type='buy'
@@ -207,7 +207,7 @@ def ai_trade():
                 # 卖出股票
                 new_transaction = Transaction(
                     company_id=company.id,
-                    stock_symbol="AAPL",  # 示例股票代码
+                    target_company_id=company.id,  # 卖出股票到自己公司
                     quantity=5,          # 卖出数量
                     price=150,           # 卖出价格
                     transaction_type='sell'
