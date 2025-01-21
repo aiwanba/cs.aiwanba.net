@@ -38,6 +38,35 @@ class StockHolding(db.Model):
     target_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False, default=0)
 
+# 贷款模型
+class Loan(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    interest_rate = db.Column(db.Float, nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Enum('active', 'paid'), nullable=False)
+
+# AI策略模型
+class AIStrategy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    parameters = db.Column(db.JSON)
+    performance = db.Column(db.Float)
+    status = db.Column(db.Enum('active', 'inactive'), nullable=False)
+
+# 公司业绩报表模型
+class CompanyReport(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    revenue = db.Column(db.Float, nullable=False)
+    profit = db.Column(db.Float, nullable=False)
+    assets = db.Column(db.Float, nullable=False)
+    liabilities = db.Column(db.Float, nullable=False)
+    report_date = db.Column(db.Date, nullable=False)
+
 @app.route('/')
 def index():
     return jsonify({"message": "Welcome to the Stock Trading Game!"})
