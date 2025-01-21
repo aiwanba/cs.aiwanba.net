@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 import random
 import threading
 import time
+from sqlalchemy import text
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS
@@ -66,6 +67,17 @@ class CompanyReport(db.Model):
     assets = db.Column(db.Float, nullable=False)
     liabilities = db.Column(db.Float, nullable=False)
     report_date = db.Column(db.Date, nullable=False)
+
+# 市场行情模型
+class MarketData(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    open_price = db.Column(db.Float, nullable=False)
+    close_price = db.Column(db.Float, nullable=False)
+    high_price = db.Column(db.Float, nullable=False)
+    low_price = db.Column(db.Float, nullable=False)
+    volume = db.Column(db.Integer, nullable=False)
+    date = db.Column(db.Date, nullable=False)
 
 @app.route('/')
 def index():
@@ -365,6 +377,139 @@ def initialize_ai_company():
 
 # 在应用启动时调用
 initialize_ai_company()
+
+# 贷款相关 API
+@app.route('/api/bank/loan', methods=['POST'])
+def apply_loan():
+    try:
+        data = request.get_json()
+        company = Company.query.get(data['company_id'])
+        if not company:
+            return jsonify({"error": "Company not found"}), 404
+
+        # 计算利率（示例：基础利率 5%）
+        interest_rate = 5.0
+        
+        new_loan = Loan(
+            company_id=data['company_id'],
+            amount=data['amount'],
+            interest_rate=interest_rate,
+            start_date=db.func.current_date(),
+            end_date=db.func.date_add(db.func.current_date(), 
+                                    text(f'INTERVAL {data["duration"]} MONTH')),
+            status='active'
+        )
+        
+        # 更新公司余额
+        company.balance += data['amount']
+        
+        db.session.add(new_loan)
+        db.session.commit()
+        return jsonify({"message": "Loan approved"}), 201
+    except Exception as e:
+        print(f"Error applying for loan: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+@app.route('/api/bank/loan/<int:loan_id>/repay', methods=['POST'])
+def repay_loan(loan_id):
+    try:
+        loan = Loan.query.get(loan_id)
+        if not loan:
+            return jsonify({"error": "Loan not found"}), 404
+        
+        company = Company.query.get(loan.company_id)
+        if not company:
+            return jsonify({"error": "Company not found"}), 404
+            
+        # 计算需要还款的总额（本金 + 利息）
+        total_amount = loan.amount * (1 + loan.interest_rate / 100)
+        
+        if company.balance < total_amount:
+            return jsonify({"error": "Insufficient balance"}), 400
+            
+        company.balance -= total_amount
+        loan.status = 'paid'
+        
+        db.session.commit()
+        return jsonify({"message": "Loan repaid successfully"}), 200
+    except Exception as e:
+        print(f"Error repaying loan: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+@app.route('/api/bank/loans', methods=['GET'])
+def get_loans():
+    try:
+        loans = Loan.query.all()
+        return jsonify([{
+            "id": loan.id,
+            "company_id": loan.company_id,
+            "amount": loan.amount,
+            "interest_rate": loan.interest_rate,
+            "start_date": loan.start_date,
+            "end_date": loan.end_date,
+            "status": loan.status
+        } for loan in loans])
+    except Exception as e:
+        print(f"Error fetching loans: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+# 公司业绩报表 API
+@app.route('/api/companies/<int:company_id>/report', methods=['GET'])
+def get_company_report(company_id):
+    try:
+        company = Company.query.get(company_id)
+        if not company:
+            return jsonify({"error": "Company not found"}), 404
+            
+        # 获取最新的业绩报表
+        report = CompanyReport.query.filter_by(
+            company_id=company_id
+        ).order_by(CompanyReport.report_date.desc()).first()
+        
+        if not report:
+            # 如果没有报表，生成一个新的
+            report = CompanyReport(
+                company_id=company_id,
+                revenue=0,  # 这里需要根据实际业务逻辑计算
+                profit=0,
+                assets=company.balance,  # 简单示例：资产等于余额
+                liabilities=0,
+                report_date=db.func.current_date()
+            )
+            db.session.add(report)
+            db.session.commit()
+            
+        return jsonify({
+            "revenue": report.revenue,
+            "profit": report.profit,
+            "assets": report.assets,
+            "liabilities": report.liabilities,
+            "report_date": report.report_date
+        })
+    except Exception as e:
+        print(f"Error getting company report: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+# 市场行情 API
+@app.route('/api/market/kline/<int:company_id>', methods=['GET'])
+def get_kline_data(company_id):
+    try:
+        # 获取最近30天的K线数据
+        market_data = MarketData.query.filter_by(
+            company_id=company_id
+        ).order_by(MarketData.date.desc()).limit(30).all()
+        
+        return jsonify([{
+            "date": data.date,
+            "open": data.open_price,
+            "close": data.close_price,
+            "high": data.high_price,
+            "low": data.low_price,
+            "volume": data.volume
+        } for data in market_data])
+    except Exception as e:
+        print(f"Error getting kline data: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
