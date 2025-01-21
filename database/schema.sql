@@ -1,6 +1,6 @@
-CREATE DATABASE IF NOT EXISTS stock_trading_game;
+CREATE DATABASE IF NOT EXISTS cs_aiwanba_net;
 
-USE stock_trading_game;
+USE cs_aiwanba_net;
 
 CREATE TABLE IF NOT EXISTS companies (
     id INT AUTO_INCREMENT PRIMARY KEY,
