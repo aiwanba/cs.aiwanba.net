@@ -68,10 +68,92 @@
         <button @click="transfer">转账</button>
       </div>
     </div>
+
+    <!-- 市场行情 -->
+    <div class="section">
+      <h2>市场行情</h2>
+      <div class="market-data">
+        <div class="chart">
+          <h3>K线图</h3>
+          <!-- 使用 ECharts 绘制 K 线图 -->
+          <div ref="klineChart" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="chart">
+          <h3>交易深度</h3>
+          <!-- 使用 ECharts 绘制深度图 -->
+          <div ref="depthChart" style="width: 100%; height: 400px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 贷款系统 -->
+    <div class="section">
+      <h2>贷款系统</h2>
+      <div>
+        <select v-model="selectedCompanyId">
+          <option v-for="company in companies" :key="company.id" :value="company.id">
+            {{ company.name }}
+          </option>
+        </select>
+        <input v-model="loanAmount" type="number" placeholder="贷款金额" />
+        <input v-model="loanDuration" type="number" placeholder="贷款期限(月)" />
+        <button @click="applyLoan">申请贷款</button>
+      </div>
+      <div class="loan-list">
+        <h3>当前贷款</h3>
+        <ul class="list">
+          <li v-for="loan in loans" :key="loan.id" class="list-item">
+            <span>金额: {{ loan.amount }}</span>
+            <span>利率: {{ loan.interest_rate }}%</span>
+            <span>状态: {{ loan.status }}</span>
+            <button v-if="loan.status === 'active'" @click="repayLoan(loan.id)">
+              还款
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 公司业绩 -->
+    <div class="section">
+      <h2>公司业绩</h2>
+      <div class="company-performance">
+        <select v-model="selectedCompanyId">
+          <option v-for="company in companies" :key="company.id" :value="company.id">
+            {{ company.name }}
+          </option>
+        </select>
+        <div class="chart">
+          <h3>业绩走势</h3>
+          <!-- 使用 ECharts 绘制业绩图表 -->
+          <div ref="performanceChart" style="width: 100%; height: 400px;"></div>
+        </div>
+        <div class="financial-metrics">
+          <div class="metric">
+            <h4>营收</h4>
+            <p>{{ selectedCompanyReport.revenue }}</p>
+          </div>
+          <div class="metric">
+            <h4>利润</h4>
+            <p>{{ selectedCompanyReport.profit }}</p>
+          </div>
+          <div class="metric">
+            <h4>资产</h4>
+            <p>{{ selectedCompanyReport.assets }}</p>
+          </div>
+          <div class="metric">
+            <h4>负债</h4>
+            <p>{{ selectedCompanyReport.liabilities }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import * as echarts from 'echarts';
+
 export default {
   data() {
     return {
@@ -87,7 +169,19 @@ export default {
       amount: 0,
       fromCompanyId: null,
       toCompanyId: null,
-      transferAmount: 0
+      transferAmount: 0,
+      loans: [],
+      loanAmount: 0,
+      loanDuration: 12,
+      selectedCompanyReport: {
+        revenue: 0,
+        profit: 0,
+        assets: 0,
+        liabilities: 0
+      },
+      klineChart: null,
+      depthChart: null,
+      performanceChart: null
     };
   },
   methods: {
@@ -212,11 +306,101 @@ export default {
           if (response.ok) this.fetchCompanies();
         })
         .catch(error => console.error('转账失败：', error));
+    },
+    // 初始化图表
+    initCharts() {
+      this.klineChart = echarts.init(this.$refs.klineChart);
+      this.depthChart = echarts.init(this.$refs.depthChart);
+      this.performanceChart = echarts.init(this.$refs.performanceChart);
+      this.updateCharts();
+    },
+    // 更新图表数据
+    updateCharts() {
+      // K线图配置
+      const klineOption = {
+        // ... K线图配置
+      };
+      this.klineChart.setOption(klineOption);
+
+      // 深度图配置
+      const depthOption = {
+        // ... 深度图配置
+      };
+      this.depthChart.setOption(depthOption);
+
+      // 业绩图配置
+      const performanceOption = {
+        // ... 业绩图配置
+      };
+      this.performanceChart.setOption(performanceOption);
+    },
+    // 贷款相关方法
+    applyLoan() {
+      fetch('http://localhost:5010/api/bank/loan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_id: this.selectedCompanyId,
+          amount: this.loanAmount,
+          duration: this.loanDuration
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          this.fetchLoans();
+          this.fetchCompanies();
+        })
+        .catch(error => console.error('申请贷款失败：', error));
+    },
+    repayLoan(loanId) {
+      fetch(`http://localhost:5010/api/bank/loan/${loanId}/repay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+        .then(response => response.json())
+        .then(data => {
+          this.fetchLoans();
+          this.fetchCompanies();
+        })
+        .catch(error => console.error('还款失败：', error));
+    },
+    // 获取贷款列表
+    fetchLoans() {
+      fetch('http://localhost:5010/api/bank/loans')
+        .then(response => response.json())
+        .then(data => this.loans = data)
+        .catch(error => console.error('获取贷款列表失败：', error));
+    },
+    // 获取公司业绩报表
+    fetchCompanyReport() {
+      if (this.selectedCompanyId) {
+        fetch(`http://localhost:5010/api/companies/${this.selectedCompanyId}/report`)
+          .then(response => response.json())
+          .then(data => this.selectedCompanyReport = data)
+          .catch(error => console.error('获取公司业绩报表失败：', error));
+      }
     }
   },
   mounted() {
     this.fetchCompanies();
     this.fetchTransactions();
+    this.initCharts();
+    this.fetchLoans();
+    this.fetchCompanyReport();
+
+    // 添加窗口大小变化监听
+    window.addEventListener('resize', () => {
+      this.klineChart?.resize();
+      this.depthChart?.resize();
+      this.performanceChart?.resize();
+    });
+  },
+  beforeDestroy() {
+    // 清理图表实例
+    this.klineChart?.dispose();
+    this.depthChart?.dispose();
+    this.performanceChart?.dispose();
+    window.removeEventListener('resize');
   }
 };
 </script>
@@ -270,5 +454,48 @@ select, input {
   padding: 5px;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+.market-data {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.chart {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.financial-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.metric {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.metric h4 {
+  margin: 0;
+  color: #666;
+}
+
+.metric p {
+  margin: 10px 0 0;
+  font-size: 1.2em;
+  font-weight: bold;
+}
+
+.loan-list {
+  margin-top: 20px;
 }
 </style> 
