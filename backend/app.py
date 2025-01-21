@@ -1,6 +1,9 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+import random
+import threading
+import time
 
 app = Flask(__name__)
 CORS(app)  # 启用 CORS
@@ -15,11 +18,13 @@ class Company(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     balance = db.Column(db.Float, nullable=False)
+    is_ai = db.Column(db.Boolean, nullable=False, default=False)
 
 # 交易模型
 class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    asset_type = db.Column(db.Enum('stock', 'futures', 'forex'), nullable=False, default='stock')
     stock_symbol = db.Column(db.String(10), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
@@ -182,11 +187,75 @@ def transfer():
 # AI 交易逻辑
 def ai_trade():
     try:
-        # 示例：根据市场数据自动买入或卖出股票
-        # 这里可以添加更复杂的逻辑，例如使用机器学习模型
-        pass
+        # 获取所有 AI 公司
+        ai_companies = Company.query.filter_by(is_ai=True).all()
+        for company in ai_companies:
+            # 示例：如果公司余额大于 1000，则买入股票
+            if company.balance > 1000:
+                # 买入股票
+                new_transaction = Transaction(
+                    company_id=company.id,
+                    stock_symbol="AAPL",  # 示例股票代码
+                    quantity=10,         # 买入数量
+                    price=150,           # 买入价格
+                    transaction_type='buy'
+                )
+                db.session.add(new_transaction)
+                company.balance -= 10 * 150  # 更新公司余额
+            # 示例：如果公司余额小于 500，则卖出股票
+            elif company.balance < 500:
+                # 卖出股票
+                new_transaction = Transaction(
+                    company_id=company.id,
+                    stock_symbol="AAPL",  # 示例股票代码
+                    quantity=5,          # 卖出数量
+                    price=150,           # 卖出价格
+                    transaction_type='sell'
+                )
+                db.session.add(new_transaction)
+                company.balance += 5 * 150  # 更新公司余额
+        db.session.commit()
     except Exception as e:
         print(f"Error in AI trade: {e}")
+
+# 模拟市场数据
+def simulate_market_data():
+    try:
+        # 示例：模拟股票价格波动
+        transactions = Transaction.query.all()
+        for transaction in transactions:
+            if transaction.asset_type == 'stock':
+                # 示例：股票价格随机波动
+                transaction.price += (transaction.price * 0.01 * (random.random() - 0.5))
+        db.session.commit()
+    except Exception as e:
+        print(f"Error simulating market data: {e}")
+
+# 定时任务：每 10 秒执行一次 AI 交易和市场数据模拟
+def background_tasks():
+    while True:
+        ai_trade()
+        simulate_market_data()
+        time.sleep(10)
+
+# 启动后台任务
+thread = threading.Thread(target=background_tasks)
+thread.daemon = True
+thread.start()
+
+# 初始化 AI 公司
+def initialize_ai_company():
+    try:
+        ai_company = Company.query.filter_by(is_ai=True).first()
+        if not ai_company:
+            ai_company = Company(name="AI 公司", balance=10000, is_ai=True)
+            db.session.add(ai_company)
+            db.session.commit()
+    except Exception as e:
+        print(f"Error initializing AI company: {e}")
+
+# 在应用启动时调用
+initialize_ai_company()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
