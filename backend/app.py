@@ -339,24 +339,99 @@ def ai_trade():
     except Exception as e:
         print(f"Error in AI trade: {e}")
 
-# 模拟市场数据
-def simulate_market_data():
+# 更新市场数据
+def update_market_data():
     try:
-        # 示例：模拟股票价格波动
-        transactions = Transaction.query.all()
-        for transaction in transactions:
-            if transaction.asset_type == 'stock':
-                # 示例：股票价格随机波动
-                transaction.price += (transaction.price * 0.01 * (random.random() - 0.5))
+        companies = Company.query.all()
+        current_date = db.func.current_date()
+
+        for company in companies:
+            # 获取最新交易数据
+            latest_transactions = Transaction.query.filter_by(
+                target_company_id=company.id
+            ).order_by(Transaction.transaction_date.desc()).limit(10).all()
+
+            if latest_transactions:
+                # 计算今日交易数据
+                prices = [t.price for t in latest_transactions]
+                volumes = [t.quantity for t in latest_transactions]
+                
+                new_market_data = MarketData(
+                    company_id=company.id,
+                    open_price=prices[-1],
+                    close_price=prices[0],
+                    high_price=max(prices),
+                    low_price=min(prices),
+                    volume=sum(volumes),
+                    date=current_date
+                )
+                db.session.add(new_market_data)
+
         db.session.commit()
     except Exception as e:
-        print(f"Error simulating market data: {e}")
+        print(f"Error updating market data: {e}")
 
-# 定时任务：每 10 秒执行一次 AI 交易和市场数据模拟
+# 生成公司业绩报表
+def generate_company_report():
+    try:
+        companies = Company.query.all()
+        current_date = db.func.current_date()
+
+        for company in companies:
+            # 获取最近的交易数据
+            recent_transactions = Transaction.query.filter_by(
+                company_id=company.id
+            ).filter(
+                Transaction.transaction_date >= db.func.date_sub(
+                    current_date, text('INTERVAL 30 DAY')
+                )
+            ).all()
+
+            # 计算收入（卖出交易总额）
+            revenue = sum(
+                t.price * t.quantity 
+                for t in recent_transactions 
+                if t.transaction_type == 'sell'
+            )
+
+            # 计算支出（买入交易总额）
+            expenses = sum(
+                t.price * t.quantity 
+                for t in recent_transactions 
+                if t.transaction_type == 'buy'
+            )
+
+            # 计算利润
+            profit = revenue - expenses
+
+            # 获取贷款总额
+            loans = Loan.query.filter_by(
+                company_id=company.id,
+                status='active'
+            ).all()
+            total_liabilities = sum(loan.amount for loan in loans)
+
+            # 创建新的报表
+            new_report = CompanyReport(
+                company_id=company.id,
+                revenue=revenue,
+                profit=profit,
+                assets=company.balance,
+                liabilities=total_liabilities,
+                report_date=current_date
+            )
+            db.session.add(new_report)
+
+        db.session.commit()
+    except Exception as e:
+        print(f"Error generating company reports: {e}")
+
+# 更新后台任务
 def background_tasks():
     while True:
         ai_trade()
-        simulate_market_data()
+        update_market_data()
+        generate_company_report()
         time.sleep(10)
 
 # 启动后台任务

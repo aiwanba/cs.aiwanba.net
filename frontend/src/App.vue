@@ -181,7 +181,9 @@ export default {
       },
       klineChart: null,
       depthChart: null,
-      performanceChart: null
+      performanceChart: null,
+      klineData: [],
+      depthData: { bids: [], asks: [] }
     };
   },
   methods: {
@@ -318,21 +320,115 @@ export default {
     updateCharts() {
       // K线图配置
       const klineOption = {
-        // ... K线图配置
+        title: { text: '股票K线图' },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' }
+        },
+        legend: { data: ['K线', 'MA5', 'MA10'] },
+        grid: {
+          left: '10%',
+          right: '10%',
+          bottom: '15%'
+        },
+        xAxis: {
+          type: 'category',
+          data: this.klineData.map(item => item.date),
+          scale: true,
+          boundaryGap: false,
+          axisLine: { onZero: false },
+          splitLine: { show: false },
+          splitNumber: 20
+        },
+        yAxis: {
+          type: 'value',
+          scale: true,
+          splitLine: { show: true }
+        },
+        series: [{
+          name: 'K线',
+          type: 'candlestick',
+          data: this.klineData.map(item => [
+            item.open,
+            item.close,
+            item.low,
+            item.high
+          ])
+        }]
       };
       this.klineChart.setOption(klineOption);
 
       // 深度图配置
       const depthOption = {
-        // ... 深度图配置
+        title: { text: '交易深度图' },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' }
+        },
+        legend: {
+          data: ['买单', '卖单']
+        },
+        grid: {
+          left: '10%',
+          right: '10%',
+          bottom: '15%'
+        },
+        xAxis: {
+          type: 'category',
+          scale: true,
+          boundaryGap: false,
+          axisLine: { onZero: false },
+          splitLine: { show: false }
+        },
+        yAxis: {
+          type: 'value',
+          scale: true,
+          splitLine: { show: true }
+        },
+        series: [{
+          name: '买单',
+          type: 'line',
+          data: this.depthData.bids,
+          areaStyle: {},
+          lineStyle: {
+            color: '#00da3c'
+          },
+          itemStyle: {
+            color: '#00da3c'
+          }
+        }, {
+          name: '卖单',
+          type: 'line',
+          data: this.depthData.asks,
+          areaStyle: {},
+          lineStyle: {
+            color: '#ec0000'
+          },
+          itemStyle: {
+            color: '#ec0000'
+          }
+        }]
       };
       this.depthChart.setOption(depthOption);
-
-      // 业绩图配置
-      const performanceOption = {
-        // ... 业绩图配置
-      };
-      this.performanceChart.setOption(performanceOption);
+    },
+    // 获取K线数据
+    async fetchKlineData() {
+      if (this.selectedCompanyId) {
+        try {
+          const response = await fetch(`http://localhost:5010/api/market/kline/${this.selectedCompanyId}`);
+          const data = await response.json();
+          this.klineData = data;
+          this.updateCharts();
+        } catch (error) {
+          console.error('获取K线数据失败：', error);
+        }
+      }
+    },
+    // 定时更新图表数据
+    startChartUpdates() {
+      setInterval(() => {
+        this.fetchKlineData();
+      }, 5000); // 每5秒更新一次
     },
     // 贷款相关方法
     applyLoan() {
@@ -387,6 +483,7 @@ export default {
     this.initCharts();
     this.fetchLoans();
     this.fetchCompanyReport();
+    this.startChartUpdates();
 
     // 添加窗口大小变化监听
     window.addEventListener('resize', () => {
