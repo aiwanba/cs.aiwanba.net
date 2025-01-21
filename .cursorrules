@@ -1,22 +1,48 @@
-# 开发文档
+# 编码规范文档
 
-## 1. 项目概述
-### 1.1 项目说明
-- **公司模块**：用于创建公司，管理公司信息，如股票数量、资金等。公司可以有多个股东，股东可以有多个公司，可以与其他公司建立合作关系。**每个公司属于某个行业，行业用于区分不同类型的公司**。
-- **股票交易模块**：用于股票的买卖、分红、回购等操作。股票可以有多个股东，股东可以有多个股票，股东之间可以买卖股票。
-- **交易所模块**：用于股票的交易、融资融券、配股、转增股本等操作。交易所可以有多个股票，股票可以上市或退市。
-- **银行模块**：用于贷款、存款等操作。银行可以有多个公司，公司可以有多个银行，银行与公司之间可以进行贷款、存款等金融业务。
-- **AI模块**：以公司的形式存在，用于和玩家竞争，并且能自动计算股票价格，能自动计算股票分红，能自动计算股票回购，能自动计算股票转增股本，能自动计算股票配股，能自动计算股票融资融券。**AI模块属于某个行业，行业用于区分不同类型的公司**。深度参与游戏和玩家竞争；当没有玩家在线时，AI模块负责维护市场，确保市场活动的连续性。
+## 1. 沟通交流
+- 所有交流使用中文。  
+  (All communication should be in Chinese.)
 
+### 2.1 一次性完成编写代码
+- 尽量在一次性完成代码编写，避免多次提交和合并，以减少代码冲突的可能性。  
+  (Try to complete code writing in one go to avoid multiple submissions and merges, reducing the possibility of code conflicts.)
+- 在修改文件时，必须提示用户保存更改。  
+  (When modifying files, it is mandatory to prompt the user to save changes.)
+- 只有在与用户沟通确认后，才可以添加新的代码或项目。  
+  (New code or projects can only be added after confirming with the user.)
+- 编写代码：完整的编写所有代码和细节，添加新的功能和代码要跟我沟通。  
+  (Write code: Complete all code and details, and communicate with me when adding new features and code.)
 
-## 3. 开发规范
-### 3.1 代码规范
-- 使用UTF-8编码
-- 采用驼峰命名法
-- 代码注释使用中文
+### 2.2 代码关联性
+- 添加、修改或删除代码时，确保逻辑一致性。  
+  (Ensure logical consistency when adding, modifying, or deleting code.)
 
+### 2.3 代码复用性
+- 编写可复用的代码，避免重复。  
+  (Write reusable code to avoid duplication.)
 
-### 3.3 项目结构
-- 创建的文件用符号 √ 表示，每次创建文件时，在文档目录中添加文件名，并更新文档项目结构目录
-- 修改的文件用符号 - 表示，每次修改文件时，在文档目录中添加文件名，并更新文档项目结构目录
-- 删除的文件用符号 x 表示，每次删除文件时，在文档目录中添加文件名，并更新文档项目结构目录
+### 2.4 上下文一致性
+- 确保代码上下文一致，避免逻辑不连贯。  
+  (Ensure contextual consistency in the code to avoid logical disconnection.)
+
+### 2.5 编码规范
+- 使用UTF-8编码，检查并修复编码问题，确保无错误。  
+  (Use UTF-8 encoding, check and fix encoding issues to ensure no errors.)
+
+### 2.6 命名规范
+- 使用驼峰命名法，避免下划线命名法。  
+  (Use camel case for naming, avoiding snake case.)
+
+### 2.7 注释规范
+- 使用中文注释，避免英文注释。  
+  (Use Chinese comments, avoiding English comments.)
+
+## 3. 注释运用
+### 3.1 关键注释
+- 在函数开头提供功能、输入和输出的注释，并对复杂代码段进行简要解释。  
+  (Provide comments on functionality, input, and output at the beginning of functions, and briefly explain complex code segments.)
+
+### 3.2 注释语言
+- 注释应简洁明了，结合日常用语和少量技术术语，避免冗长。  
+  (Comments should be concise and clear, combining everyday language with a few technical terms, avoiding verbosity.)
