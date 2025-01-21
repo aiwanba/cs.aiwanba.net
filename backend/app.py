@@ -48,7 +48,16 @@ def get_companies():
 def get_transactions():
     try:
         transactions = Transaction.query.all()
-        return jsonify([{"id": transaction.id, "company_id": transaction.company_id, "stock_symbol": transaction.stock_symbol, "quantity": transaction.quantity, "price": transaction.price, "transaction_type": transaction.transaction_type, "transaction_date": transaction.transaction_date} for transaction in transactions])
+        return jsonify([{
+            "id": transaction.id, 
+            "company_id": transaction.company_id,
+            "target_company_id": transaction.target_company_id,
+            "asset_type": transaction.asset_type,
+            "quantity": transaction.quantity,
+            "price": transaction.price,
+            "transaction_type": transaction.transaction_type,
+            "transaction_date": transaction.transaction_date
+        } for transaction in transactions])
     except Exception as e:
         print(f"Error fetching transactions: {e}")
         return jsonify({"error": "Internal Server Error"}), 500

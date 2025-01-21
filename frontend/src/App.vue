@@ -27,7 +27,9 @@
         <select v-model="selectedCompanyId">
           <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}</option>
         </select>
-        <input v-model="stockSymbol" placeholder="股票代码" />
+        <select v-model="targetCompanyId">
+          <option v-for="company in companies" :key="company.id" :value="company.id">{{ company.name }}的股票</option>
+        </select>
         <input v-model="stockQuantity" placeholder="数量" type="number" />
         <input v-model="stockPrice" placeholder="价格" type="number" />
         <button @click="buyStock">买入</button>
@@ -35,7 +37,8 @@
       </div>
       <ul class="list">
         <li v-for="transaction in transactions" :key="transaction.id" class="list-item">
-          <span class="stock-symbol">{{ transaction.stock_symbol }}</span>
+          <span class="company-name">{{ getCompanyName(transaction.company_id) }}</span>
+          <span class="stock-symbol">{{ getCompanyName(transaction.target_company_id) }}的股票</span>
           <span class="quantity">{{ transaction.quantity }} 股</span>
           <span class="price">价格: {{ transaction.price }}</span>
           <span class="transaction-type">类型: {{ transaction.transaction_type }}</span>
@@ -78,7 +81,7 @@ export default {
       newCompanyName: "",
       newCompanyBalance: 0,
       selectedCompanyId: null,
-      stockSymbol: "",
+      targetCompanyId: null,
       stockQuantity: 0,
       stockPrice: 0,
       amount: 0,
@@ -88,6 +91,11 @@ export default {
     };
   },
   methods: {
+    // 获取公司名称
+    getCompanyName(companyId) {
+      const company = this.companies.find(c => c.id === companyId);
+      return company ? company.name : '未知公司';
+    },
     // 获取公司列表
     fetchCompanies() {
       fetch('http://localhost:5010/api/companies')
@@ -132,13 +140,16 @@ export default {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           company_id: this.selectedCompanyId,
-          stock_symbol: this.stockSymbol,
+          target_company_id: this.targetCompanyId,
           quantity: parseInt(this.stockQuantity),
           price: parseFloat(this.stockPrice)
         })
       })
         .then(response => {
-          if (response.ok) this.fetchTransactions();
+          if (response.ok) {
+            this.fetchTransactions();
+            this.fetchCompanies();
+          }
         })
         .catch(error => console.error('买入股票失败：', error));
     },
@@ -149,13 +160,16 @@ export default {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           company_id: this.selectedCompanyId,
-          stock_symbol: this.stockSymbol,
+          target_company_id: this.targetCompanyId,
           quantity: parseInt(this.stockQuantity),
           price: parseFloat(this.stockPrice)
         })
       })
         .then(response => {
-          if (response.ok) this.fetchTransactions();
+          if (response.ok) {
+            this.fetchTransactions();
+            this.fetchCompanies();
+          }
         })
         .catch(error => console.error('卖出股票失败：', error));
     },
@@ -249,5 +263,12 @@ export default {
 
 button {
   margin-left: 10px;
+}
+
+select, input {
+  margin: 5px;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
 }
 </style> 
