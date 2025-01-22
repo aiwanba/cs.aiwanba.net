@@ -54,20 +54,67 @@
       <!-- 交易中心 -->
       <div v-show="currentTab === 'trading'" class="section trading-section">
         <div class="trading-layout">
-          <!-- 左侧：K线图和深度图 -->
-          <div class="chart-container">
+          <!-- 左侧：图表和订单簿 -->
+          <div class="left-panel">
+            <!-- K线图 -->
             <div class="chart">
               <h3>K线图</h3>
-              <div ref="klineChart" style="width: 100%; height: 400px;"></div>
+              <div ref="klineChart" style="width: 100%; height: 300px;"></div>
             </div>
+            
+            <!-- 深度图 -->
             <div class="chart">
-              <h3>交易深度</h3>
-              <div ref="depthChart" style="width: 100%; height: 400px;"></div>
+              <h3>深度图</h3>
+              <div ref="depthChart" style="width: 100%; height: 200px;"></div>
+            </div>
+
+            <!-- 订单簿 -->
+            <div class="order-book">
+              <h3>订单簿</h3>
+              <div class="order-lists">
+                <!-- 卖单列表 -->
+                <div class="sell-orders">
+                  <div class="order-header">卖单</div>
+                  <div v-for="order in sellOrders" :key="order.id" class="order-item">
+                    <span>{{ order.price }}</span>
+                    <span>{{ order.remaining_quantity }}</span>
+                  </div>
+                </div>
+                
+                <!-- 买单列表 -->
+                <div class="buy-orders">
+                  <div class="order-header">买单</div>
+                  <div v-for="order in buyOrders" :key="order.id" class="order-item">
+                    <span>{{ order.price }}</span>
+                    <span>{{ order.remaining_quantity }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- 右侧：交易操作 -->
-          <div class="trading-panel">
+          <!-- 右侧：交易面板 -->
+          <div class="right-panel">
+            <!-- 股票信息 -->
+            <div v-if="selectedStock" class="stock-info">
+              <h3>{{ getCompanyName(selectedStock.company_id) }}</h3>
+              <div class="stock-details">
+                <div class="detail-item">
+                  <span>总股本</span>
+                  <span>{{ selectedStock.total_shares }}</span>
+                </div>
+                <div class="detail-item">
+                  <span>流通股</span>
+                  <span>{{ selectedStock.circulating_shares }}</span>
+                </div>
+                <div class="detail-item">
+                  <span>发行价</span>
+                  <span>{{ selectedStock.issue_price }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 交易表单 -->
             <div class="trading-form">
               <select v-model="selectedCompanyId" @change="handleCompanyChange">
                 <option value="">选择交易公司</option>
@@ -107,13 +154,23 @@
               </div>
             </div>
 
-            <div class="holdings-panel">
+            <!-- 当前持仓 -->
+            <div class="holdings">
               <h3>持仓情况</h3>
               <div v-if="selectedCompanyId" class="holdings-list">
                 <div v-for="holding in holdings" :key="holding.target_company_id" class="holding-item">
                   <span>{{ getCompanyName(holding.target_company_id) }}</span>
                   <span>{{ holding.quantity }} 股</span>
                 </div>
+              </div>
+            </div>
+
+            <!-- AI交易状态 -->
+            <div v-if="selectedCompany?.is_ai" class="ai-status">
+              <h3>AI交易状态</h3>
+              <div class="ai-strategy">
+                <span>当前策略：{{ currentStrategy?.name }}</span>
+                <span>表现：{{ currentStrategy?.performance }}</span>
               </div>
             </div>
           </div>
@@ -286,7 +343,11 @@ export default {
       showConfirmDialog: false,
       confirmMessage: '',
       pendingTransaction: null,
-      holdings: []
+      holdings: [],
+      buyOrders: [],
+      sellOrders: [],
+      selectedStock: null,
+      currentStrategy: null
     };
   },
   methods: {
@@ -658,6 +719,96 @@ export default {
         this.loading = false;
         this.showConfirmDialog = false;
       }
+    },
+    // 获取订单簿数据
+    async fetchOrderBook() {
+      if (this.selectedCompanyId) {
+        try {
+          const response = await fetch(`http://localhost:5010/api/market/orderbook/${this.selectedCompanyId}`);
+          const data = await response.json();
+          this.buyOrders = data.buy_orders;
+          this.sellOrders = data.sell_orders;
+        } catch (error) {
+          console.error('获取订单簿失败：', error);
+        }
+      }
+    },
+    // 获取股票发行信息
+    async fetchStockInfo() {
+      if (this.selectedCompanyId) {
+        try {
+          const response = await fetch(`http://localhost:5010/api/stock/info/${this.selectedCompanyId}`);
+          const data = await response.json();
+          this.selectedStock = data;
+        } catch (error) {
+          console.error('获取股票信息失败：', error);
+        }
+      }
+    },
+    // 获取AI策略信息
+    async fetchAIStrategy() {
+      if (this.selectedCompanyId) {
+        try {
+          const response = await fetch(`http://localhost:5010/api/ai/strategy/${this.selectedCompanyId}`);
+          const data = await response.json();
+          this.currentStrategy = data;
+        } catch (error) {
+          console.error('获取AI策略失败：', error);
+        }
+      }
+    },
+    // 更新深度图数据
+    updateDepthChart() {
+      if (!this.depthChart) return;
+
+      const option = {
+        title: { text: '市场深度' },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'cross' }
+        },
+        legend: {
+          data: ['买单', '卖单']
+        },
+        grid: {
+          left: '10%',
+          right: '10%',
+          bottom: '15%'
+        },
+        xAxis: {
+          type: 'category',
+          data: [...this.buyOrders, ...this.sellOrders].map(order => order.price)
+        },
+        yAxis: {
+          type: 'value'
+        },
+        series: [{
+          name: '买单',
+          type: 'line',
+          data: this.buyOrders.map(order => order.remaining_quantity),
+          areaStyle: {},
+          itemStyle: { color: '#00da3c' }
+        }, {
+          name: '卖单',
+          type: 'line',
+          data: this.sellOrders.map(order => order.remaining_quantity),
+          areaStyle: {},
+          itemStyle: { color: '#ec0000' }
+        }]
+      };
+
+      this.depthChart.setOption(option);
+    },
+    // 定时更新数据
+    startDataUpdates() {
+      setInterval(() => {
+        this.fetchOrderBook();
+        this.fetchKlineData();
+        this.updateDepthChart();
+        if (this.selectedCompany?.is_ai) {
+          this.fetchAIStrategy();
+        }
+      }, 5000);
     }
   },
   mounted() {
@@ -666,7 +817,7 @@ export default {
     this.initCharts();
     this.fetchLoans();
     this.fetchCompanyReport();
-    this.startChartUpdates();
+    this.startDataUpdates();
 
     // 添加窗口大小变化监听
     window.addEventListener('resize', () => {
@@ -912,5 +1063,66 @@ select, input {
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+.order-book {
+  margin-top: 20px;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.order-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.order-header {
+  font-weight: bold;
+  padding: 10px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.order-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.stock-info {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.stock-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ai-status {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.ai-strategy {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
 }
 </style> 
