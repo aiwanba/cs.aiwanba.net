@@ -54,3 +54,9 @@
 
 
 ## 11. 项目文件(创建 修改 删除都要及时更新)
+- backend/app/__init__.py
+- backend/app/routes.py
+- config.py
+- requirements.txt
+- frontend/src/main.js
+- frontend/src/App.vue

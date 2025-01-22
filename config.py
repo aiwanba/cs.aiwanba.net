@@ -3,12 +3,11 @@ import os
 class Config:
     """配置类"""
     # 基础配置
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev'
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'mysql://user:password@localhost/stock_game'
+    # SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # 游戏相关配置
     INITIAL_BALANCE = 100000  # 玩家初始资金
@@ -23,4 +22,4 @@ class ProductionConfig(Config):
     """生产环境配置"""
     DEBUG = False
     # 生产环境特定配置
-    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
+    # SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'

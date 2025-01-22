@@ -1,11 +1,14 @@
 # Python
 __pycache__/
-.venv/
 *.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
 
 # Node.js
 node_modules/
-dist/
+npm-debug.log*
 
 # Logs
 *.log
@@ -18,3 +21,9 @@ dist/
 *.pyc
 # 忽略 gunicorn 的 pid 文件
 gunicorn.pid
+
+# Vue.js
+dist/
+
+# .venv
+.venv/
