@@ -24,7 +24,7 @@
 ### 1.4 部署环境
 
 #### 1.4.1 服务器环境
-- 部署路径：/www/wwwroot/cs.aiwanba.net
+- 部署路径：/
 - 域名：localhost (注意：不要用绝对路径)
 - 端口：5010
 - 运行用户：www
@@ -41,17 +41,17 @@
 - Python版本：3.11.9
 - Web框架：Flask
 - WSGI服务器：Gunicorn
-- 入口文件：/www/wwwroot/cs.aiwanba.net/app.py
+- 入口文件：/app.py
 - 应用名称：app
 
 #### 1.4.4 依赖包
 - 用文件requirements.txt（注意：没有文件就自动创建文件）
 
 #### 1.4.5 Gunicorn配置
-- 配置文件：/www/wwwroot/cs.aiwanba.net/gunicorn_conf.py（注意：没有文件就自动创建文件）
+- 配置文件：/gunicorn_conf.py（注意：没有文件就自动创建文件）
 ```bash
 # 项目目录
-chdir = '/www/wwwroot/cs.aiwanba.net'
+chdir = '/'
 
 # 指定进程数
 workers = 4
@@ -69,11 +69,11 @@ worker_class = 'sync'
 bind = '0.0.0.0:5010' 
 
 # 设置进程文件目录（用于停止服务和重启服务，请勿删除）
-pidfile = '/www/wwwroot/cs.aiwanba.net/gunicorn.pid'
+pidfile = '/gunicorn.pid'
 
 # 设置访问日志和错误信息日志路径
-accesslog = '/www/wwwlogs/python/cs_aiwanba_net/gunicorn_acess.log'
-errorlog = '/www/wwwlogs/python/cs_aiwanba_net/gunicorn_error.log'
+accesslog = '/gunicorn_acess.log'
+errorlog = '/gunicorn_error.log'
 
 # 日志级别，这个日志级别指的是错误日志的级别，而访问日志的级别无法设置
 # debug:调试级别，记录的信息最多；
