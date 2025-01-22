@@ -783,5 +783,174 @@ def update_balances(buyer_id, seller_id, quantity, price, order_type):
         db.session.rollback()
         raise e
 
+# 获取订单簿
+@app.route('/api/market/orderbook/<int:company_id>', methods=['GET'])
+def get_order_book(company_id):
+    try:
+        # 获取买单
+        buy_orders = OrderBook.query.filter_by(
+            target_company_id=company_id,
+            order_type='buy',
+            status=['pending', 'partial']
+        ).order_by(
+            db.desc(OrderBook.price),
+            OrderBook.create_time
+        ).all()
+
+        # 获取卖单
+        sell_orders = OrderBook.query.filter_by(
+            target_company_id=company_id,
+            order_type='sell',
+            status=['pending', 'partial']
+        ).order_by(
+            OrderBook.price,
+            OrderBook.create_time
+        ).all()
+
+        return jsonify({
+            'buy_orders': [{
+                'id': order.id,
+                'price': order.price,
+                'remaining_quantity': order.remaining_quantity,
+                'company_id': order.company_id,
+                'create_time': order.create_time
+            } for order in buy_orders],
+            'sell_orders': [{
+                'id': order.id,
+                'price': order.price,
+                'remaining_quantity': order.remaining_quantity,
+                'company_id': order.company_id,
+                'create_time': order.create_time
+            } for order in sell_orders]
+        })
+    except Exception as e:
+        print(f"Error getting order book: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+# 取消订单
+@app.route('/api/orders/<int:order_id>/cancel', methods=['POST'])
+def cancel_order(order_id):
+    try:
+        order = OrderBook.query.get(order_id)
+        if not order:
+            return jsonify({"error": "Order not found"}), 404
+            
+        order.status = 'cancelled'
+        db.session.commit()
+        return jsonify({"message": "Order cancelled successfully"})
+    except Exception as e:
+        print(f"Error cancelling order: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+@app.route('/api/stock/info/<int:company_id>', methods=['GET'])
+def get_stock_info(company_id):
+    try:
+        # 获取股票发行信息
+        stock_issue = StockIssue.query.filter_by(
+            company_id=company_id
+        ).order_by(StockIssue.issue_date.desc()).first()
+        
+        if not stock_issue:
+            return jsonify({"error": "Stock info not found"}), 404
+
+        # 获取当前市场价格
+        latest_transaction = Transaction.query.filter_by(
+            target_company_id=company_id
+        ).order_by(Transaction.transaction_date.desc()).first()
+
+        current_price = latest_transaction.price if latest_transaction else stock_issue.issue_price
+
+        # 获取总持股数据
+        total_holdings = db.session.query(
+            db.func.sum(StockHolding.quantity)
+        ).filter_by(target_company_id=company_id).scalar() or 0
+
+        return jsonify({
+            "company_id": company_id,
+            "total_shares": stock_issue.total_shares,
+            "circulating_shares": stock_issue.circulating_shares,
+            "issue_price": stock_issue.issue_price,
+            "current_price": current_price,
+            "total_holdings": total_holdings,
+            "issue_date": stock_issue.issue_date
+        })
+    except Exception as e:
+        print(f"Error getting stock info: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+@app.route('/api/ai/strategy/<int:company_id>', methods=['GET'])
+def get_ai_strategy(company_id):
+    try:
+        company = Company.query.get(company_id)
+        if not company or not company.is_ai:
+            return jsonify({"error": "Not an AI company"}), 404
+
+        # 获取当前策略
+        strategy = AIStrategy.query.filter_by(
+            status='active'
+        ).order_by(AIStrategy.performance.desc()).first()
+
+        if not strategy:
+            return jsonify({"error": "No active strategy found"}), 404
+
+        # 计算策略表现
+        recent_transactions = Transaction.query.filter_by(
+            company_id=company_id
+        ).order_by(Transaction.transaction_date.desc()).limit(100).all()
+
+        profit = sum(
+            t.price * t.quantity if t.transaction_type == 'sell' else -t.price * t.quantity
+            for t in recent_transactions
+        )
+
+        return jsonify({
+            "name": strategy.name,
+            "description": strategy.description,
+            "parameters": strategy.parameters,
+            "performance": profit,
+            "status": strategy.status
+        })
+    except Exception as e:
+        print(f"Error getting AI strategy: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+# 更新AI策略
+@app.route('/api/ai/strategy/<int:company_id>', methods=['PUT'])
+def update_ai_strategy(company_id):
+    try:
+        company = Company.query.get(company_id)
+        if not company or not company.is_ai:
+            return jsonify({"error": "Not an AI company"}), 404
+
+        data = request.get_json()
+        
+        # 停用当前策略
+        current_strategy = AIStrategy.query.filter_by(
+            status='active'
+        ).first()
+        
+        if current_strategy:
+            current_strategy.status = 'inactive'
+
+        # 创建新策略
+        new_strategy = AIStrategy(
+            name=data['name'],
+            description=data.get('description', ''),
+            parameters=data.get('parameters', {}),
+            performance=0.0,
+            status='active'
+        )
+        
+        db.session.add(new_strategy)
+        db.session.commit()
+
+        return jsonify({
+            "message": "Strategy updated successfully",
+            "strategy_id": new_strategy.id
+        })
+    except Exception as e:
+        print(f"Error updating AI strategy: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 

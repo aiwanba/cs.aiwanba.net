@@ -475,13 +475,27 @@ export default {
     },
     // 初始化图表
     initCharts() {
+      const echarts = require('echarts');
+      
+      // 初始化K线图
       this.klineChart = echarts.init(this.$refs.klineChart);
+      
+      // 初始化深度图
       this.depthChart = echarts.init(this.$refs.depthChart);
-      this.performanceChart = echarts.init(this.$refs.performanceChart);
-      this.updateCharts();
+      
+      // 添加窗口大小变化监听
+      window.addEventListener('resize', () => {
+        this.klineChart.resize();
+        this.depthChart.resize();
+      });
     },
-    // 更新图表数据
+    // 更新图表
     updateCharts() {
+      if (!this.klineChart || !this.depthChart) {
+        console.warn('Charts not initialized');
+        return;
+      }
+
       // K线图配置
       const klineOption = {
         title: { text: '股票K线图' },
@@ -489,7 +503,7 @@ export default {
           trigger: 'axis',
           axisPointer: { type: 'cross' }
         },
-        legend: { data: ['K线', 'MA5', 'MA10'] },
+        legend: { data: ['K线'] },
         grid: {
           left: '10%',
           right: '10%',
@@ -509,18 +523,26 @@ export default {
           scale: true,
           splitLine: { show: true }
         },
+        dataZoom: [
+          {
+            type: 'inside',
+            start: 50,
+            end: 100
+          },
+          {
+            show: true,
+            type: 'slider',
+            bottom: '5%',
+            start: 50,
+            end: 100
+          }
+        ],
         series: [{
           name: 'K线',
           type: 'candlestick',
-          data: this.klineData.map(item => [
-            item.open,
-            item.close,
-            item.low,
-            item.high
-          ])
+          data: this.klineData.map(item => item.value)
         }]
       };
-      this.klineChart.setOption(klineOption);
 
       // 深度图配置
       const depthOption = {
@@ -549,50 +571,64 @@ export default {
           scale: true,
           splitLine: { show: true }
         },
-        series: [{
-          name: '买单',
-          type: 'line',
-          data: this.depthData.bids,
-          areaStyle: {},
-          lineStyle: {
-            color: '#00da3c'
+        series: [
+          {
+            name: '买单',
+            type: 'line',
+            step: 'end',
+            data: this.depthData.bids,
+            areaStyle: {},
+            lineStyle: { color: '#00da3c' },
+            itemStyle: { color: '#00da3c' }
           },
-          itemStyle: {
-            color: '#00da3c'
+          {
+            name: '卖单',
+            type: 'line',
+            step: 'start',
+            data: this.depthData.asks,
+            areaStyle: {},
+            lineStyle: { color: '#ec0000' },
+            itemStyle: { color: '#ec0000' }
           }
-        }, {
-          name: '卖单',
-          type: 'line',
-          data: this.depthData.asks,
-          areaStyle: {},
-          lineStyle: {
-            color: '#ec0000'
-          },
-          itemStyle: {
-            color: '#ec0000'
-          }
-        }]
+        ]
       };
-      this.depthChart.setOption(depthOption);
+
+      try {
+        this.klineChart.setOption(klineOption, true);
+        this.depthChart.setOption(depthOption, true);
+      } catch (error) {
+        console.error('更新图表失败：', error);
+        this.error = '更新图表失败';
+      }
     },
     // 获取K线数据
     async fetchKlineData() {
       if (this.selectedCompanyId) {
         try {
+          this.loading = true;
           const response = await fetch(`http://localhost:5010/api/market/kline/${this.selectedCompanyId}`);
           const data = await response.json();
-          this.klineData = data;
+          
+          // 转换数据格式为 ECharts 所需的格式
+          this.klineData = data.map(item => ({
+            value: [
+              item.open,
+              item.close,
+              item.low,
+              item.high,
+              item.volume
+            ],
+            date: new Date(item.date).toLocaleDateString()
+          }));
+          
           this.updateCharts();
         } catch (error) {
           console.error('获取K线数据失败：', error);
+          this.error = '获取K线数据失败';
+        } finally {
+          this.loading = false;
         }
       }
-    },
-    // 定时更新图表数据
-    startChartUpdates() {
-      setInterval(() => {
-        this.fetchKlineData();
-      }, 5000); // 每5秒更新一次
     },
     // 贷款相关方法
     applyLoan() {
@@ -828,10 +864,14 @@ export default {
   },
   beforeDestroy() {
     // 清理图表实例
-    this.klineChart?.dispose();
-    this.depthChart?.dispose();
-    this.performanceChart?.dispose();
-    window.removeEventListener('resize');
+    if (this.klineChart) {
+      this.klineChart.dispose();
+    }
+    if (this.depthChart) {
+      this.depthChart.dispose();
+    }
+    // 移除窗口大小变化监听
+    window.removeEventListener('resize', this.handleResize);
   }
 };
 </script>
