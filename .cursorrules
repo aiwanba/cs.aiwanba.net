@@ -143,8 +143,6 @@ loglevel = 'info'
 - http://localhost:5010/api/trade/buy - 买入股票API
 - http://localhost:5010/api/trade/sell - 卖出股票API
 
-
-
 ### 2.5 项目结构下一步
 1. 添加新闻事件功能
 
