@@ -1,9 +1,11 @@
+from flask import Flask, jsonify
 from extensions import app, db
 from auth import auth
 from trade import trade
 from market import simulate_market
 from init_db import init_database  # 导入init_database函数
 from ai_trader import ai_trade  # 导入ai_trade函数
+from leaderboard import get_leaderboard  # 导入get_leaderboard函数
 import threading
 import time
 
@@ -24,6 +26,12 @@ app.register_blueprint(trade, url_prefix='/api/trade')
 @app.route('/')
 def index():
     return '欢迎来到股票投资模拟游戏！'
+
+# 排行榜API
+@app.route('/api/leaderboard', methods=['GET'])
+def leaderboard():
+    leaderboard_data = get_leaderboard()
+    return jsonify(leaderboard_data)
 
 # 启动股票价格波动模拟
 def start_market_simulation():
