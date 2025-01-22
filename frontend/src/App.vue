@@ -81,33 +81,150 @@
     <!-- 交易所 -->
     <div v-show="currentTab === 'exchange'" class="section">
       <h2>交易所</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>公司名称</th>
-            <th>最新价</th>
-            <th>涨跌幅</th>
-            <th>成交量</th>
-            <th>总市值</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="stock in stocks" :key="stock.company_id">
-            <td>{{ stock.company_name }}</td>
-            <td>{{ stock.current_price }}</td>
-            <td :class="stock.price_change >= 0 ? 'up' : 'down'">
-              {{ (stock.price_change * 100).toFixed(2) }}%
-            </td>
-            <td>{{ stock.volume }}</td>
-            <td>{{ (stock.current_price * stock.total_shares).toFixed(2) }}</td>
-            <td>
-              <button @click="openTradeDialog(stock, 'buy')" class="buy-btn">买入</button>
-              <button @click="openTradeDialog(stock, 'sell')" class="sell-btn">卖出</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      
+      <!-- 股票发行 -->
+      <div v-if="selectedCompany" class="stock-issue">
+        <h3>股票发行</h3>
+        <div class="form-group">
+          <label>发行总量</label>
+          <input v-model.number="issueForm.total_shares" type="number" min="1000">
+        </div>
+        <div class="form-group">
+          <label>流通股数</label>
+          <input v-model.number="issueForm.circulating_shares" type="number" min="1000">
+        </div>
+        <div class="form-group">
+          <label>发行价格</label>
+          <input v-model.number="issueForm.issue_price" type="number" step="0.01" min="0.01">
+        </div>
+        <button @click="issueStock" class="issue-btn">发行股票</button>
+      </div>
+
+      <!-- 市场概览 -->
+      <div class="market-overview">
+        <div class="stat-card">
+          <h4>总市值</h4>
+          <p>{{ totalMarketValue.toFixed(2) }}</p>
+        </div>
+        <div class="stat-card">
+          <h4>今日成交额</h4>
+          <p>{{ todayVolume.toFixed(2) }}</p>
+        </div>
+        <div class="stat-card">
+          <h4>上市公司数</h4>
+          <p>{{ listedCompanies }}</p>
+        </div>
+      </div>
+
+      <!-- 股票列表 -->
+      <div class="stock-list">
+        <table>
+          <thead>
+            <tr>
+              <th>代码</th>
+              <th>公司名称</th>
+              <th>最新价</th>
+              <th>涨跌幅</th>
+              <th>开盘价</th>
+              <th>最高价</th>
+              <th>最低价</th>
+              <th>成交量</th>
+              <th>成交额</th>
+              <th>总市值</th>
+              <th>流通市值</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="stock in stocks" :key="stock.company_id">
+              <td>{{ stock.company_id.toString().padStart(6, '0') }}</td>
+              <td>{{ stock.company_name }}</td>
+              <td>{{ stock.current_price }}</td>
+              <td :class="stock.price_change >= 0 ? 'up' : 'down'">
+                {{ (stock.price_change * 100).toFixed(2) }}%
+              </td>
+              <td>{{ stock.open_price }}</td>
+              <td>{{ stock.high_price }}</td>
+              <td>{{ stock.low_price }}</td>
+              <td>{{ stock.volume }}</td>
+              <td>{{ (stock.volume * stock.current_price).toFixed(2) }}</td>
+              <td>{{ (stock.current_price * stock.total_shares).toFixed(2) }}</td>
+              <td>{{ (stock.current_price * stock.circulating_shares).toFixed(2) }}</td>
+              <td class="actions">
+                <button @click="openTradeDialog(stock, 'buy')" class="buy-btn">买入</button>
+                <button @click="openTradeDialog(stock, 'sell')" class="sell-btn">卖出</button>
+                <button @click="viewStockDetail(stock)" class="detail-btn">详情</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 我的订单 -->
+      <div v-if="selectedCompany" class="my-orders">
+        <h3>我的订单</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>股票</th>
+              <th>类型</th>
+              <th>价格</th>
+              <th>数量</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in myOrders" :key="order.id">
+              <td>{{ new Date(order.create_time).toLocaleString() }}</td>
+              <td>{{ getCompanyName(order.target_company_id) }}</td>
+              <td :class="order.order_type">{{ order.order_type === 'buy' ? '买入' : '卖出' }}</td>
+              <td>{{ order.price }}</td>
+              <td>{{ order.remaining_quantity }}/{{ order.quantity }}</td>
+              <td>{{ getOrderStatus(order.status) }}</td>
+              <td>
+                <button 
+                  v-if="order.status === 'pending' || order.status === 'partial'"
+                  @click="cancelOrder(order.id)" 
+                  class="cancel-btn"
+                >
+                  撤单
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 交易历史 -->
+      <div v-if="selectedCompany" class="trade-history">
+        <h3>交易历史</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>股票</th>
+              <th>类型</th>
+              <th>价格</th>
+              <th>数量</th>
+              <th>成交额</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="trade in tradeHistory" :key="trade.id">
+              <td>{{ new Date(trade.transaction_date).toLocaleString() }}</td>
+              <td>{{ getCompanyName(trade.target_company_id) }}</td>
+              <td :class="trade.transaction_type">
+                {{ trade.transaction_type === 'buy' ? '买入' : '卖出' }}
+              </td>
+              <td>{{ trade.price }}</td>
+              <td>{{ trade.quantity }}</td>
+              <td>{{ (trade.price * trade.quantity).toFixed(2) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- 交易中心 -->
@@ -294,7 +411,17 @@ export default {
         name: '',
         balance: 1000000,
         is_ai: false
-      }
+      },
+      issueForm: {
+        total_shares: 10000,
+        circulating_shares: 5000,
+        issue_price: 1.00
+      },
+      totalMarketValue: 0,
+      todayVolume: 0,
+      listedCompanies: 0,
+      myOrders: [],
+      tradeHistory: []
     }
   },
   methods: {
@@ -466,12 +593,140 @@ export default {
           this.fetchHoldings();
         }
       }, 5000);
+    },
+
+    // 发行股票
+    async issueStock() {
+      if (!this.selectedCompany) {
+        this.error = '请先选择公司';
+        return;
+      }
+
+      try {
+        this.loading = true;
+        const response = await fetch('http://localhost:5010/api/stock/issue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company_id: this.selectedCompany.id,
+            ...this.issueForm
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          this.successMessage = '股票发行成功';
+          this.fetchStocks();
+        } else {
+          this.error = data.error || '股票发行失败';
+        }
+      } catch (error) {
+        this.error = '股票发行失败';
+        console.error(error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 获取我的订单
+    async fetchMyOrders() {
+      if (!this.selectedCompany) return;
+
+      try {
+        const response = await fetch(
+          `http://localhost:5010/api/orders/${this.selectedCompany.id}`
+        );
+        const data = await response.json();
+        this.myOrders = data;
+      } catch (error) {
+        console.error('获取订单失败：', error);
+      }
+    },
+
+    // 获取交易历史
+    async fetchTradeHistory() {
+      if (!this.selectedCompany) return;
+
+      try {
+        const response = await fetch(
+          `http://localhost:5010/api/transactions/${this.selectedCompany.id}`
+        );
+        const data = await response.json();
+        this.tradeHistory = data;
+      } catch (error) {
+        console.error('获取交易历史失败：', error);
+      }
+    },
+
+    // 撤销订单
+    async cancelOrder(orderId) {
+      try {
+        this.loading = true;
+        const response = await fetch(
+          `http://localhost:5010/api/orders/${orderId}/cancel`,
+          { method: 'POST' }
+        );
+
+        if (response.ok) {
+          this.successMessage = '撤单成功';
+          this.fetchMyOrders();
+        } else {
+          const data = await response.json();
+          this.error = data.error || '撤单失败';
+        }
+      } catch (error) {
+        this.error = '撤单失败';
+        console.error(error);
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    // 查看股票详情
+    viewStockDetail(stock) {
+      // TODO: 实现股票详情弹窗
+    },
+
+    // 获取订单状态文本
+    getOrderStatus(status) {
+      const statusMap = {
+        'pending': '待成交',
+        'partial': '部分成交',
+        'filled': '已成交',
+        'cancelled': '已撤销'
+      };
+      return statusMap[status] || status;
+    },
+
+    // 更新市场统计数据
+    updateMarketStats() {
+      this.totalMarketValue = this.stocks.reduce(
+        (sum, stock) => sum + stock.current_price * stock.total_shares, 
+        0
+      );
+      this.todayVolume = this.stocks.reduce(
+        (sum, stock) => sum + stock.volume * stock.current_price,
+        0
+      );
+      this.listedCompanies = this.stocks.length;
+    }
+  },
+  watch: {
+    stocks: {
+      handler() {
+        this.updateMarketStats();
+      },
+      deep: true
     }
   },
   mounted() {
     this.fetchCompanies();
     this.fetchStocks();
     this.startUpdates();
+    if (this.selectedCompany) {
+      this.fetchMyOrders();
+      this.fetchTradeHistory();
+    }
   }
 }
 </script>
@@ -656,5 +911,70 @@ button:hover {
 @keyframes slideIn {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
+}
+
+/* 市场概览 */
+.market-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-card h4 {
+  margin: 0;
+  color: #666;
+}
+
+.stat-card p {
+  margin: 10px 0 0;
+  font-size: 24px;
+  font-weight: bold;
+  color: #3498db;
+}
+
+/* 股票发行 */
+.stock-issue {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.issue-btn {
+  background: #3498db;
+  width: 100%;
+}
+
+/* 订单和交易历史 */
+.my-orders, .trade-history {
+  margin-top: 20px;
+}
+
+.buy { color: #00C851; }
+.sell { color: #ff4444; }
+
+.cancel-btn {
+  background: #95a5a6;
+}
+
+.detail-btn {
+  background: #3498db;
+}
+
+/* 表格响应式 */
+@media (max-width: 1200px) {
+  .stock-list table {
+    display: block;
+    overflow-x: auto;
+  }
 }
 </style>
