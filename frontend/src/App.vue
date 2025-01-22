@@ -54,18 +54,33 @@
       <!-- 交易中心 -->
       <div v-show="currentTab === 'trading'" class="section trading-section">
         <div class="trading-layout">
-          <!-- 左侧：图表和订单簿 -->
+          <!-- 左侧：市场数据和订单簿 -->
           <div class="left-panel">
-            <!-- K线图 -->
-            <div class="chart">
-              <h3>K线图</h3>
-              <div ref="klineChart" style="width: 100%; height: 300px;"></div>
-            </div>
-            
-            <!-- 深度图 -->
-            <div class="chart">
-              <h3>深度图</h3>
-              <div ref="depthChart" style="width: 100%; height: 200px;"></div>
+            <!-- 市场数据表格 -->
+            <div class="market-data-table">
+              <h3>市场数据</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>时间</th>
+                    <th>开盘价</th>
+                    <th>收盘价</th>
+                    <th>最高价</th>
+                    <th>最低价</th>
+                    <th>成交量</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in chartData.kline" :key="item.date">
+                    <td>{{ new Date(item.date).toLocaleString() }}</td>
+                    <td>{{ item.open }}</td>
+                    <td>{{ item.close }}</td>
+                    <td>{{ item.high }}</td>
+                    <td>{{ item.low }}</td>
+                    <td>{{ item.volume }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <!-- 订单簿 -->
@@ -74,20 +89,44 @@
               <div class="order-lists">
                 <!-- 卖单列表 -->
                 <div class="sell-orders">
-                  <div class="order-header">卖单</div>
-                  <div v-for="order in sellOrders" :key="order.id" class="order-item">
-                    <span>{{ order.price }}</span>
-                    <span>{{ order.remaining_quantity }}</span>
-                  </div>
+                  <h4>卖单</h4>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>价格</th>
+                        <th>数量</th>
+                        <th>时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="order in sellOrders" :key="order.id">
+                        <td>{{ order.price }}</td>
+                        <td>{{ order.remaining_quantity }}</td>
+                        <td>{{ new Date(order.create_time).toLocaleString() }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
-                
+
                 <!-- 买单列表 -->
                 <div class="buy-orders">
-                  <div class="order-header">买单</div>
-                  <div v-for="order in buyOrders" :key="order.id" class="order-item">
-                    <span>{{ order.price }}</span>
-                    <span>{{ order.remaining_quantity }}</span>
-                  </div>
+                  <h4>买单</h4>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>价格</th>
+                        <th>数量</th>
+                        <th>时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="order in buyOrders" :key="order.id">
+                        <td>{{ order.price }}</td>
+                        <td>{{ order.remaining_quantity }}</td>
+                        <td>{{ new Date(order.create_time).toLocaleString() }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -291,6 +330,76 @@
           </div>
         </div>
       </div>
+
+      <!-- 交易所 -->
+      <div v-show="currentTab === 'exchange'" class="section exchange-section">
+        <h2>交易所</h2>
+        
+        <!-- 股票列表 -->
+        <div class="stock-list">
+          <div class="stock-list-header">
+            <div>公司名称</div>
+            <div>最新价</div>
+            <div>涨跌幅</div>
+            <div>成交量</div>
+            <div>总市值</div>
+            <div>操作</div>
+          </div>
+          <div v-for="stock in stockList" :key="stock.company_id" class="stock-item">
+            <div class="company-name">{{ stock.company_name }}</div>
+            <div :class="['price', stock.price_change >= 0 ? 'up' : 'down']">
+              {{ stock.current_price }}
+            </div>
+            <div :class="['change', stock.price_change >= 0 ? 'up' : 'down']">
+              {{ (stock.price_change * 100).toFixed(2) }}%
+            </div>
+            <div>{{ stock.volume }}</div>
+            <div>{{ (stock.current_price * stock.total_shares).toFixed(2) }}</div>
+            <div class="actions">
+              <button @click="openTradeDialog(stock, 'buy')">买入</button>
+              <button @click="openTradeDialog(stock, 'sell')">卖出</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 交易弹窗 -->
+        <div v-if="showTradeDialog" class="dialog-overlay" @click.self="closeTradeDialog">
+          <div class="trade-dialog">
+            <h3>{{ tradeType === 'buy' ? '买入' : '卖出' }}{{ selectedStock?.company_name }}</h3>
+            <div class="trade-info">
+              <div class="info-item">
+                <span>当前价格</span>
+                <span>{{ selectedStock?.current_price }}</span>
+              </div>
+              <div class="info-item">
+                <span>可用余额</span>
+                <span>{{ selectedCompany?.balance }}</span>
+              </div>
+              <div class="info-item">
+                <span>持有数量</span>
+                <span>{{ getCurrentHolding(selectedStock?.company_id) }}</span>
+              </div>
+            </div>
+            <div class="trade-form">
+              <div class="form-item">
+                <label>价格</label>
+                <input v-model.number="tradePrice" type="number" step="0.01" />
+              </div>
+              <div class="form-item">
+                <label>数量</label>
+                <input v-model.number="tradeQuantity" type="number" step="100" />
+              </div>
+              <div class="trade-total">
+                总额：{{ (tradePrice * tradeQuantity).toFixed(2) }}
+              </div>
+            </div>
+            <div class="dialog-buttons">
+              <button @click="submitTrade">确认</button>
+              <button @click="closeTradeDialog">取消</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- 确认对话框 -->
@@ -337,20 +446,18 @@ export default {
         assets: 0,
         liabilities: 0
       },
-      klineChart: null,
-      depthChart: null,
-      performanceChart: null,
-      klineData: [],
-      depthData: { bids: [], asks: [] },
+      chartData: {
+        kline: [], // 市场数据
+        depth: { bids: [], asks: [] } // 深度数据
+      },
       loading: false,
       error: null,
       successMessage: null,
       currentTab: 'trading',
       tabs: [
-        { id: 'trading', name: '交易中心' },
         { id: 'company', name: '公司管理' },
-        { id: 'bank', name: '银行业务' },
-        { id: 'report', name: '业绩报表' }
+        { id: 'exchange', name: '交易所' },
+        { id: 'trading', name: '交易中心' }
       ],
       showConfirmDialog: false,
       confirmMessage: '',
@@ -369,7 +476,12 @@ export default {
       marketCharts: {
         price: null,
         volume: null
-      }
+      },
+      stockList: [],
+      showTradeDialog: false,
+      tradeType: 'buy',
+      tradePrice: 0,
+      tradeQuantity: 0
     };
   },
   methods: {
@@ -495,161 +607,30 @@ export default {
         })
         .catch(error => console.error('转账失败：', error));
     },
-    // 初始化图表
-    initCharts() {
-      const echarts = require('echarts');
-      
-      // 初始化K线图
-      this.klineChart = echarts.init(this.$refs.klineChart);
-      
-      // 初始化深度图
-      this.depthChart = echarts.init(this.$refs.depthChart);
-      
-      // 添加窗口大小变化监听
-      window.addEventListener('resize', () => {
-        this.klineChart.resize();
-        this.depthChart.resize();
-      });
-    },
-    // 更新图表
-    updateCharts() {
-      if (!this.klineChart || !this.depthChart) {
-        console.warn('Charts not initialized');
-        return;
-      }
-
-      // K线图配置
-      const klineOption = {
-        title: { text: '股票K线图' },
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'cross' }
-        },
-        legend: { data: ['K线'] },
-        grid: {
-          left: '10%',
-          right: '10%',
-          bottom: '15%'
-        },
-        xAxis: {
-          type: 'category',
-          data: this.klineData.map(item => item.date),
-          scale: true,
-          boundaryGap: false,
-          axisLine: { onZero: false },
-          splitLine: { show: false },
-          splitNumber: 20
-        },
-        yAxis: {
-          type: 'value',
-          scale: true,
-          splitLine: { show: true }
-        },
-        dataZoom: [
-          {
-            type: 'inside',
-            start: 50,
-            end: 100
-          },
-          {
-            show: true,
-            type: 'slider',
-            bottom: '5%',
-            start: 50,
-            end: 100
-          }
-        ],
-        series: [{
-          name: 'K线',
-          type: 'candlestick',
-          data: this.klineData.map(item => item.value)
-        }]
-      };
-
-      // 深度图配置
-      const depthOption = {
-        title: { text: '交易深度图' },
-        tooltip: {
-          trigger: 'axis',
-          axisPointer: { type: 'cross' }
-        },
-        legend: {
-          data: ['买单', '卖单']
-        },
-        grid: {
-          left: '10%',
-          right: '10%',
-          bottom: '15%'
-        },
-        xAxis: {
-          type: 'category',
-          scale: true,
-          boundaryGap: false,
-          axisLine: { onZero: false },
-          splitLine: { show: false }
-        },
-        yAxis: {
-          type: 'value',
-          scale: true,
-          splitLine: { show: true }
-        },
-        series: [
-          {
-            name: '买单',
-            type: 'line',
-            step: 'end',
-            data: this.depthData.bids,
-            areaStyle: {},
-            lineStyle: { color: '#00da3c' },
-            itemStyle: { color: '#00da3c' }
-          },
-          {
-            name: '卖单',
-            type: 'line',
-            step: 'start',
-            data: this.depthData.asks,
-            areaStyle: {},
-            lineStyle: { color: '#ec0000' },
-            itemStyle: { color: '#ec0000' }
-          }
-        ]
-      };
+    // 获取市场数据
+    async fetchChartData() {
+      if (!this.selectedCompanyId) return;
 
       try {
-        this.klineChart.setOption(klineOption, true);
-        this.depthChart.setOption(depthOption, true);
+        this.loading = true;
+        // 获取市场数据
+        const response = await fetch(
+          `http://localhost:5010/api/market/kline/${this.selectedCompanyId}`
+        );
+        const data = await response.json();
+        this.chartData.kline = data;
+
+        // 获取深度数据
+        const depthResponse = await fetch(
+          `http://localhost:5010/api/market/depth/${this.selectedCompanyId}`
+        );
+        const depthData = await depthResponse.json();
+        this.chartData.depth = depthData;
       } catch (error) {
-        console.error('更新图表失败：', error);
-        this.error = '更新图表失败';
-      }
-    },
-    // 获取K线数据
-    async fetchKlineData() {
-      if (this.selectedCompanyId) {
-        try {
-          this.loading = true;
-          const response = await fetch(`http://localhost:5010/api/market/kline/${this.selectedCompanyId}`);
-          const data = await response.json();
-          
-          // 转换数据格式为 ECharts 所需的格式
-          this.klineData = data.map(item => ({
-            value: [
-              item.open,
-              item.close,
-              item.low,
-              item.high,
-              item.volume
-            ],
-            date: new Date(item.date).toLocaleDateString()
-          }));
-          
-          this.updateCharts();
-        } catch (error) {
-          console.error('获取K线数据失败：', error);
-          this.error = '获取K线数据失败';
-        } finally {
-          this.loading = false;
-        }
+        console.error('获取市场数据失败：', error);
+        this.error = '获取市场数据失败';
+      } finally {
+        this.loading = false;
       }
     },
     // 贷款相关方法
@@ -703,7 +684,7 @@ export default {
         this.loading = true;
         try {
           await this.fetchHoldings();
-          await this.fetchKlineData();
+          await this.fetchChartData();
         } catch (error) {
           this.error = '数据加载失败';
         } finally {
@@ -817,7 +798,7 @@ export default {
     },
     // 更新深度图数据
     updateDepthChart() {
-      if (!this.depthChart) return;
+      if (!this.charts.depth) return;
 
       const option = {
         title: { text: '市场深度' },
@@ -855,14 +836,13 @@ export default {
         }]
       };
 
-      this.depthChart.setOption(option);
+      this.charts.depth.setOption(option);
     },
     // 定时更新数据
     startDataUpdates() {
       setInterval(() => {
         this.fetchOrderBook();
-        this.fetchKlineData();
-        this.updateDepthChart();
+        this.fetchChartData();
         if (this.selectedCompany?.is_ai) {
           this.fetchAIStrategy();
         }
@@ -1023,37 +1003,126 @@ export default {
     changeTimeRange(range) {
       this.selectedTimeRange = range;
       this.fetchMarketData();
+    },
+    // 打开交易弹窗
+    openTradeDialog(stock, type) {
+      this.selectedStock = stock;
+      this.tradeType = type;
+      this.tradePrice = stock.current_price;
+      this.tradeQuantity = 0;
+      this.showTradeDialog = true;
+    },
+    // 关闭交易弹窗
+    closeTradeDialog() {
+      this.showTradeDialog = false;
+      this.selectedStock = null;
+      this.tradePrice = 0;
+      this.tradeQuantity = 0;
+    },
+    // 提交交易
+    async submitTrade() {
+      if (!this.selectedCompanyId || !this.selectedStock) {
+        this.error = '请先选择交易公司';
+        return;
+      }
+
+      try {
+        this.loading = true;
+        const response = await fetch('http://localhost:5010/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            company_id: this.selectedCompanyId,
+            target_company_id: this.selectedStock.company_id,
+            order_type: this.tradeType,
+            price: this.tradePrice,
+            quantity: this.tradeQuantity
+          })
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          this.successMessage = '下单成功';
+          this.closeTradeDialog();
+          this.fetchStockList();
+          this.fetchHoldings();
+        } else {
+          this.error = data.error || '下单失败';
+        }
+      } catch (error) {
+        console.error('交易失败：', error);
+        this.error = '交易失败';
+      } finally {
+        this.loading = false;
+      }
+    },
+    // 获取股票列表
+    async fetchStockList() {
+      try {
+        this.loading = true;
+        const response = await fetch('http://localhost:5010/api/exchange/stocks');
+        const data = await response.json();
+        this.stockList = data;
+      } catch (error) {
+        console.error('获取股票列表失败：', error);
+        this.error = '获取股票列表失败';
+      } finally {
+        this.loading = false;
+      }
+    },
+    // 获取当前持仓
+    getCurrentHolding(companyId) {
+      const holding = this.holdings.find(h => h.target_company_id === companyId);
+      return holding ? holding.quantity : 0;
+    }
+  },
+  watch: {
+    // 监听选中的公司变化
+    selectedCompanyId: {
+      handler(newVal) {
+        if (newVal) {
+          this.fetchChartData();
+        }
+      },
+      immediate: true
+    },
+    // 监听当前标签页变化
+    currentTab: {
+      handler(newVal) {
+        if (newVal === 'trading') {
+          this.$nextTick(() => {
+            this.fetchChartData();
+          });
+        }
+      },
+      immediate: true
     }
   },
   mounted() {
     this.fetchCompanies();
     this.fetchTransactions();
-    this.initCharts();
     this.fetchLoans();
     this.fetchCompanyReport();
     this.startDataUpdates();
     this.initMarketCharts();
     this.fetchMarketData();
+    this.fetchStockList();
 
     // 添加窗口大小变化监听
     window.addEventListener('resize', () => {
-      this.klineChart?.resize();
-      this.depthChart?.resize();
-      this.performanceChart?.resize();
       this.marketCharts.price?.resize();
       this.marketCharts.volume?.resize();
     });
+
+    // 定时更新股票列表
+    setInterval(() => {
+      this.fetchStockList();
+    }, 5000);
   },
   beforeDestroy() {
-    // 清理图表实例
-    if (this.klineChart) {
-      this.klineChart.dispose();
-    }
-    if (this.depthChart) {
-      this.depthChart.dispose();
-    }
-    // 移除窗口大小变化监听
-    window.removeEventListener('resize', this.handleResize);
+    // 清理图表实例和事件监听
     this.marketCharts.price?.dispose();
     this.marketCharts.volume?.dispose();
   }
@@ -1388,5 +1457,147 @@ select, input {
 
 .chart-container:last-child {
   margin-bottom: 0;
+}
+
+.exchange-section {
+  margin-top: 20px;
+}
+
+.stock-list {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.stock-list-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  padding: 15px;
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+.stock-item {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  align-items: center;
+}
+
+.stock-item:last-child {
+  border-bottom: none;
+}
+
+.price.up, .change.up {
+  color: #00C851;
+}
+
+.price.down, .change.down {
+  color: #ff4444;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.trade-dialog {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  min-width: 400px;
+}
+
+.trade-info {
+  margin: 20px 0;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.trade-form {
+  margin: 20px 0;
+}
+
+.form-item {
+  margin-bottom: 15px;
+}
+
+.form-item label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.trade-total {
+  text-align: right;
+  font-weight: bold;
+  margin-top: 10px;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.market-data-table {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+th {
+  background: #f5f5f5;
+  font-weight: bold;
+}
+
+tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.order-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.sell-orders, .buy-orders {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.sell-orders h4, .buy-orders h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+/* 价格颜色 */
+.sell-orders td:first-child {
+  color: #ff4444;
+}
+
+.buy-orders td:first-child {
+  color: #00C851;
 }
 </style> 

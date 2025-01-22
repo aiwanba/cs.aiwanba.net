@@ -952,5 +952,114 @@ def update_ai_strategy(company_id):
         print(f"Error updating AI strategy: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
 
+# 获取所有股票信息
+@app.route('/api/exchange/stocks', methods=['GET'])
+def get_stocks():
+    try:
+        # 获取所有公司的股票信息
+        stocks = []
+        companies = Company.query.all()
+        
+        for company in companies:
+            # 获取最新股票发行信息
+            stock_issue = StockIssue.query.filter_by(
+                company_id=company.id
+            ).order_by(StockIssue.issue_date.desc()).first()
+            
+            if not stock_issue:
+                continue
+
+            # 获取最新交易价格和成交量
+            latest_transaction = Transaction.query.filter_by(
+                target_company_id=company.id
+            ).order_by(Transaction.transaction_date.desc()).first()
+
+            # 获取昨日收盘价
+            yesterday = db.func.date_sub(db.func.current_date(), text('INTERVAL 1 DAY'))
+            yesterday_close = Transaction.query.filter(
+                Transaction.target_company_id == company.id,
+                Transaction.transaction_date < yesterday
+            ).order_by(Transaction.transaction_date.desc()).first()
+
+            # 计算当前价格和涨跌幅
+            current_price = latest_transaction.price if latest_transaction else stock_issue.issue_price
+            yesterday_price = yesterday_close.price if yesterday_close else stock_issue.issue_price
+            price_change = (current_price - yesterday_price) / yesterday_price
+
+            # 获取今日成交量
+            today_volume = db.session.query(
+                db.func.sum(Transaction.quantity)
+            ).filter(
+                Transaction.target_company_id == company.id,
+                Transaction.transaction_date >= db.func.current_date()
+            ).scalar() or 0
+
+            stocks.append({
+                "company_id": company.id,
+                "company_name": company.name,
+                "current_price": current_price,
+                "price_change": price_change,
+                "volume": today_volume,
+                "total_shares": stock_issue.total_shares,
+                "circulating_shares": stock_issue.circulating_shares,
+                "issue_price": stock_issue.issue_price,
+                "is_ai": company.is_ai
+            })
+
+        return jsonify(stocks)
+    except Exception as e:
+        print(f"Error getting stocks: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+# 获取单个股票详细信息
+@app.route('/api/exchange/stocks/<int:company_id>', methods=['GET'])
+def get_stock_detail(company_id):
+    try:
+        company = Company.query.get(company_id)
+        if not company:
+            return jsonify({"error": "Company not found"}), 404
+
+        # 获取股票发行信息
+        stock_issue = StockIssue.query.filter_by(
+            company_id=company_id
+        ).order_by(StockIssue.issue_date.desc()).first()
+
+        if not stock_issue:
+            return jsonify({"error": "Stock not found"}), 404
+
+        # 获取最新交易数据
+        latest_transaction = Transaction.query.filter_by(
+            target_company_id=company_id
+        ).order_by(Transaction.transaction_date.desc()).first()
+
+        # 获取当日交易统计
+        today_stats = db.session.query(
+            db.func.min(Transaction.price).label('low'),
+            db.func.max(Transaction.price).label('high'),
+            db.func.sum(Transaction.quantity).label('volume')
+        ).filter(
+            Transaction.target_company_id == company_id,
+            Transaction.transaction_date >= db.func.current_date()
+        ).first()
+
+        return jsonify({
+            "company_id": company.id,
+            "company_name": company.name,
+            "current_price": latest_transaction.price if latest_transaction else stock_issue.issue_price,
+            "total_shares": stock_issue.total_shares,
+            "circulating_shares": stock_issue.circulating_shares,
+            "issue_price": stock_issue.issue_price,
+            "issue_date": stock_issue.issue_date,
+            "today_stats": {
+                "low": today_stats.low or stock_issue.issue_price,
+                "high": today_stats.high or stock_issue.issue_price,
+                "volume": today_stats.volume or 0
+            },
+            "is_ai": company.is_ai
+        })
+    except Exception as e:
+        print(f"Error getting stock detail: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
