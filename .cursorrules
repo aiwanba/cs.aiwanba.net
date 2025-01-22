@@ -51,50 +51,9 @@
   - **解决方案**：使用虚拟环境（如 venv）来隔离项目依赖。
 
 ## 9. 项目文件列表
-- backend/app/__init__.py
-- backend/app/routes.py
-- config.py
-- requirements.txt
-- frontend/src/main.js
-- frontend/src/App.vue
-- /www/wwwroot/cs.aiwanba.net/app.py
-- /www/wwwroot/cs.aiwanba.net/gunicorn_conf.py
+
 
 ## 10. 项目文件列表代码更新
-### 1. `config.py` 更新
-- **安全密钥**：添加了 `SECRET_KEY` 配置，用于 Flask 应用的安全性。
-- **数据库配置**：添加了数据库配置的注释，稍后实现。
-
-### 2. `gunicorn_conf.py` 更新
-- **项目目录**：设置为 `/www/wwwroot/cs.aiwanba.net`。
-- **进程和线程**：配置了 4 个进程和 2 个线程。
-- **启动用户**：设置为 `www`。
-- **绑定 IP 和端口**：绑定到 `0.0.0.0:5010`。
-- **日志配置**：设置了访问日志和错误日志的路径，日志级别为 `info`。
-
-### 3. 其他文件
-- `backend/app/__init__.py`、`backend/app/routes.py`、`requirements.txt`、`frontend/src/main.js`、`frontend/src/App.vue`、`app.py` 和 `.gitignore` 文件未做修改。
 
 
 ## 11. 下一步
-### 1. 数据库配置
-- 在 `config.py` 中完成数据库连接配置。
-- 创建数据库模型文件 `backend/app/models.py`，定义用户、股票和投资组合的表结构。
-
-### 2. 后端功能开发
-- 实现股票数据的获取和更新接口。
-- 实现用户注册、登录和投资组合管理功能。
-
-### 3. 前端功能开发
-- 创建股票列表页面，展示实时股票数据。
-- 创建用户登录和注册页面。
-- 创建投资组合页面，展示用户的持仓信息。
-
-### 4. 测试与部署
-- 编写单元测试，确保后端接口的正确性。
-- 使用 Gunicorn 部署 Flask 应用，确保生产环境稳定运行。
-- 使用 Nginx 配置反向代理，优化前端和后端的访问性能。
-
-### 5. 文档更新
-- 更新 `生产环境部署配置文档.md`，补充详细的部署步骤。
-- 编写用户使用手册，帮助玩家快速上手游戏。
