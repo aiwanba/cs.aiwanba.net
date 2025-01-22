@@ -133,6 +133,7 @@ loglevel = 'info'
 - 2023-10-16：更新init_db.py文件，将AI账户初始资金设置为1亿
 - 2023-10-16：修复ai_trader.py中AI用户ID硬编码问题
 - 2023-10-16：创建leaderboard.py文件，实现排行榜功能
+- 2023-10-16：更新models.py文件，为Transaction模型添加与Stock的关系字段
 
 ### 2.4 项目结构API地址
 - http://localhost:5010/ - 首页路由

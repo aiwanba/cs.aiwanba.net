@@ -4,7 +4,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=False)
-    balance = db.Column(db.Float, default=100000.0)  # 初始资金10万
+    balance = db.Column(db.Float, default=100000000.0)  # 初始资金1亿
 
 class Stock(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -19,4 +19,7 @@ class Transaction(db.Model):
     quantity = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Float, nullable=False)
     type = db.Column(db.String(10), nullable=False)  # buy/sell
-    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp()) 
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    # 添加与Stock的关系字段
+    stock = db.relationship('Stock', backref='transactions') 

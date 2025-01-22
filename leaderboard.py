@@ -15,7 +15,7 @@ def get_leaderboard():
             total_assets = user.balance
             holdings = Transaction.query.filter_by(user_id=user.id, type='buy').all()
             for holding in holdings:
-                stock = holding.stock
+                stock = holding.stock  # 通过关系字段获取Stock对象
                 total_assets += stock.price * holding.quantity
 
             leaderboard.append({
