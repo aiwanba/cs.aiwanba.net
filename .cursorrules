@@ -12,7 +12,7 @@
 #    - 常见问题及解决方案变更 → 更新第8节
 #    - 项目文件列表变更 → 更新第9节
 #    - 项目文件列表代码更新变更 → 更新第10节
-#    - 未来计划变更 → 更新第11节  
+#    - 下一步变更 → 更新第11节  
 
 # 项目技术栈 (创建 修改 删除都要及时更新)
 
@@ -77,4 +77,4 @@
 - `backend/app/__init__.py`、`backend/app/routes.py`、`requirements.txt`、`frontend/src/main.js`、`frontend/src/App.vue`、`app.py` 和 `.gitignore` 文件未做修改。
 
 
-## 11. 未来计划 
+## 11. 下一步
