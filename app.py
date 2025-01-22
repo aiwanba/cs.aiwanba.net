@@ -2,6 +2,7 @@ from extensions import app, db
 from auth import auth
 from trade import trade
 from market import simulate_market
+from init_db import init_database  # 导入init_database函数
 import threading
 import time
 
@@ -28,6 +29,10 @@ def start_market_simulation():
 
 # 启动应用
 if __name__ == '__main__':
+    # 初始化数据库
+    with app.app_context():
+        init_database()
+
     # 启动股票价格波动模拟线程
     market_thread = threading.Thread(target=start_market_simulation)
     market_thread.daemon = True

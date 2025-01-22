@@ -1,4 +1,5 @@
-from app import db, User, Stock, Transaction
+from extensions import app, db
+from models import User, Stock, Transaction
 
 def init_database():
     # 删除所有表（谨慎使用，会清空数据）
