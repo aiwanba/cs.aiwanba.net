@@ -66,4 +66,30 @@ CREATE TABLE IF NOT EXISTS company_report (
     liabilities FLOAT NOT NULL,
     report_date DATE NOT NULL,
     FOREIGN KEY (company_id) REFERENCES company(id)
+);
+
+-- 创建订单簿表
+CREATE TABLE IF NOT EXISTS order_book (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL,  -- 下单公司
+    target_company_id INT NOT NULL,  -- 目标公司股票
+    order_type ENUM('buy', 'sell') NOT NULL,
+    price FLOAT NOT NULL,
+    quantity INT NOT NULL,
+    remaining_quantity INT NOT NULL,  -- 未成交数量
+    status ENUM('pending', 'partial', 'filled', 'cancelled') NOT NULL,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES company(id),
+    FOREIGN KEY (target_company_id) REFERENCES company(id)
+);
+
+-- 创建初始股票发行表
+CREATE TABLE IF NOT EXISTS stock_issue (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    company_id INT NOT NULL,
+    total_shares INT NOT NULL,  -- 总股本
+    circulating_shares INT NOT NULL,  -- 流通股数
+    issue_price FLOAT NOT NULL,  -- 发行价格
+    issue_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES company(id)
 ); 

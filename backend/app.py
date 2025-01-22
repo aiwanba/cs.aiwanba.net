@@ -79,6 +79,27 @@ class MarketData(db.Model):
     volume = db.Column(db.Integer, nullable=False)
     date = db.Column(db.Date, nullable=False)
 
+# 订单簿模型
+class OrderBook(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    target_company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    order_type = db.Column(db.Enum('buy', 'sell'), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    remaining_quantity = db.Column(db.Integer, nullable=False)
+    status = db.Column(db.Enum('pending', 'partial', 'filled', 'cancelled'), nullable=False)
+    create_time = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+# 初始股票发行模型
+class StockIssue(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    total_shares = db.Column(db.Integer, nullable=False)
+    circulating_shares = db.Column(db.Integer, nullable=False)
+    issue_price = db.Column(db.Float, nullable=False)
+    issue_date = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
 @app.route('/')
 def index():
     return jsonify({"message": "Welcome to the Stock Trading Game!"})
@@ -114,10 +135,56 @@ def get_transactions():
 def create_company():
     try:
         data = request.get_json()
-        new_company = Company(name=data['name'], balance=data['balance'])
+        new_company = Company(
+            name=data['name'], 
+            balance=data['balance'],
+            is_ai=data.get('is_ai', False)
+        )
         db.session.add(new_company)
+        db.session.flush()  # 获取新公司ID
+
+        # 发行股票
+        initial_shares = 1000000  # 初始股本100万股
+        circulating_shares = 400000  # 流通股40万股
+        issue_price = 1.0  # 发行价1元
+
+        stock_issue = StockIssue(
+            company_id=new_company.id,
+            total_shares=initial_shares,
+            circulating_shares=circulating_shares,
+            issue_price=issue_price
+        )
+        db.session.add(stock_issue)
+
+        # 创建公司持股记录（持有自己的股票）
+        holding = StockHolding(
+            company_id=new_company.id,
+            target_company_id=new_company.id,
+            quantity=initial_shares - circulating_shares  # 非流通股
+        )
+        db.session.add(holding)
+
+        # 将流通股放入卖单
+        sell_order = OrderBook(
+            company_id=new_company.id,
+            target_company_id=new_company.id,
+            order_type='sell',
+            price=issue_price,
+            quantity=circulating_shares,
+            remaining_quantity=circulating_shares,
+            status='pending'
+        )
+        db.session.add(sell_order)
+
         db.session.commit()
-        return jsonify({"id": new_company.id, "name": new_company.name, "balance": new_company.balance}), 201
+        return jsonify({
+            "id": new_company.id, 
+            "name": new_company.name, 
+            "balance": new_company.balance,
+            "total_shares": initial_shares,
+            "circulating_shares": circulating_shares,
+            "issue_price": issue_price
+        }), 201
     except Exception as e:
         print(f"Error creating company: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
@@ -585,6 +652,102 @@ def get_kline_data(company_id):
     except Exception as e:
         print(f"Error getting kline data: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
+
+# 交易所撮合交易
+def match_orders(order):
+    try:
+        # 获取对手方订单
+        opposite_type = 'sell' if order.order_type == 'buy' else 'buy'
+        opposite_orders = OrderBook.query.filter_by(
+            target_company_id=order.target_company_id,
+            order_type=opposite_type,
+            status=['pending', 'partial']
+        ).order_by(
+            db.desc(OrderBook.price) if order.order_type == 'buy' else db.asc(OrderBook.price),
+            OrderBook.create_time
+        ).all()
+
+        for opposite_order in opposite_orders:
+            # 检查价格是否匹配
+            if (order.order_type == 'buy' and order.price >= opposite_order.price) or \
+               (order.order_type == 'sell' and order.price <= opposite_order.price):
+                
+                # 计算成交数量
+                trade_quantity = min(order.remaining_quantity, opposite_order.remaining_quantity)
+                trade_price = opposite_order.price  # 以对手方价格成交
+
+                # 更新订单状态
+                opposite_order.remaining_quantity -= trade_quantity
+                order.remaining_quantity -= trade_quantity
+
+                # 更新订单状态
+                if opposite_order.remaining_quantity == 0:
+                    opposite_order.status = 'filled'
+                else:
+                    opposite_order.status = 'partial'
+
+                if order.remaining_quantity == 0:
+                    order.status = 'filled'
+                else:
+                    order.status = 'partial'
+
+                # 创建交易记录
+                transaction = Transaction(
+                    company_id=order.company_id,
+                    target_company_id=order.target_company_id,
+                    quantity=trade_quantity,
+                    price=trade_price,
+                    transaction_type=order.order_type
+                )
+                db.session.add(transaction)
+
+                # 更新持股记录
+                update_holdings(order.company_id, opposite_order.company_id, 
+                              order.target_company_id, trade_quantity, order.order_type)
+
+                # 更新余额
+                update_balances(order.company_id, opposite_order.company_id,
+                              trade_quantity, trade_price, order.order_type)
+
+                if order.remaining_quantity == 0:
+                    break
+
+        db.session.commit()
+    except Exception as e:
+        print(f"Error matching orders: {e}")
+        db.session.rollback()
+
+# 更新持股记录
+def update_holdings(buyer_id, seller_id, stock_id, quantity, order_type):
+    if order_type == 'buy':
+        buyer, seller = buyer_id, seller_id
+    else:
+        buyer, seller = seller_id, buyer_id
+
+    # 更新买方持股
+    buyer_holding = StockHolding.query.filter_by(
+        company_id=buyer,
+        target_company_id=stock_id
+    ).first()
+
+    if buyer_holding:
+        buyer_holding.quantity += quantity
+    else:
+        buyer_holding = StockHolding(
+            company_id=buyer,
+            target_company_id=stock_id,
+            quantity=quantity
+        )
+        db.session.add(buyer_holding)
+
+    # 更新卖方持股
+    seller_holding = StockHolding.query.filter_by(
+        company_id=seller,
+        target_company_id=stock_id
+    ).first()
+    
+    if seller_holding:
+        seller_holding.quantity -= quantity
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
