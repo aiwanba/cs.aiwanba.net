@@ -5,4 +5,4 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 
 # 初始化数据库
-db = SQLAlchemy(app) 
+db = SQLAlchemy()  # 先不绑定app 

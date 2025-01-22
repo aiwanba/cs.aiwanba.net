@@ -10,6 +10,9 @@ import time
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# 显式绑定db和app
+db.init_app(app)
+
 # 注册auth蓝图
 app.register_blueprint(auth, url_prefix='/api/auth')
 

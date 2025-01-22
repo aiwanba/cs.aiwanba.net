@@ -17,7 +17,14 @@ def init_database():
     stocks = [
         Stock(name='科技公司A', symbol='TECH-A', price=100.0),
         Stock(name='能源公司B', symbol='ENER-B', price=50.0),
-        Stock(name='医疗公司C', symbol='MEDI-C', price=75.0)
+        Stock(name='医疗公司C', symbol='MEDI-C', price=75.0),
+        Stock(name='金融公司D', symbol='FINA-D', price=120.0),
+        Stock(name='零售公司E', symbol='RETA-E', price=30.0),
+        Stock(name='制造公司F', symbol='MANU-F', price=80.0),
+        Stock(name='电信公司G', symbol='TELC-G', price=90.0),
+        Stock(name='食品公司H', symbol='FOOD-H', price=40.0),
+        Stock(name='汽车公司I', symbol='AUTO-I', price=60.0),
+        Stock(name='航空公司J', symbol='AIRL-J', price=70.0)
     ]
     db.session.add_all(stocks)
 
