@@ -1,5 +1,7 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
+from models import db
+from auth import auth
+from trade import trade  # 导入trade模块
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -9,31 +11,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://cs_aiwanba_net:s
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 初始化数据库
-db = SQLAlchemy(app)
+db.init_app(app)
 
-# 定义用户模型
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(120), nullable=False)
-    balance = db.Column(db.Float, default=100000.0)  # 初始资金10万
+# 注册auth蓝图
+app.register_blueprint(auth, url_prefix='/api/auth')
 
-# 定义股票模型
-class Stock(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), nullable=False)
-    symbol = db.Column(db.String(10), unique=True, nullable=False)
-    price = db.Column(db.Float, nullable=False)
-
-# 定义交易记录模型
-class Transaction(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    stock_id = db.Column(db.Integer, db.ForeignKey('stock.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    price = db.Column(db.Float, nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # buy/sell
-    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+# 注册trade蓝图
+app.register_blueprint(trade, url_prefix='/api/trade')
 
 # 首页路由
 @app.route('/')
