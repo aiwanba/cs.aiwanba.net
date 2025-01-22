@@ -38,11 +38,20 @@
 
 
 ## 10. 项目结构(创建 修改 删除都要及时更新)
-- **frontend**：存放前端代码，使用 Vue.js 开发。
-- **backend**：存放后端代码，使用 Flask 开发。
-- **database**：存放数据库.
-- **doc**：存放项目文档.
+- **frontend/**：存放前端代码
+  - **src/**：Vue.js源代码目录
+- **backend/**：存放后端代码
+  - **app/**：Flask应用主目录
+    - **__init__.py**：应用初始化和配置
+    - **models.py**：数据库模型定义
+    - **routes.py**：API路由定义
+- **database/**：存放数据库相关文件
+- **doc/**：存放项目文档
 
 ## 11. 项目文件(创建 修改 删除都要及时更新)
-- **config.py**：项目配置文件，包含数据库连接信息等。
-- **requirements.txt**：项目依赖包，包含所有需要的依赖包。
+- **config.py**：项目配置文件，包含数据库连接信息和游戏配置
+- **requirements.txt**：Python依赖包列表
+- **create_structure.sh**：项目目录结构创建脚本
+- **backend/app/models.py**：定义User、Stock、Portfolio等数据模型
+- **backend/app/routes.py**：定义API接口路由
+- **backend/app/__init__.py**：Flask应用初始化
