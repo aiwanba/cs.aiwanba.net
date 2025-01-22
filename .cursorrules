@@ -30,6 +30,19 @@
 - 开发环境使用 **Python 3.11.9** 和 **Flask 2.0.1**。
 - 生产环境使用 **Gunicorn** 作为 WSGI 服务器。
 
+- **开发环境**：
+  - Python 3.11.9
+  - Flask 2.0.1
+  - 数据库：MySQL 5.7.40
+  - 配置类：DevelopmentConfig (DEBUG=True)
+
+- **生产环境**：
+  - 部署路径：/www/wwwroot/cs.aiwanba.net
+  - 端口：5010
+  - 数据库：MySQL 5.7.40 (cs_aiwanba_net)
+  - WSGI服务器：Gunicorn
+  - 配置类：ProductionConfig (DEBUG=False)
+
 ## 8. 常见问题及解决方案(创建 修改 删除都要及时更新)
 - **问题**：如何解决依赖包冲突？
   - **解决方案**：使用虚拟环境（如 venv）来隔离项目依赖。
@@ -55,3 +68,17 @@
 - **backend/app/models.py**：定义User、Stock、Portfolio等数据模型
 - **backend/app/routes.py**：定义API接口路由
 - **backend/app/__init__.py**：Flask应用初始化
+- **config.py**：项目配置文件
+  - Config：基础配置类
+  - DevelopmentConfig：开发环境配置类
+  - ProductionConfig：生产环境配置类
+- **app.py**：应用入口文件
+  - 创建Flask应用实例
+  - 数据库初始化
+  - 初始股票数据添加
+- **requirements.txt**：Python依赖包列表
+- **create_structure.sh**：项目目录结构创建脚本
+- **backend/app/models.py**：数据库模型定义
+- **backend/app/routes.py**：API路由定义
+- **backend/app/__init__.py**：Flask应用初始化
+- **doc/生产环境部署配置文档.md**：部署相关配置说明
