@@ -12,17 +12,16 @@ def register():
     password = data.get('password')
 
     if not username or not password:
-        return jsonify({'message': '用户名和密码不能为空'}), 400
+        return jsonify({'error': '用户名和密码不能为空'}), 400
 
     if User.query.filter_by(username=username).first():
-        return jsonify({'message': '用户名已存在'}), 400
+        return jsonify({'error': '用户名已存在'}), 400
 
-    hashed_password = generate_password_hash(password, method='sha256')
-    new_user = User(username=username, password=hashed_password)
+    new_user = User(username=username, password=password)
     db.session.add(new_user)
     db.session.commit()
 
-    return jsonify({'message': '用户注册成功'}), 201
+    return jsonify({'message': '注册成功', 'user_id': new_user.id}), 201
 
 # 用户登录
 @auth.route('/login', methods=['POST'])
