@@ -3,6 +3,7 @@ from auth import auth
 from trade import trade
 from market import simulate_market
 from init_db import init_database  # 导入init_database函数
+from ai_trader import ai_trade  # 导入ai_trade函数
 import threading
 import time
 
@@ -30,6 +31,12 @@ def start_market_simulation():
         simulate_market()
         time.sleep(60)  # 每分钟模拟一次价格波动
 
+# 启动AI交易模拟
+def start_ai_trading():
+    while True:
+        ai_trade()
+        time.sleep(30)  # 每30秒进行一次AI交易
+
 # 启动应用
 if __name__ == '__main__':
     # 初始化数据库
@@ -40,5 +47,10 @@ if __name__ == '__main__':
     market_thread = threading.Thread(target=start_market_simulation)
     market_thread.daemon = True
     market_thread.start()
+
+    # 启动AI交易模拟线程
+    ai_thread = threading.Thread(target=start_ai_trading)
+    ai_thread.daemon = True
+    ai_thread.start()
 
     app.run(host='0.0.0.0', port=5010) 

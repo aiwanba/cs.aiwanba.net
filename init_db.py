@@ -1,5 +1,6 @@
 from extensions import app, db
 from models import User, Stock, Transaction
+import random
 
 def init_database():
     # 删除所有表（谨慎使用，会清空数据）
@@ -30,6 +31,24 @@ def init_database():
 
     # 提交更改
     db.session.commit()
+
+    # 为AI用户添加初始股票持仓
+    with app.app_context():
+        ai_user = User.query.get(1)
+        if ai_user:
+            # 为AI用户随机买入一些股票
+            for stock in Stock.query.all():
+                if random.choice([True, False]):  # 随机决定是否买入
+                    quantity = random.randint(1, 10)
+                    transaction = Transaction(
+                        user_id=ai_user.id,
+                        stock_id=stock.id,
+                        quantity=quantity,
+                        price=stock.price,
+                        type='buy'
+                    )
+                    db.session.add(transaction)
+            db.session.commit()
 
     print("数据库初始化完成！")
 
