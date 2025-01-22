@@ -7,7 +7,7 @@ class Config:
     
     # 数据库配置
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
+        'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # 游戏相关配置
@@ -23,4 +23,4 @@ class ProductionConfig(Config):
     """生产环境配置"""
     DEBUG = False
     # 生产环境特定配置
-    SQLALCHEMY_DATABASE_URI = 'mysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net' 
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
