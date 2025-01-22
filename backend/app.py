@@ -749,5 +749,39 @@ def update_holdings(buyer_id, seller_id, stock_id, quantity, order_type):
     if seller_holding:
         seller_holding.quantity -= quantity
 
+# 更新余额
+def update_balances(buyer_id, seller_id, quantity, price, order_type):
+    try:
+        if order_type == 'buy':
+            buyer, seller = buyer_id, seller_id
+        else:
+            buyer, seller = seller_id, buyer_id
+
+        # 获取买卖双方公司
+        buyer_company = Company.query.get(buyer)
+        seller_company = Company.query.get(seller)
+
+        if not buyer_company or not seller_company:
+            raise Exception("Company not found")
+
+        # 计算交易金额
+        trade_amount = quantity * price
+
+        # 更新买方余额（减少）
+        buyer_company.balance -= trade_amount
+
+        # 更新卖方余额（增加）
+        seller_company.balance += trade_amount
+
+        # 检查买方余额是否足够
+        if buyer_company.balance < 0:
+            raise Exception("Insufficient balance")
+
+        db.session.commit()
+    except Exception as e:
+        print(f"Error updating balances: {e}")
+        db.session.rollback()
+        raise e
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
