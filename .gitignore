@@ -21,21 +21,37 @@ wheels/
 *.egg
 MANIFEST
 
-# Node.js
-node_modules/
-npm-debug.log*
+# Virtual Environment
+venv/
+ENV/
+
+# Database
+*.db
+*.sqlite3
 
 # Logs
 *.log
+logs/
 
-# Environment files
+# IDE
+.vscode/
+.idea/
+
+# Environment
 .env
 .env.local
+.env.development
+.env.test
+.env.production
 
-# 忽略编译生成的字节码文件
-*.pyc
-# 忽略 gunicorn 的 pid 文件
+# Gunicorn
 gunicorn.pid
+gunicorn_acess.log
+gunicorn_error.log
+
+# Node.js
+node_modules/
+npm-debug.log*
 
 # Vue.js
 node_modules/
