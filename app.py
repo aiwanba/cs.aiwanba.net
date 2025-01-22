@@ -6,6 +6,7 @@ from market import simulate_market
 from init_db import init_database  # 导入init_database函数
 from ai_trader import ai_trade  # 导入ai_trade函数
 from leaderboard import get_leaderboard  # 导入get_leaderboard函数
+from news import start_news_simulation  # 导入新闻事件模拟函数
 import threading
 import time
 
@@ -45,6 +46,10 @@ def start_ai_trading():
         ai_trade()
         time.sleep(30)  # 每30秒进行一次AI交易
 
+# 启动新闻事件模拟
+def start_news_simulation_thread():
+    start_news_simulation()
+
 # 启动应用
 if __name__ == '__main__':
     # 初始化数据库
@@ -60,5 +65,10 @@ if __name__ == '__main__':
     ai_thread = threading.Thread(target=start_ai_trading)
     ai_thread.daemon = True
     ai_thread.start()
+
+    # 启动新闻事件模拟线程
+    news_thread = threading.Thread(target=start_news_simulation_thread)
+    news_thread.daemon = True
+    news_thread.start()
 
     app.run(host='0.0.0.0', port=5010) 
