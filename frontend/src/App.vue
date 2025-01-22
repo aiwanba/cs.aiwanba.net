@@ -201,18 +201,30 @@
       </div>
 
       <!-- 市场行情 -->
-      <div class="section">
+      <div class="section market-section">
         <h2>市场行情</h2>
-        <div class="market-data">
-          <div class="chart">
-            <h3>K线图</h3>
-            <!-- 使用 ECharts 绘制 K 线图 -->
-            <div ref="klineChart" style="width: 100%; height: 400px;"></div>
+        
+        <!-- 时间范围选择 -->
+        <div class="time-range-selector">
+          <button 
+            v-for="range in ['1d', '1w', '1m', '3m', '6m', '1y']" 
+            :key="range"
+            :class="['range-btn', { active: selectedTimeRange === range }]"
+            @click="changeTimeRange(range)"
+          >
+            {{ range }}
+          </button>
+        </div>
+        
+        <div class="market-charts">
+          <!-- 价格走势图 -->
+          <div class="chart-container">
+            <div ref="priceChart" style="width: 100%; height: 300px;"></div>
           </div>
-          <div class="chart">
-            <h3>交易深度</h3>
-            <!-- 使用 ECharts 绘制深度图 -->
-            <div ref="depthChart" style="width: 100%; height: 400px;"></div>
+          
+          <!-- 成交量图 -->
+          <div class="chart-container">
+            <div ref="volumeChart" style="width: 100%; height: 200px;"></div>
           </div>
         </div>
       </div>
@@ -347,7 +359,17 @@ export default {
       buyOrders: [],
       sellOrders: [],
       selectedStock: null,
-      currentStrategy: null
+      currentStrategy: null,
+      marketData: {
+        prices: [],
+        volumes: [],
+        timestamps: []
+      },
+      selectedTimeRange: '1d', // 可选：1d, 1w, 1m, 3m, 6m, 1y
+      marketCharts: {
+        price: null,
+        volume: null
+      }
     };
   },
   methods: {
@@ -845,6 +867,162 @@ export default {
           this.fetchAIStrategy();
         }
       }, 5000);
+    },
+    // 获取市场行情数据
+    async fetchMarketData() {
+      if (!this.selectedCompanyId) return;
+      
+      try {
+        this.loading = true;
+        const response = await fetch(
+          `http://localhost:5010/api/market/data/${this.selectedCompanyId}?range=${this.selectedTimeRange}`
+        );
+        const data = await response.json();
+        
+        // 更新市场数据
+        this.marketData = {
+          prices: data.map(d => ({
+            time: new Date(d.date).getTime(),
+            value: d.close_price
+          })),
+          volumes: data.map(d => ({
+            time: new Date(d.date).getTime(),
+            value: d.volume
+          })),
+          timestamps: data.map(d => new Date(d.date).getTime())
+        };
+        
+        this.updateMarketCharts();
+      } catch (error) {
+        console.error('获取市场数据失败：', error);
+        this.error = '获取市场数据失败';
+      } finally {
+        this.loading = false;
+      }
+    },
+    // 初始化市场行情图表
+    initMarketCharts() {
+      const echarts = require('echarts');
+      
+      // 初始化价格图表
+      this.marketCharts.price = echarts.init(this.$refs.priceChart);
+      
+      // 初始化成交量图表
+      this.marketCharts.volume = echarts.init(this.$refs.volumeChart);
+      
+      // 添加窗口大小变化监听
+      window.addEventListener('resize', () => {
+        this.marketCharts.price?.resize();
+        this.marketCharts.volume?.resize();
+      });
+    },
+    // 更新市场行情图表
+    updateMarketCharts() {
+      if (!this.marketCharts.price || !this.marketCharts.volume) return;
+
+      // 价格图表配置
+      const priceOption = {
+        title: { text: '价格走势' },
+        tooltip: {
+          trigger: 'axis',
+          formatter: (params) => {
+            const time = new Date(params[0].value[0]).toLocaleString();
+            return `${time}<br/>价格：${params[0].value[1]}`;
+          }
+        },
+        xAxis: {
+          type: 'time',
+          splitLine: { show: false }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { show: true }
+        },
+        dataZoom: [
+          {
+            type: 'inside',
+            start: 0,
+            end: 100
+          },
+          {
+            show: true,
+            type: 'slider',
+            bottom: 10,
+            start: 0,
+            end: 100
+          }
+        ],
+        series: [{
+          name: '价格',
+          type: 'line',
+          data: this.marketData.prices.map(p => [p.time, p.value]),
+          itemStyle: {
+            color: '#3498db'
+          },
+          areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+              { offset: 0, color: 'rgba(52,152,219,0.5)' },
+              { offset: 1, color: 'rgba(52,152,219,0.1)' }
+            ])
+          }
+        }]
+      };
+
+      // 成交量图表配置
+      const volumeOption = {
+        title: { text: '成交量' },
+        tooltip: {
+          trigger: 'axis',
+          formatter: (params) => {
+            const time = new Date(params[0].value[0]).toLocaleString();
+            return `${time}<br/>成交量：${params[0].value[1]}`;
+          }
+        },
+        xAxis: {
+          type: 'time',
+          splitLine: { show: false }
+        },
+        yAxis: {
+          type: 'value',
+          splitLine: { show: true }
+        },
+        dataZoom: [
+          {
+            type: 'inside',
+            start: 0,
+            end: 100
+          },
+          {
+            show: true,
+            type: 'slider',
+            bottom: 10,
+            start: 0,
+            end: 100
+          }
+        ],
+        series: [{
+          name: '成交量',
+          type: 'bar',
+          data: this.marketData.volumes.map(v => [v.time, v.value]),
+          itemStyle: {
+            color: '#2ecc71'
+          }
+        }]
+      };
+
+      // 更新图表
+      try {
+        this.marketCharts.price.setOption(priceOption, true);
+        this.marketCharts.volume.setOption(volumeOption, true);
+      } catch (error) {
+        console.error('更新市场行情图表失败：', error);
+        this.error = '更新市场行情图表失败';
+      }
+    },
+    // 切换时间范围
+    changeTimeRange(range) {
+      this.selectedTimeRange = range;
+      this.fetchMarketData();
     }
   },
   mounted() {
@@ -854,12 +1032,16 @@ export default {
     this.fetchLoans();
     this.fetchCompanyReport();
     this.startDataUpdates();
+    this.initMarketCharts();
+    this.fetchMarketData();
 
     // 添加窗口大小变化监听
     window.addEventListener('resize', () => {
       this.klineChart?.resize();
       this.depthChart?.resize();
       this.performanceChart?.resize();
+      this.marketCharts.price?.resize();
+      this.marketCharts.volume?.resize();
     });
   },
   beforeDestroy() {
@@ -872,6 +1054,8 @@ export default {
     }
     // 移除窗口大小变化监听
     window.removeEventListener('resize', this.handleResize);
+    this.marketCharts.price?.dispose();
+    this.marketCharts.volume?.dispose();
   }
 };
 </script>
@@ -1164,5 +1348,45 @@ select, input {
   display: flex;
   justify-content: space-between;
   margin-top: 10px;
+}
+
+.market-section {
+  margin-top: 20px;
+}
+
+.time-range-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.range-btn {
+  padding: 5px 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.range-btn.active {
+  background: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.market-charts {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.chart-container {
+  margin-bottom: 20px;
+}
+
+.chart-container:last-child {
+  margin-bottom: 0;
 }
 </style> 
