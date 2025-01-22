@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 
 # 配置数据库连接
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 初始化数据库
@@ -39,11 +39,6 @@ class Transaction(db.Model):
 @app.route('/')
 def index():
     return '欢迎来到股票投资模拟游戏！'
-
-# 初始化数据库
-@app.before_first_request
-def create_tables():
-    db.create_all()
 
 # 启动应用
 if __name__ == '__main__':
