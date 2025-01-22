@@ -9,6 +9,8 @@ from leaderboard import get_leaderboard  # 导入get_leaderboard函数
 from news import start_news_simulation  # 导入新闻事件模拟函数
 import threading
 import time
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from models import User
 
 # 配置数据库连接
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net'
@@ -71,4 +73,18 @@ if __name__ == '__main__':
     news_thread.daemon = True
     news_thread.start()
 
-    app.run(host='0.0.0.0', port=5010) 
+    app.run(host='0.0.0.0', port=5010)
+
+@app.route('/api/user/assets', methods=['GET'])
+@jwt_required()
+def get_user_assets():
+    """
+    获取当前登录用户的资产详情
+    """
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({"error": "用户不存在"}), 404
+    
+    return jsonify(user.get_assets()) 
