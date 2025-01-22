@@ -22,6 +22,7 @@
 ### 1.3 数据库
 - **MySQL 5.7.40**：关系型数据库，适合大多数应用，支持复杂查询。
 - **mysql-connector-python**：纯Python实现的MySQL连接器，无需编译
+- **JWT（JSON Web Token）**：用于用户认证和授权，确保API访问安全
 
 ### 1.4 部署环境
 #### 1.4.1 服务器环境
@@ -29,6 +30,8 @@
 - 域名：localhost (注意：不要用绝对路径)
 - 端口：5010
 - 运行用户：www
+- JWT密钥：随机生成的安全字符串（建议在生产环境中使用更复杂的密钥）
+- JWT过期时间：7天
 
 #### 1.4.2 数据库配置
 - 数据库版本: MySQL 5.7.40
@@ -83,6 +86,8 @@ loglevel = 'info'
 ## 1.5 常见问题及解决方案
 - **问题**：如何解决依赖包冲突？
   - **解决方案**：使用虚拟环境（如 venv）来隔离项目依赖。
+- **问题**：如何保护API接口安全？
+  - **解决方案**：使用JWT认证，所有敏感API都需要提供有效的JWT令牌才能访问
 
 ## 2. 项目说明
 ### 2.1 项目目标  
@@ -130,6 +135,7 @@ loglevel = 'info'
 - 021：优化ai_trader.py文件，避免AI用户频繁尝试卖出不存在的股票
 - 022：在models.py中添加get_assets方法，用于计算用户资产
 - 023：在app.py中添加/api/user/assets路由，用于获取用户资产详情
+- 024：在项目中添加JWT认证，保护敏感API接口
 
 ### 2.4 项目结构API地址
 - http://localhost:5010/ - 首页路由
@@ -139,6 +145,7 @@ loglevel = 'info'
 - http://localhost:5010/api/trade/buy - 买入股票API
 - http://localhost:5010/api/trade/sell - 卖出股票API
 - http://localhost:5010/api/user/assets - 用户资产详情API
+- http://localhost:5010/api/auth/refresh - JWT刷新令牌API
 
 ### 2.5 项目结构下一步
 1. **添加交易历史功能**：让玩家可以查看自己的交易历史，包括买入、卖出的股票、数量、价格和时间。
