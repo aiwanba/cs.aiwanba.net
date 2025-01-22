@@ -14,6 +14,10 @@ def init_database():
     admin_user = User(username='admin', password='admin123')
     db.session.add(admin_user)
 
+    # 创建AI用户，初始资金为1亿
+    ai_user = User(username='ai', password='ai123', balance=100000000.0)
+    db.session.add(ai_user)
+
     # 创建初始股票
     stocks = [
         Stock(name='科技公司A', symbol='TECH-A', price=100.0),
@@ -34,7 +38,7 @@ def init_database():
 
     # 为AI用户添加初始股票持仓
     with app.app_context():
-        ai_user = User.query.get(1)
+        ai_user = User.query.filter_by(username='ai').first()
         if ai_user:
             # 为AI用户随机买入一些股票
             for stock in Stock.query.all():

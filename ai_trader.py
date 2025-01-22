@@ -7,8 +7,8 @@ def ai_trade():
     AI对手的自动交易策略
     """
     with app.app_context():
-        # 获取AI用户（假设AI用户的ID为1）
-        ai_user = User.query.get(1)
+        # 获取AI用户（通过用户名查找）
+        ai_user = User.query.filter_by(username='ai').first()
         if not ai_user:
             print("AI用户不存在，请先创建AI用户！")
             return
@@ -22,8 +22,20 @@ def ai_trade():
         # 随机选择一支股票
         stock = random.choice(stocks)
 
-        # 随机决定买入或卖出
-        action = random.choice(['buy', 'sell'])
+        # 获取该股票的历史交易记录
+        transactions = Transaction.query.filter_by(stock_id=stock.id).order_by(Transaction.timestamp.desc()).all()
+
+        # 计算股票价格的平均波动
+        price_changes = []
+        for i in range(1, len(transactions)):
+            price_changes.append(transactions[i-1].price - transactions[i].price)
+        avg_price_change = sum(price_changes) / len(price_changes) if price_changes else 0
+
+        # 根据价格波动决定买入或卖出
+        if avg_price_change > 0:  # 价格上涨趋势
+            action = 'buy' if random.random() < 0.7 else 'sell'  # 70%概率买入
+        else:  # 价格下跌趋势
+            action = 'sell' if random.random() < 0.7 else 'buy'  # 70%概率卖出
 
         # 随机决定交易数量（1到10股）
         quantity = random.randint(1, 10)
