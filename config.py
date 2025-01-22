@@ -2,10 +2,10 @@ import os
 
 class Config:
     """配置类"""
-    # 基础配置
+    # 安全密钥
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your-secret-key'
     
-    # 数据库配置
+    # 数据库配置（稍后添加）
     # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'mysql://user:password@localhost/stock_game'
     # SQLALCHEMY_TRACK_MODIFICATIONS = False
     
