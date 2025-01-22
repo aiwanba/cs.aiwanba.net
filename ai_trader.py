@@ -19,8 +19,16 @@ def ai_trade():
             print("没有可交易的股票！")
             return
 
-        # 随机选择一支股票
-        stock = random.choice(stocks)
+        # 获取AI用户当前持有的股票
+        holdings = Transaction.query.filter_by(user_id=ai_user.id, type='buy').all()
+        held_stocks = {t.stock_id for t in holdings}  # 获取AI用户持有的股票ID集合
+
+        # 如果AI用户持有股票，优先选择持有的股票
+        if held_stocks:
+            stock = random.choice([Stock.query.get(sid) for sid in held_stocks])
+        else:
+            # 如果AI用户没有持有任何股票，随机选择一支股票进行买入
+            stock = random.choice(stocks)
 
         # 获取该股票的历史交易记录
         transactions = Transaction.query.filter_by(stock_id=stock.id).order_by(Transaction.timestamp.desc()).all()
@@ -36,6 +44,10 @@ def ai_trade():
             action = 'buy' if random.random() < 0.7 else 'sell'  # 70%概率买入
         else:  # 价格下跌趋势
             action = 'sell' if random.random() < 0.7 else 'buy'  # 70%概率卖出
+
+        # 如果AI用户没有持有该股票，只能买入
+        if stock.id not in held_stocks:
+            action = 'buy'
 
         # 随机决定交易数量（1到10股）
         quantity = random.randint(1, 10)
