@@ -32,10 +32,6 @@
 ### 更新文件
 | 序列号 | 文件名称 | 文件描述 |
 |-------|----------|----------|
-| 1 | .cursorrules | 整合生产环境部署配置信息，更新项目背景、文件结构和错误处理部分 |
-| 2 | .cursorrules | 更新项目下一步，记录 AI 系统功能的实现 |
-| 3 | app.py | 添加 AI 玩家和 AI 交易功能 |
-| 4 | sql/init.sql | 添加 AI 玩家和 AI 交易表结构 |
 
 ### 优化文件
 | 序列号 | 文件名称 | 文件描述 |
@@ -47,46 +43,6 @@
 
 ## 项目背景
 # 这是一个基于Flask框架的Web应用项目，部署在Linux服务器上，使用Gunicorn作为WSGI服务器，MySQL作为数据库。项目目标是提供一个稳定可靠的Web服务。
-
-## 编码标准
-# 请在此定义项目的代码风格和命名规范。
-
-## 首选库
-# 请在此列出项目中使用的库及其版本，并说明选择理由。
-
-## 文件结构
-# 项目主要文件结构如下：
-# - /www/wwwroot/cs.aiwanba.net/ 项目根目录
-#   - app.py 应用入口文件
-#   - gunicorn_conf.py Gunicorn配置文件
-#   - requirements.txt 依赖包文件
-# - /www/wwwlogs/python/cs_aiwanba_net/ 日志目录
-#   - gunicorn_acess.log 访问日志
-#   - gunicorn_error.log 错误日志
-
-## 性能优化指南
-# 请在此提供性能优化的建议和最佳实践。
-
-## 测试要求
-# 请在此明确测试的范围、方法和工具。
-
-## 文档规范
-# 请在此规定代码注释、README 文件等的编写标准。
-
-## 错误处理
-# 项目采用以下错误处理机制：
-# 1. 日志记录：
-#   - 访问日志：/www/wwwlogs/python/cs_aiwanba_net/gunicorn_acess.log
-#   - 错误日志：/www/wwwlogs/python/cs_aiwanba_net/gunicorn_error.log
-# 2. 日志级别：
-#   - debug: 调试级别
-#   - info: 普通级别
-#   - warning: 警告消息
-#   - error: 错误消息
-#   - critical: 严重错误消息
-# 3. 默认日志级别为info
-
-## 项目下一步 (注意下一步不能删除，用备注描述是否实现)
 # 1. 这是多人在线的股票交易游戏程序：
 #   - 股票系统：
 #     - 每个股票代表一家公司
@@ -119,36 +75,24 @@
 #     - 要具备智能化根据公司系统、银行系统、股票系统、交易系统的数据分析，进行交易股票决策
 #     - AI玩家应具备不同的交易策略：保守型、激进型、平衡型
 #     - AI玩家可以学习其他玩家的交易模式，不断优化自己的交易策略
-# 备注：AI 系统已实现，包括创建 AI 玩家、获取 AI 玩家信息、AI 玩家进行交易、查询 AI 交易历史等功能。
 
-### 1.1 服务器环境
-- 部署路径：/www/wwwroot/cs.aiwanba.net
-- 域名：localhost (注意：不要用绝对路径)
-- 端口：5010
-- 运行用户：www
-- 管理工具：宝塔面板
+## 编码标准
+# 请在此定义项目的代码风格和命名规范。
 
-### 1.2 数据库配置
-- 数据库: MySQL 5.7.40
-- 数据库名: cs_aiwanba_net
-- 用户名: cs_aiwanba_net
-- 密码: sQz9HSnF5ZcXj9SX
-- 主机: localhost
-- 端口: 3306
+## 首选库
+# 请在此列出项目中使用的库及其版本，并说明选择理由。
 
-### 1.3 Python环境
-- Python版本：3.11.9
-- Web框架：Flask
-- WSGI服务器：Gunicorn
-- 启动方式：
-  - 命令行启动：python app.py
-  - uwsgi
-  - gunicorn(推荐)
-- 入口文件：/www/wwwroot/cs.aiwanba.net/app.py
-- 应用名称：app
+## 文件结构
 
-### 1.4 依赖包
-- 用文件requirements.txt
+## 性能优化指南
+# 请在此提供性能优化的建议和最佳实践。
 
-### 1.5 Gunicorn配置
-- 配置文件：/www/wwwroot/cs.aiwanba.net/gunicorn_conf.py
+## 测试要求
+# 请在此明确测试的范围、方法和工具。
+
+## 文档规范
+# 请在此规定代码注释、README 文件等的编写标准。
+
+## 错误处理
+
+## 项目下一步 (注意下一步不能删除，用备注描述是否实现)
