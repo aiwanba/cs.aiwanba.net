@@ -8,7 +8,7 @@
 ### 5.1、生产环境部署配置文档位于doc/生产环境部署配置文档.md
 ### 5.1.1、部署路径：/www/wwwroot/cs.aiwanba.net
 ### 5.1.2、Python环境：
-  - 运行环境：Python 3.11.9
+  - Python版本：Python 3.11.9
   - Web框架：Flask
   - WSGI服务器：Gunicorn
   - 入口文件：/www/wwwroot/cs.aiwanba.net/app.py
