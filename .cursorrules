@@ -20,6 +20,22 @@
 ### 创建文件
 | 序列号 | 文件名称 | 文件描述 |
 |-------|----------|----------|
+| 1 | app.py | Flask应用主入口文件 |
+| 2 | models/company.py | 公司模型定义文件 |
+| 3 | models/user.py | 用户模型定义文件 |
+| 4 | models/stock.py | 股票模型定义文件 |
+| 5 | models/bank.py | 银行系统模型定义文件 |
+| 6 | services/bank_service.py | 银行业务服务层 |
+| 7 | api/bank_api.py | 银行系统API接口 |
+| 8 | models/transaction.py | 交易系统模型定义文件 |
+| 9 | services/transaction_service.py | 交易业务服务层 |
+| 10 | api/transaction_api.py | 交易系统API接口 |
+| 11 | services/stock_price_service.py | 股票价格更新服务 |
+| 12 | tasks/stock_price_updater.py | 股票价格更新定时任务 |
+| 13 | api/stock_api.py | 股票价格查询API |
+| 14 | models/ai_strategy.py | AI交易策略模型 |
+| 15 | services/ai_trading_service.py | AI交易服务 |
+| 16 | api/ai_trading_api.py | AI交易API |
 
 ### 添加文件
 | 序列号 | 文件名称 | 文件描述 |
@@ -28,6 +44,10 @@
 ### 修改文件
 | 序列号 | 文件名称 | 文件描述 |
 |-------|----------|----------|
+| 1 | app.py | 添加银行系统蓝图注册 |
+| 2 | app.py | 添加交易系统蓝图注册 |
+| 3 | app.py | 添加股票系统蓝图注册和定时任务启动 |
+| 4 | app.py | 添加AI交易系统蓝图注册 |
 
 ### 更新文件
 | 序列号 | 文件名称 | 文件描述 |
@@ -83,6 +103,19 @@
 # 请在此列出项目中使用的库及其版本，并说明选择理由。
 
 ## 文件结构
+```
+project/
+├── app.py              # 应用入口文件
+├── config.py           # 配置文件
+├── models/             # 数据模型
+│   ├── __init__.py
+│   ├── company.py     # 公司模型
+│   ├── user.py        # 用户模型
+│   └── stock.py       # 股票模型
+├── services/          # 业务逻辑层
+├── api/              # API路由
+└── tests/            # 测试文件
+```
 
 ## 性能优化指南
 # 请在此提供性能优化的建议和最佳实践。
