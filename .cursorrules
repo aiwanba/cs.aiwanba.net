@@ -7,20 +7,20 @@
 四、开发流程
 
 五、错误与文档
-- 生产环境部署配置文档位于doc/生产环境部署配置文档.md
-- 部署路径：/www/wwwroot/cs.aiwanba.net
-- Python环境：
+1、生产环境部署配置文档位于doc/生产环境部署配置文档.md
+2、部署路径：/www/wwwroot/cs.aiwanba.net
+3、Python环境：
   - Python版本：3.11.9
   - Web框架：Flask
   - WSGI服务器：Gunicorn
   - 入口文件：/www/wwwroot/cs.aiwanba.net/app.py
   - 应用名称：app
-- Gunicorn配置：
+4、Gunicorn配置：
   - 配置文件：/www/wwwroot/cs.aiwanba.net/gunicorn_conf.py
   - 进程数：4
   - 线程数：2
   - 绑定端口：5010
-- 数据库配置：
+5、数据库配置：
   - 数据库: MySQL 5.7.40
   - 数据库名: cs_aiwanba_net
   - 用户名: cs_aiwanba_net
