@@ -9,13 +9,6 @@
 五、错误与文档
 - 生产环境部署配置文档位于doc/生产环境部署配置文档.md
 - 部署路径：/www/wwwroot/cs.aiwanba.net
-- 数据库配置：
-  - 数据库: MySQL 5.7.40
-  - 数据库名: cs_aiwanba_net
-  - 用户名: cs_aiwanba_net
-  - 密码: sQz9HSnF5ZcXj9SX
-  - 主机: localhost
-  - 端口: 3306
 - Python环境：
   - Python版本：3.11.9
   - Web框架：Flask
@@ -27,3 +20,10 @@
   - 进程数：4
   - 线程数：2
   - 绑定端口：5010
+- 数据库配置：
+  - 数据库: MySQL 5.7.40
+  - 数据库名: cs_aiwanba_net
+  - 用户名: cs_aiwanba_net
+  - 密码: sQz9HSnF5ZcXj9SX
+  - 主机: localhost
+  - 端口: 3306
