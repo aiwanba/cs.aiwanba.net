@@ -113,6 +113,26 @@ def cancel_order_endpoint(order_id):
         app.logger.error(f"Order cancellation error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/ai', methods=['POST'])
+def create_ai_player():
+    """创建AI玩家接口"""
+    try:
+        data = request.json
+        strategy = data.get('strategy', 'BALANCED')
+        
+        conn = get_db_connection()
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO ai_players (strategy_type)
+                VALUES (%s)
+            """, (strategy,))
+            ai_id = cursor.lastrowid
+            conn.commit()
+            return jsonify({'ai_id': ai_id})
+    except Exception as e:
+        app.logger.error(f"AI creation error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 def execute_trade(user_id, company_id, shares, trade_type):
     """执行股票交易核心逻辑"""
     app.logger.debug(f"尝试交易：用户{user_id} 公司{company_id} 数量{shares} 类型{trade_type}")

@@ -118,4 +118,25 @@ CREATE TABLE IF NOT EXISTS order_cancellations (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 添加索引
-CREATE INDEX idx_cancellations ON order_cancellations (order_id, cancelled_at); 
+CREATE INDEX idx_cancellations ON order_cancellations (order_id, cancelled_at);
+
+-- 添加AI玩家表
+CREATE TABLE IF NOT EXISTS ai_players (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    strategy_type ENUM('CONSERVATIVE', 'AGGRESSIVE', 'BALANCED') NOT NULL,
+    initial_balance DECIMAL(15,2) DEFAULT 100000.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 添加AI操作记录表
+CREATE TABLE IF NOT EXISTS ai_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ai_id INT NOT NULL,
+    action_type ENUM('BUY', 'SELL', 'HOLD') NOT NULL,
+    company_id INT,
+    shares INT,
+    price DECIMAL(10,2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ai_id) REFERENCES ai_players(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4; 
