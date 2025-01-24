@@ -77,6 +77,7 @@
 | 013   | analysis_operations.py | 创建交易分析模块         |
 | 014   | order_manager.py      | 创建订单管理模块             |
 | 015   | ai_strategies.py     | 创建AI策略模块               |
+| 016   | ai_scheduler.py       | 创建AI定时交易模块           |
 
 ### 添加文件
 | 序列号 | 文件名称 | 文件描述 |
@@ -105,8 +106,10 @@
 | 018   | init_db.sql      | 添加订单撤销记录表结构       |
 | 019   | init_db.sql      | 添加AI玩家表结构             |
 | 020   | app.py           | 添加AI管理接口               |
-| 021   | ai_strategies.py | 添加市场波动分析逻辑         |
-| 022   | ai_scheduler.py  | 创建AI定时交易模块           |
+| 021   | ai_strategies.py | 添加市场波动分析逻辑         
+| 022   | ai_scheduler.py  | 创建AI定时交易模块           
+| 023   | ai_strategies.py | 添加策略执行方法             |
+| 024   | ai_scheduler.py  | 实现定时交易调度逻辑         |
 
 
 ### 更新文件
@@ -250,6 +253,7 @@ project/
 | v1.6.1 | 更新项目路线图              |
 | v1.7.0 | 实现订单撤销功能            |
 | v1.8.0 | 实现AI玩家基础框架          |
-| v1.9.0 | 完善AI交易策略              |
+| v1.9.0 | 实现AI策略动态调整机制      |
+| v1.9.1 | 添加AI定时交易调度功能      |
 
 ---
