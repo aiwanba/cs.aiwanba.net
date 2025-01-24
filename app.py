@@ -49,6 +49,7 @@ def stock_trade():
 
 def execute_trade(user_id, company_id, shares, trade_type):
     """执行股票交易核心逻辑"""
+    app.logger.debug(f"尝试交易：用户{user_id} 公司{company_id} 数量{shares} 类型{trade_type}")
     conn = get_db_connection()
     try:
         with conn.cursor() as cursor:
@@ -58,6 +59,7 @@ def execute_trade(user_id, company_id, shares, trade_type):
                 (company_id,)
             )
             company = cursor.fetchone()
+            app.logger.debug(f"查询公司结果：{company}")
             if not company:
                 raise ValueError("Company not found")
             
@@ -96,4 +98,9 @@ def execute_trade(user_id, company_id, shares, trade_type):
         conn.close()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)  # 开发环境使用不同端口，避免与生产环境冲突 
+    # 开发服务器配置（仅用于测试）
+    app.run(
+        debug=True, 
+        port=5000,  # 开发端口5000 
+        host='0.0.0.0'  # 允许外部访问
+    ) 

@@ -33,4 +33,13 @@ CREATE TABLE IF NOT EXISTS stock_transactions (
 
 -- 创建索引优化查询性能
 CREATE INDEX idx_transactions ON stock_transactions (user_id, company_id);
-CREATE INDEX idx_companies ON companies (founder_id); 
+CREATE INDEX idx_companies ON companies (founder_id);
+
+-- 在文件末尾添加测试数据
+INSERT INTO users (username, email, balance) VALUES
+('test_user', 'test@aiwanba.net', 100000.00),
+('ai_player1', 'ai1@aiwanba.net', 200000.00);
+
+INSERT INTO companies (name, founder_id, current_price) VALUES
+('测试科技', 1, 15.00),
+('AI交易公司', 2, 20.00); 
