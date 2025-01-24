@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from database import get_db_connection
 from bank_operations import handle_bank_operation
+from fee_calculator import calculate_fee
 
 app = Flask(__name__)
 
@@ -73,6 +74,8 @@ def execute_trade(user_id, company_id, shares, trade_type):
             
             price = company['current_price']
             total_cost = price * shares
+            fee = calculate_fee(total_cost)
+            total_cost += fee
 
             # 开始事务
             conn.begin()
@@ -80,8 +83,8 @@ def execute_trade(user_id, company_id, shares, trade_type):
             # 更新用户余额
             if trade_type == 'BUY':
                 cursor.execute(
-                    "UPDATE users SET balance = balance - %s WHERE id=%s AND balance >= %s",
-                    (total_cost, user_id, total_cost)
+                    "UPDATE users SET balance = balance - %s - %s WHERE id=%s AND balance >= %s + %s",
+                    (total_cost, fee, user_id, total_cost, fee)
                 )
             else:
                 cursor.execute(
