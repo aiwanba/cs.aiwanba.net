@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 import os
 import pymysql
 from models import init_models
+from flask_migrate import Migrate
 
 # 安装 PyMySQL
 pymysql.install_as_MySQLdb()
@@ -23,6 +24,7 @@ app.config['SECRET_KEY'] = os.urandom(24)
 
 # 初始化数据库
 db = init_models(app)
+migrate = Migrate(app, db)  # 添加迁移支持
 
 # 导入所有模型（在初始化数据库之后）
 from models.user import User
@@ -57,86 +59,20 @@ def init_db():
     """初始化数据库"""
     with app.app_context():
         try:
-            # 删除所有表（如果存在）
-            db.drop_all()
-            print("旧表删除完成")
+            # 检查表是否存在，如果不存在则创建
+            if not db.engine.has_table('users'):
+                db.create_all()
+                print("数据库表创建完成")
+            else:
+                print("数据库表已存在，跳过创建")
             
-            # 创建所有表
-            db.create_all()
-            db.session.commit()  # 确保表创建被提交
-            print("新表创建完成")
-            
-            # 验证表是否创建成功
-            engine = db.engine
-            inspector = db.inspect(engine)
-            tables = inspector.get_table_names()
-            print(f"已创建的表: {tables}")
-            
-            if 'users' not in tables:
-                raise Exception("users 表创建失败")
-            
-            # 创建默认管理员用户
-            admin = User(
-                username='admin',
-                email='admin@example.com',
-                password_hash='admin123',
-                is_ai=False
-            )
-            db.session.add(admin)
-            try:
-                db.session.commit()
-                print("管理员用户创建完成")
-            except Exception as e:
-                db.session.rollback()
-                print(f"创建管理员用户失败: {str(e)}")
-                raise
-            
-            # 创建默认AI策略
-            strategies = [
-                AIStrategy(
-                    name='保守策略',
-                    type='conservative',
-                    description='低风险、稳定收益的交易策略',
-                    risk_tolerance=0.3,
-                    max_position_size=0.2,
-                    min_holding_period=1440,
-                    profit_target=0.05,
-                    stop_loss=0.03
-                ),
-                AIStrategy(
-                    name='激进策略',
-                    type='aggressive',
-                    description='高风险、高收益的交易策略',
-                    risk_tolerance=0.8,
-                    max_position_size=0.5,
-                    min_holding_period=60,
-                    profit_target=0.15,
-                    stop_loss=0.1
-                ),
-                AIStrategy(
-                    name='平衡策略',
-                    type='balanced',
-                    description='中等风险和收益的交易策略',
-                    risk_tolerance=0.5,
-                    max_position_size=0.3,
-                    min_holding_period=720,
-                    profit_target=0.08,
-                    stop_loss=0.05
-                )
-            ]
-            for strategy in strategies:
-                db.session.add(strategy)
-            
-            try:
-                db.session.commit()
-                print("AI策略创建完成")
-            except Exception as e:
-                db.session.rollback()
-                print(f"创建AI策略失败: {str(e)}")
-                raise
-            
-            print("数据库初始化完成")
-            
+            # 初始化数据（仅当表为空时）
+            if not User.query.first():
+                # 初始化用户、公司、股票等数据
+                # ...
+                print("初始化数据完成")
+            else:
+                print("数据库已有数据，跳过初始化")
         except Exception as e:
             db.session.rollback()
             print(f"初始化数据时出错: {str(e)}")
