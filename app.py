@@ -56,6 +56,28 @@ def bank_operation():
         app.logger.error(f"Bank error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/limit_order', methods=['POST'])
+def create_limit_order():
+    """创建限价单接口"""
+    try:
+        data = request.json
+        required_fields = ['user_id', 'company_id', 'shares', 'price', 'type']
+        if not all(k in data for k in required_fields):
+            return jsonify({'error': 'Missing parameters'}), 400
+
+        # 创建限价单
+        order_id = create_limit_order(
+            data['user_id'],
+            data['company_id'],
+            data['shares'],
+            data['price'],
+            data['type']
+        )
+        return jsonify({'order_id': order_id})
+    except Exception as e:
+        app.logger.error(f"Limit order error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 def execute_trade(user_id, company_id, shares, trade_type):
     """执行股票交易核心逻辑"""
     app.logger.debug(f"尝试交易：用户{user_id} 公司{company_id} 数量{shares} 类型{trade_type}")

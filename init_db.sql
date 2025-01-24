@@ -61,4 +61,22 @@ INSERT INTO companies (name, founder_id, current_price) VALUES
 CREATE VIEW user_balance_view AS
 SELECT id, username, balance 
 FROM users
-WHERE balance > 0; 
+WHERE balance > 0;
+
+-- 添加限价单表
+CREATE TABLE IF NOT EXISTS limit_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    company_id INT NOT NULL,
+    shares INT NOT NULL,
+    limit_price DECIMAL(10,2) NOT NULL,
+    order_type ENUM('BUY', 'SELL') NOT NULL,
+    status ENUM('OPEN', 'FILLED', 'CANCELLED') DEFAULT 'OPEN',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (company_id) REFERENCES companies(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 添加索引
+CREATE INDEX idx_limit_orders ON limit_orders (company_id, limit_price, status); 
