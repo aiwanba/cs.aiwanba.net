@@ -5,6 +5,7 @@ from models.company import Company
 from models.bank import BankAccount
 from services.bank_service import BankService
 from datetime import datetime
+from sqlalchemy.orm import joinedload
 
 class TransactionService:
     """交易服务"""
@@ -52,11 +53,14 @@ class TransactionService:
     @staticmethod
     def get_transaction_history(company_id):
         """获取交易历史"""
-        transactions = Transaction.query.filter(
+        transactions = Transaction.query.options(
+            joinedload(Transaction.stock),
+            joinedload(Transaction.buyer_company),
+            joinedload(Transaction.seller_company)
+        ).filter(
             (Transaction.buyer_company_id == company_id) |
             (Transaction.seller_company_id == company_id)
         ).order_by(Transaction.created_at.desc()).all()
-        
         return transactions
     
     @staticmethod

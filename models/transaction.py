@@ -11,7 +11,7 @@ class Transaction(db.Model):
     buyer_company_id = db.Column(db.Integer, db.ForeignKey('companies.id'), nullable=False)
     
     # 交易股票信息
-    stock_id = db.Column(db.Integer, db.ForeignKey('stocks.id'), nullable=False)
+    stock_id = db.Column(db.Integer, db.ForeignKey('stocks.id'), index=True)
     shares = db.Column(db.Integer, nullable=False)  # 交易股数
     price = db.Column(db.Float, nullable=False)  # 交易价格
     total_amount = db.Column(db.Float, nullable=False)  # 交易总额
@@ -20,7 +20,7 @@ class Transaction(db.Model):
     order_type = db.Column(db.String(20), nullable=False)  # 'market'(市价单) 或 'limit'(限价单)
     status = db.Column(db.String(20), nullable=False)  # 'pending', 'completed', 'cancelled'
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     completed_at = db.Column(db.DateTime)  # 交易完成时间
     
     # 关系

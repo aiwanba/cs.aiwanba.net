@@ -3,11 +3,15 @@ from services.stock_price_service import StockPriceService
 from models import db
 from datetime import datetime, timedelta
 import pytz  # 导入pytz库
+from celery import Celery
 
 # 设置时区
 tz = pytz.timezone('Asia/Shanghai')
 
 scheduler = BackgroundScheduler(timezone=tz)  # 设置时区
+
+# 初始化 Celery
+celery = Celery('tasks', broker='redis://localhost:6379/0')
 
 def setup_stock_price_updater(app):
     """设置股票价格更新定时任务"""
@@ -23,11 +27,12 @@ def setup_stock_price_updater(app):
         )
         scheduler.start()
 
-def update_stock_prices(app):
+@celery.task
+def update_stock_prices():
     """更新股票价格"""
-    with app.app_context():  # 在应用上下文中运行
+    with app.app_context():
         try:
             updated_count = StockPriceService.update_stock_prices()
-            print(f"[{datetime.now(tz)}] 成功更新 {updated_count} 只股票价格")  # 使用时区
+            print(f"[{datetime.now()}] 成功更新 {updated_count} 只股票价格")
         except Exception as e:
-            print(f"[{datetime.now(tz)}] 更新股票价格失败: {str(e)}")  # 使用时区 
+            print(f"[{datetime.now()}] 更新股票价格失败: {str(e)}") 
