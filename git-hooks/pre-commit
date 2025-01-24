@@ -1,0 +1,5 @@
+# 检查.cursorrules最后修改时间是否晚于相关代码文件
+if [ .cursorrules -ot modified_file.js ]; then
+  echo "ERROR: .cursorrules未及时更新!"
+  exit 1
+fi 
