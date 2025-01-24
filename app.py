@@ -4,6 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from datetime import datetime
 import os
+import pymysql
 
 # 创建Flask应用实例
 app = Flask(__name__)
@@ -48,6 +49,9 @@ def index():
         "status": "success",
         "message": "股票交易游戏API服务正在运行"
     })
+
+# 在导入部分添加
+pymysql.install_as_MySQLdb()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
