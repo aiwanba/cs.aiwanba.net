@@ -35,6 +35,19 @@ CREATE TABLE IF NOT EXISTS stock_transactions (
 CREATE INDEX idx_transactions ON stock_transactions (user_id, company_id);
 CREATE INDEX idx_companies ON companies (founder_id);
 
+-- 创建银行交易记录表
+CREATE TABLE IF NOT EXISTS bank_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    operation_type ENUM('DEPOSIT', 'WITHDRAW') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 添加银行交易索引
+CREATE INDEX idx_bank_trans ON bank_transactions (user_id, created_at);
+
 -- 在文件末尾添加测试数据
 INSERT INTO users (username, email, balance) VALUES
 ('test_user', 'test@aiwanba.net', 100000.00),
@@ -42,4 +55,10 @@ INSERT INTO users (username, email, balance) VALUES
 
 INSERT INTO companies (name, founder_id, current_price) VALUES
 ('测试科技', 1, 15.00),
-('AI交易公司', 2, 20.00); 
+('AI交易公司', 2, 20.00);
+
+-- 添加用户余额视图
+CREATE VIEW user_balance_view AS
+SELECT id, username, balance 
+FROM users
+WHERE balance > 0; 

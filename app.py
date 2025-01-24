@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-import pymysql
+from database import get_db_connection
 
 app = Flask(__name__)
 
@@ -9,18 +9,6 @@ if __name__ != '__main__':
     gunicorn_logger = logging.getLogger('gunicorn.error')
     app.logger.handlers = gunicorn_logger.handlers
     app.logger.setLevel(gunicorn_logger.level)
-
-# 数据库连接配置
-def get_db_connection():
-    return pymysql.connect(
-        host='localhost',
-        user='cs_aiwanba_net',
-        password='sQz9HSnF5ZcXj9SX',
-        database='cs_aiwanba_net',
-        port=3306,
-        charset='utf8mb4',
-        cursorclass=pymysql.cursors.DictCursor
-    )
 
 @app.route('/')
 def index():
@@ -45,6 +33,25 @@ def stock_trade():
         return jsonify(result)
     except Exception as e:
         app.logger.error(f"Trade error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/bank', methods=['POST'])
+def bank_operation():
+    """银行系统接口（存款/取款）"""
+    try:
+        data = request.json
+        required_fields = ['user_id', 'amount', 'operation_type']
+        if not all(k in data for k in required_fields):
+            return jsonify({'error': 'Missing parameters'}), 400
+
+        result = handle_bank_operation(
+            data['user_id'],
+            data['amount'],
+            data['operation_type']
+        )
+        return jsonify(result)
+    except Exception as e:
+        app.logger.error(f"Bank error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def execute_trade(user_id, company_id, shares, trade_type):
