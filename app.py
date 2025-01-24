@@ -6,6 +6,9 @@ from datetime import datetime
 import os
 import pymysql
 
+# 安装 PyMySQL
+pymysql.install_as_MySQLdb()
+
 # 创建Flask应用实例
 app = Flask(__name__)
 
@@ -17,6 +20,14 @@ app.config['SECRET_KEY'] = os.urandom(24)
 # 创建数据库实例
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+# 创建基本路由
+@app.route('/')
+def index():
+    return jsonify({
+        "status": "success",
+        "message": "股票交易游戏API服务正在运行"
+    })
 
 # 导入模型（必须在创建db之后导入）
 from models.user import User
@@ -39,19 +50,8 @@ app.register_blueprint(transaction_bp, url_prefix='/api/transaction')
 app.register_blueprint(stock_bp, url_prefix='/api/stock')
 app.register_blueprint(ai_trading_bp, url_prefix='/api/ai-trading')
 
-# 启动定时任务
-setup_stock_price_updater()
-
-# 创建基本路由
-@app.route('/')
-def index():
-    return jsonify({
-        "status": "success",
-        "message": "股票交易游戏API服务正在运行"
-    })
-
-# 在导入部分添加
-pymysql.install_as_MySQLdb()
-
 if __name__ == '__main__':
+    # 启动定时任务
+    setup_stock_price_updater()
+    # 启动应用
     app.run(host='0.0.0.0', port=5010, debug=True) 

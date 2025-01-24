@@ -1,12 +1,13 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from services.stock_price_service import StockPriceService
 import logging
+from pytz import timezone
 
 logger = logging.getLogger(__name__)
 
 def setup_stock_price_updater():
     """设置股票价格更新定时任务"""
-    scheduler = BackgroundScheduler()
+    scheduler = BackgroundScheduler(timezone=timezone('Asia/Shanghai'))  # 设置时区为上海
     
     # 每分钟更新一次股票价格
     scheduler.add_job(
