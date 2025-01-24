@@ -88,46 +88,86 @@
 
 ## 编码标准
 - **代码风格**：  
-  （在此定义代码风格）
+  - 使用ESLint + Prettier统一代码格式
+  - 缩进：2个空格
+  - 字符串使用单引号
+  - 必须使用分号结尾
+  - React组件使用函数式组件+TypeScript
 - **命名规范**：  
-  （在此定义命名规范）
+  - 变量/函数：camelCase
+  - 组件：PascalCase
+  - 常量：UPPER_CASE
+  - 类型/接口：I前缀+PascalCase（如IStockData）
+  - 事件处理函数：handle前缀（如handleBuyStock）
 
 ---
 
 ## 首选库
 | 库名称 | 版本 | 用途 |
 |--------|------|------|
-|        |      |      |
+| React | ^18.2.0 | 前端框架 |
+| Socket.IO | ^4.7.2 | 实时交易通信 |
+| Recharts | ^2.8.0 | 数据可视化 |
+| Redux Toolkit | ^1.9.5 | 状态管理 |
+| TypeScript | ^5.0.4 | 类型检查 |
+| Jest | ^29.7.0 | 单元测试 |
 
 ---
 
 ## 文件结构
 | 文件夹 | 文件描述 |
 |--------|----------|
-|        |          |
+| src/components | 可复用UI组件 |
+| src/services | WebSocket服务/API交互 |
+| src/features | Redux状态切片 |
+| src/pages | 路由页面组件 |
+| public/config | 环境配置文件 |
+| tests | 测试用例目录 |
 
 ---
 
 ## 性能优化指南
-（在此提供优化建议）
+1. WebSocket连接优化：
+  - 使用消息压缩（如permessage-deflate）
+  - 心跳机制保持连接活性
+2. 数据可视化优化：
+  - 虚拟滚动长列表
+  - 图表数据采样（1分钟粒度）
+3. 状态管理优化：
+  - 使用Redux批量更新
+  - 记忆化选择器（reselect）
 
 ---
 
 ## 测试要求
-（在此定义测试规范）
+- 单元测试覆盖率目标：
+  - 业务逻辑层：100%
+  - UI组件：80%+
+- E2E测试核心流程：
+  1. 用户注册/登录
+  2. 股票买卖流程
+  3. 公司创建流程
+- 使用Testing Library + Cypress
 
 ---
 
 ## 文档规范
 - **代码注释**：  
-  （在此定义注释规范）
+  - 复杂算法必须添加JSDoc说明
+  - 自定义Hooks需注释输入输出
+  - 类型定义需说明字段用途
 - **API文档**：  
-  （在此定义API文档规范）
+  - 使用Swagger维护接口文档
+  - WebSocket消息协议单独文档
 
 ---
 
 ## 错误处理
-（在此定义错误机制）
+- 全局错误边界（Error Boundary）
+- WebSocket断线自动重连
+- 关键操作事务回滚机制
+- 错误分级（DEBUG/INFO/WARN/ERROR）
+- Sentry监控生产环境错误
 
 ---
 
@@ -142,6 +182,13 @@
 |-------|----------|----------|
 | 1 | .cursorrules | 完善项目目标模块描述，明确8个核心系统功能 |
 | 2 | .cursorrules | 定义项目范围的技术边界和功能模块优先级 |
+| 3 | .cursorrules | 补充编码标准和命名规范 |
+| 4 | .cursorrules | 添加技术选型库列表 |
+| 5 | .cursorrules | 定义目录结构规范 |
+| 6 | .cursorrules | 完善性能优化方案 |
+| 7 | .cursorrules | 制定测试要求标准 |
+| 8 | .cursorrules | 补充文档规范细则 |
+| 9 | .cursorrules | 建立错误处理机制 |
 
 ### 版本变更
 | 版本号 | 变更说明 |
