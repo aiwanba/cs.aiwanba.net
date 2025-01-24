@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime
+from models.company import Company  # 添加这行，因为有外键关联
 
 class BankAccount(db.Model):
     """银行账户模型"""

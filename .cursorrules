@@ -36,6 +36,7 @@
 | 14 | models/ai_strategy.py | AI交易策略模型 |
 | 15 | services/ai_trading_service.py | AI交易服务 |
 | 16 | api/ai_trading_api.py | AI交易API |
+| 17 | requirements.txt | 项目依赖包管理文件 |
 
 ### 添加文件
 | 序列号 | 文件名称 | 文件描述 |
@@ -195,3 +196,27 @@ project/
    - [ ] 编写单元测试
    - [ ] 添加集成测试
    - [ ] 进行压力测试
+
+## 文件依赖关系
+1. 模型依赖
+   - models/__init__.py: 依赖 app.py
+   - models/company.py: 依赖 models/user.py
+   - models/stock.py: 依赖 models/company.py
+   - models/bank.py: 依赖 models/company.py
+   - models/transaction.py: 依赖 models/company.py, models/stock.py
+   - models/ai_strategy.py: 依赖 models/user.py
+
+2. 服务层依赖
+   - services/bank_service.py: 依赖 models/bank.py, models/company.py
+   - services/transaction_service.py: 依赖 models/transaction.py, models/stock.py, services/bank_service.py
+   - services/stock_price_service.py: 依赖 models/stock.py, models/transaction.py
+   - services/ai_trading_service.py: 依赖 models/ai_strategy.py, services/transaction_service.py
+
+3. API层依赖
+   - api/bank_api.py: 依赖 services/bank_service.py
+   - api/transaction_api.py: 依赖 services/transaction_service.py
+   - api/stock_api.py: 依赖 services/stock_price_service.py
+   - api/ai_trading_api.py: 依赖 services/ai_trading_service.py
+
+4. 任务依赖
+   - tasks/stock_price_updater.py: 依赖 services/stock_price_service.py

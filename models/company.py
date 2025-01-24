@@ -1,5 +1,6 @@
 from app import db
 from datetime import datetime
+from models.user import User
 
 class Company(db.Model):
     """公司模型"""

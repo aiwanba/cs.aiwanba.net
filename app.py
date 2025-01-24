@@ -17,6 +17,14 @@ app.config['SECRET_KEY'] = os.urandom(24)
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
+# 导入模型（必须在创建db之后导入）
+from models.user import User
+from models.company import Company
+from models.stock import Stock
+from models.bank import BankAccount, BankTransaction
+from models.transaction import Transaction, Order
+from models.ai_strategy import AIStrategy, AITrader
+
 # 导入蓝图和定时任务
 from api.bank_api import bank_bp
 from api.transaction_api import transaction_bp

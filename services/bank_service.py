@@ -1,5 +1,6 @@
 from app import db
 from models.bank import BankAccount, BankTransaction
+from models.company import Company
 from datetime import datetime
 
 class BankService:
