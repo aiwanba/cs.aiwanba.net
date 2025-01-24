@@ -96,4 +96,4 @@ def execute_trade(user_id, company_id, shares, trade_type):
         conn.close()
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, port=5000)  # 开发环境使用不同端口，避免与生产环境冲突 
