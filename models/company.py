@@ -1,4 +1,4 @@
-from app import db
+from models import db
 from datetime import datetime
 from models.user import User
 
@@ -16,4 +16,12 @@ class Company(db.Model):
     
     # 关系
     stocks = db.relationship('Stock', backref='company', lazy=True)
-    transactions = db.relationship('Transaction', backref='company', lazy=True) 
+    # 明确指定外键关系
+    bought_transactions = db.relationship('Transaction', 
+                                        foreign_keys='Transaction.buyer_company_id',
+                                        backref='buyer',
+                                        lazy=True)
+    sold_transactions = db.relationship('Transaction',
+                                      foreign_keys='Transaction.seller_company_id',
+                                      backref='seller',
+                                      lazy=True) 

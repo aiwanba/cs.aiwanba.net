@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify
 from models.stock import Stock
+from models.transaction import Transaction
 from datetime import datetime, timedelta
 
 stock_bp = Blueprint('stock', __name__)

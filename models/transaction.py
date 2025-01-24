@@ -1,4 +1,4 @@
-from app import db
+from models import db
 from datetime import datetime
 
 class Transaction(db.Model):
@@ -24,8 +24,6 @@ class Transaction(db.Model):
     completed_at = db.Column(db.DateTime)  # 交易完成时间
     
     # 关系
-    seller = db.relationship('Company', foreign_keys=[seller_company_id], backref='sold_transactions')
-    buyer = db.relationship('Company', foreign_keys=[buyer_company_id], backref='bought_transactions')
     stock = db.relationship('Stock', backref='transactions')
 
 class Order(db.Model):

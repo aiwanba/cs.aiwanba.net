@@ -1,4 +1,4 @@
-from app import db
+from models import db
 from datetime import datetime
 
 class User(db.Model):
@@ -16,4 +16,4 @@ class User(db.Model):
     # 关系
     companies = db.relationship('Company', backref='owner', lazy=True)
     stocks = db.relationship('Stock', backref='owner', lazy=True)
-    transactions = db.relationship('Transaction', backref='user', lazy=True) 
+    # 移除 transactions 关系，因为 Transaction 模型中没有对应的外键 

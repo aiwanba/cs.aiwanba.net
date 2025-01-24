@@ -1,69 +1,40 @@
 from flask import Blueprint, request, jsonify
 from services.ai_trading_service import AITradingService
-from models.ai_strategy import AITrader
-from app import db
+from models import db
 
 ai_trading_bp = Blueprint('ai_trading', __name__)
 
 @ai_trading_bp.route('/traders', methods=['POST'])
 def create_ai_trader():
-    """创建AI交易者"""
+    """创建AI交易员"""
     data = request.get_json()
     user_id = data.get('user_id')
-    strategy_type = data.get('strategy_type')
-    initial_cash = data.get('initial_cash')
+    strategy_id = data.get('strategy_id')
     
-    if not all([user_id, strategy_type, initial_cash]):
-        return jsonify({'error': '参数不完整'}), 400
+    if not all([user_id, strategy_id]):
+        return jsonify({'error': '缺少必要参数'}), 400
         
     try:
-        trader = AITradingService.create_ai_trader(
-            user_id=user_id,
-            strategy_type=strategy_type,
-            initial_cash=initial_cash
-        )
+        ai_trader = AITradingService.create_ai_trader(user_id, strategy_id)
         return jsonify({
-            'message': 'AI交易者创建成功',
-            'trader_id': trader.id
+            'message': 'AI交易员创建成功',
+            'ai_trader_id': ai_trader.id
         })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@ai_trading_bp.route('/traders/<int:trader_id>/status', methods=['GET'])
-def get_trader_status(trader_id):
-    """获取AI交易者状态"""
-    trader = AITrader.query.get_or_404(trader_id)
-    return jsonify({
-        'id': trader.id,
-        'is_active': trader.is_active,
-        'current_cash': trader.current_cash,
-        'total_value': trader.total_value,
-        'total_trades': trader.total_trades,
-        'successful_trades': trader.successful_trades,
-        'total_profit': trader.total_profit,
-        'strategy': {
-            'type': trader.strategy.type,
-            'name': trader.strategy.name,
-            'description': trader.strategy.description
-        }
-    })
-
-@ai_trading_bp.route('/traders/<int:trader_id>/toggle', methods=['POST'])
-def toggle_trader_status(trader_id):
-    """切换AI交易者状态"""
-    trader = AITrader.query.get_or_404(trader_id)
-    trader.is_active = not trader.is_active
-    db.session.commit()
-    
-    return jsonify({
-        'message': f"AI交易者已{'启动' if trader.is_active else '停止'}",
-        'is_active': trader.is_active
-    })
-
-@ai_trading_bp.route('/analysis/market/<int:stock_id>', methods=['GET'])
-def analyze_market(stock_id):
-    """获取市场分析数据"""
-    analysis = AITradingService.analyze_market(stock_id)
-    if not analysis:
-        return jsonify({'error': '无法获取市场数据'}), 404
-    return jsonify(analysis) 
+@ai_trading_bp.route('/traders/<int:ai_trader_id>/execute', methods=['POST'])
+def execute_trading_strategy(ai_trader_id):
+    """执行交易策略"""
+    try:
+        order = AITradingService.execute_trading_strategy(ai_trader_id)
+        return jsonify({
+            'message': '交易策略执行成功',
+            'order_id': order.id
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500 

@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.bank_service import BankService
-from app import db
+from models import db
 
 bank_bp = Blueprint('bank', __name__)
 
@@ -25,7 +25,7 @@ def create_account():
         return jsonify({'error': str(e)}), 500
 
 @bank_bp.route('/accounts/<int:account_id>/deposit', methods=['POST'])
-def deposit():
+def deposit(account_id):
     """存款接口"""
     data = request.get_json()
     amount = data.get('amount')

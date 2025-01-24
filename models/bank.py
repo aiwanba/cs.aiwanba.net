@@ -1,4 +1,4 @@
-from app import db
+from models import db
 from datetime import datetime
 from models.company import Company  # 添加这行，因为有外键关联
 
@@ -13,7 +13,15 @@ class BankAccount(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # 关系
-    transactions = db.relationship('BankTransaction', backref='account', lazy=True)
+    # 明确指定外键关系
+    sent_transactions = db.relationship('BankTransaction',
+                                      foreign_keys='BankTransaction.account_id',
+                                      backref='source_account',
+                                      lazy=True)
+    received_transactions = db.relationship('BankTransaction',
+                                          foreign_keys='BankTransaction.target_account_id',
+                                          backref='target_account',
+                                          lazy=True)
     
     def deposit(self, amount):
         """存款操作"""

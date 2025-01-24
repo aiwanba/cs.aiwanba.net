@@ -1,9 +1,12 @@
-from app import db
+from models import db
 from models.ai_strategy import AIStrategy, AITrader
-from models.transaction import Transaction
-from models.stock import Stock
+from models.user import User
 from models.company import Company
+from models.stock import Stock
+from models.bank import BankAccount
+from models.transaction import Transaction, Order
 from services.transaction_service import TransactionService
+from services.bank_service import BankService
 from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
@@ -15,65 +18,80 @@ class AITradingService:
     """AI交易服务"""
     
     @staticmethod
-    def create_ai_trader(user_id, strategy_type, initial_cash):
-        """创建AI交易者"""
-        # 选择或创建策略
-        strategy = AIStrategy.query.filter_by(type=strategy_type).first()
-        if not strategy:
-            strategy = AITradingService._create_strategy(strategy_type)
-            
-        # 创建AI交易者
-        trader = AITrader(
-            user_id=user_id,
-            strategy_id=strategy.id,
-            current_cash=initial_cash,
-            total_value=initial_cash
-        )
+    def create_ai_trader(user_id, strategy_id):
+        """创建AI交易员"""
+        user = User.query.get(user_id)
+        strategy = AIStrategy.query.get(strategy_id)
         
-        db.session.add(trader)
+        if not user or not strategy:
+            raise ValueError("用户或策略不存在")
+            
+        if user.is_ai:
+            raise ValueError("用户已经是AI交易员")
+            
+        # 创建AI交易员
+        ai_trader = AITrader(
+            user_id=user_id,
+            strategy_id=strategy_id
+        )
+        db.session.add(ai_trader)
+        
+        # 将用户标记为AI
+        user.is_ai = True
+        user.ai_strategy = strategy.type
+        
         db.session.commit()
-        return trader
+        return ai_trader
     
     @staticmethod
-    def _create_strategy(strategy_type):
-        """创建交易策略"""
-        if strategy_type == 'conservative':
-            strategy = AIStrategy(
-                name='保守策略',
-                type='conservative',
-                description='低风险、稳定收益的交易策略',
-                risk_tolerance=0.3,
-                max_position_size=0.2,
-                min_holding_period=1440,  # 24小时
-                profit_target=0.05,
-                stop_loss=0.03
-            )
-        elif strategy_type == 'aggressive':
-            strategy = AIStrategy(
-                name='激进策略',
-                type='aggressive',
-                description='高风险、高收益的交易策略',
-                risk_tolerance=0.8,
-                max_position_size=0.5,
-                min_holding_period=60,  # 1小时
-                profit_target=0.15,
-                stop_loss=0.1
-            )
-        else:  # balanced
-            strategy = AIStrategy(
-                name='平衡策略',
-                type='balanced',
-                description='中等风险和收益的交易策略',
-                risk_tolerance=0.5,
-                max_position_size=0.3,
-                min_holding_period=720,  # 12小时
-                profit_target=0.08,
-                stop_loss=0.05
-            )
+    def execute_trading_strategy(ai_trader_id):
+        """执行交易策略"""
+        ai_trader = AITrader.query.get(ai_trader_id)
+        if not ai_trader:
+            raise ValueError("AI交易员不存在")
+            
+        strategy = ai_trader.strategy
+        user = ai_trader.user
         
-        db.session.add(strategy)
-        db.session.commit()
-        return strategy
+        # 获取用户公司
+        company = Company.query.filter_by(owner_id=user.id).first()
+        if not company:
+            raise ValueError("用户没有公司")
+            
+        # 获取公司账户
+        account = BankAccount.query.filter_by(company_id=company.id).first()
+        if not account:
+            raise ValueError("公司账户不存在")
+            
+        # 根据策略执行交易
+        # 这里可以根据具体策略实现不同的交易逻辑
+        # 例如：保守策略可能只购买蓝筹股，激进策略可能进行高风险投资等
+        
+        # 示例：随机选择一只股票进行交易
+        stock = Stock.query.order_by(db.func.random()).first()
+        if not stock:
+            raise ValueError("没有可交易的股票")
+            
+        # 计算可购买的最大股数
+        max_shares = int(account.balance / stock.current_price)
+        if max_shares <= 0:
+            raise ValueError("余额不足")
+            
+        # 根据策略确定交易数量
+        shares = min(max_shares, int(strategy.max_position_size * max_shares))
+        
+        # 创建市价单
+        try:
+            order = TransactionService.create_market_order(
+                company_id=company.id,
+                stock_id=stock.id,
+                order_type='buy',
+                shares=shares,
+                price=stock.current_price
+            )
+            return order
+        except Exception as e:
+            raise ValueError(f"交易失败: {str(e)}")
     
     @staticmethod
     def analyze_market(stock_id):

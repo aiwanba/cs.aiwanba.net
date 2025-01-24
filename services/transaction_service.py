@@ -1,7 +1,8 @@
-from app import db
+from models import db
 from models.transaction import Transaction, Order
 from models.stock import Stock
 from models.company import Company
+from models.bank import BankAccount
 from services.bank_service import BankService
 from datetime import datetime
 
@@ -9,118 +10,54 @@ class TransactionService:
     """交易服务"""
     
     @staticmethod
-    def create_market_order(company_id, stock_id, shares, is_buy):
-        """
-        创建市价单
-        :param company_id: 交易发起公司ID
-        :param stock_id: 股票ID
-        :param shares: 股数
-        :param is_buy: 是否买入
-        """
-        stock = Stock.query.get(stock_id)
-        company = Company.query.get(company_id)
+    def create_market_order(company_id, stock_id, order_type, shares, price):
+        """创建市价单"""
+        # 检查公司账户余额
+        account = BankAccount.query.filter_by(company_id=company_id).first()
+        if not account:
+            raise Exception("公司账户不存在")
+            
+        total_amount = shares * price
+        if account.balance < total_amount:
+            raise Exception("账户余额不足")
+            
+        # 创建订单
+        order = Order(
+            company_id=company_id,
+            order_type=order_type,
+            stock_id=stock_id,
+            shares=shares,
+            price=price,
+            status='pending'
+        )
+        db.session.add(order)
+        db.session.commit()
+        return order
+    
+    @staticmethod
+    def execute_order(order_id):
+        """执行订单"""
+        order = Order.query.get(order_id)
+        if not order:
+            raise Exception("订单不存在")
+            
+        # 执行交易逻辑
+        # ...
         
-        if not all([stock, company]):
-            raise ValueError("股票或公司不存在")
-            
-        # 获取当前市场价格
-        current_price = stock.current_price
-        total_amount = current_price * shares
+        # 更新订单状态
+        order.status = 'completed'
+        db.session.commit()
+        return order
+    
+    @staticmethod
+    def get_transaction_history(company_id):
+        """获取交易历史"""
+        transactions = Transaction.query.filter(
+            (Transaction.buyer_company_id == company_id) |
+            (Transaction.seller_company_id == company_id)
+        ).order_by(Transaction.created_at.desc()).all()
         
-        # 检查买方余额或卖方持股数量
-        if is_buy:
-            # 检查买方余额
-            buyer_account = BankAccount.query.filter_by(company_id=company_id).first()
-            if not buyer_account or buyer_account.balance < total_amount:
-                raise ValueError("余额不足")
-            
-            # 创建交易记录
-            transaction = Transaction(
-                buyer_company_id=company_id,
-                seller_company_id=stock.company_id,
-                stock_id=stock_id,
-                shares=shares,
-                price=current_price,
-                total_amount=total_amount,
-                order_type='market',
-                status='completed'
-            )
-        else:
-            # 检查卖方持股数量
-            seller_stock = Stock.query.filter_by(
-                company_id=company_id,
-                stock_id=stock_id
-            ).first()
-            if not seller_stock or seller_stock.shares < shares:
-                raise ValueError("持股数量不足")
-            
-            # 创建交易记录
-            transaction = Transaction(
-                seller_company_id=company_id,
-                buyer_company_id=stock.company_id,
-                stock_id=stock_id,
-                shares=shares,
-                price=current_price,
-                total_amount=total_amount,
-                order_type='market',
-                status='completed'
-            )
-        
-        try:
-            # 执行资金转移
-            if is_buy:
-                BankService.transfer(
-                    from_account_id=buyer_account.id,
-                    to_account_id=stock.company.bank_account.id,
-                    amount=total_amount,
-                    description=f"购买股票 {stock.id} {shares}股"
-                )
-            else:
-                BankService.transfer(
-                    from_account_id=stock.company.bank_account.id,
-                    to_account_id=company.bank_account.id,
-                    amount=total_amount,
-                    description=f"出售股票 {stock.id} {shares}股"
-                )
-            
-            # 更新股票持有记录
-            if is_buy:
-                buyer_stock = Stock.query.filter_by(
-                    company_id=company_id,
-                    stock_id=stock_id
-                ).first()
-                if buyer_stock:
-                    buyer_stock.shares += shares
-                else:
-                    buyer_stock = Stock(
-                        company_id=company_id,
-                        stock_id=stock_id,
-                        shares=shares
-                    )
-                    db.session.add(buyer_stock)
-                
-                seller_stock = Stock.query.filter_by(
-                    company_id=stock.company_id,
-                    stock_id=stock_id
-                ).first()
-                seller_stock.shares -= shares
-            else:
-                seller_stock.shares -= shares
-                buyer_stock = Stock.query.filter_by(
-                    company_id=stock.company_id,
-                    stock_id=stock_id
-                ).first()
-                buyer_stock.shares += shares
-            
-            transaction.completed_at = datetime.utcnow()
-            db.session.add(transaction)
-            db.session.commit()
-            
-            return transaction
-            
-        except Exception as e:
-            db.session.rollback()
-            raise e
+        return transactions
     
     @staticmethod
     def create_limit_order(company_id, stock_id, shares, price, is_buy):
