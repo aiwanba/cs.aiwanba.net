@@ -129,21 +129,23 @@
 
 ---
 
-## 文件结构
+## 文件结构 （根据当前项目实际文件结构，更新文档描述）
 project/
 ├── app.py                # Flask应用入口文件
 ├── requirements.txt      # 项目依赖管理文件
+├── database.py          # 数据库连接公共模块
+├── bank_operations.py   # 银行系统核心逻辑
+├── stock_operations.py  # 股票交易核心逻辑
+├── fee_calculator.py    # 交易手续费计算模块
+├── gunicorn_conf.py     # Gunicorn生产环境配置
+├── init_db.sql          # 数据库初始化脚本
 ├── templates/            # Jinja2模板文件目录
 │   ├── base.html         # 基础模板文件
-│   ├── index.html        # 首页模板
-│   ├── login.html        # 登录页面模板
-│   └── dashboard.html    # 仪表盘页面模板
+│   └── ...               # 其他模板文件
 └── static/               # 静态资源目录
-    ├── css/              # CSS样式文件目录
-    │   └── style.css     # 自定义样式文件
-    ├── js/               # JavaScript文件目录
-    │   └── main.js       # 主JavaScript文件
-    └── images/           # 图片资源目录
+    ├── css/
+    ├── js/
+    └── images/
 
 ---
 
