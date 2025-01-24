@@ -79,4 +79,43 @@ CREATE TABLE IF NOT EXISTS limit_orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 添加索引
-CREATE INDEX idx_limit_orders ON limit_orders (company_id, limit_price, status); 
+CREATE INDEX idx_limit_orders ON limit_orders (company_id, limit_price, status);
+
+-- 添加公司持股表
+CREATE TABLE IF NOT EXISTS company_holdings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    holder_company_id INT NOT NULL,
+    target_company_id INT NOT NULL,
+    shares_held INT NOT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (holder_company_id) REFERENCES companies(id),
+    FOREIGN KEY (target_company_id) REFERENCES companies(id),
+    UNIQUE KEY unique_holding (holder_company_id, target_company_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 添加索引
+CREATE INDEX idx_company_holdings ON company_holdings (holder_company_id, target_company_id);
+
+-- 添加交易分析视图
+CREATE VIEW trade_analysis_view AS
+SELECT 
+    DATE(created_at) AS trade_date,
+    company_id,
+    transaction_type,
+    COUNT(*) AS trade_count,
+    SUM(shares) AS total_shares,
+    AVG(price) AS average_price
+FROM stock_transactions
+GROUP BY trade_date, company_id, transaction_type;
+
+-- 添加订单撤销记录表
+CREATE TABLE IF NOT EXISTS order_cancellations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    reason ENUM('USER_REQUEST', 'SYSTEM_CANCEL') NOT NULL,
+    cancelled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES limit_orders(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 添加索引
+CREATE INDEX idx_cancellations ON order_cancellations (order_id, cancelled_at); 

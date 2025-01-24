@@ -27,6 +27,11 @@ def create_limit_order(user_id, company_id, shares, price, order_type):
             """, (user_id, company_id, shares, price, order_type))
             
             conn.commit()
+            
+            # 合并检测
+            from merger_detector import check_and_process_mergers
+            check_and_process_mergers(company_id)
+            
             return cursor.lastrowid
     finally:
         conn.close() 

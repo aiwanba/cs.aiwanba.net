@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from database import get_db_connection
 from bank_operations import handle_bank_operation
 from fee_calculator import calculate_fee
+from analysis_operations import get_trade_analysis
+from order_manager import cancel_order
 
 app = Flask(__name__)
 
@@ -76,6 +78,39 @@ def create_limit_order():
         return jsonify({'order_id': order_id})
     except Exception as e:
         app.logger.error(f"Limit order error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analysis/trades', methods=['GET'])
+def trade_analysis():
+    """交易历史分析接口"""
+    try:
+        company_id = request.args.get('company_id', type=int)
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        if not all([company_id, start_date, end_date]):
+            return jsonify({'error': 'Missing parameters'}), 400
+
+        data = get_trade_analysis(company_id, start_date, end_date)
+        return jsonify({'analysis': data})
+    except Exception as e:
+        app.logger.error(f"Analysis error: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/order/<int:order_id>', methods=['DELETE'])
+def cancel_order_endpoint(order_id):
+    """订单撤销接口"""
+    try:
+        user_id = request.json.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Missing user_id'}), 400
+            
+        success = cancel_order(order_id, user_id)
+        if success:
+            return jsonify({'message': 'Order cancelled successfully'})
+        return jsonify({'error': 'Order cancellation failed'}), 400
+    except Exception as e:
+        app.logger.error(f"Order cancellation error: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 def execute_trade(user_id, company_id, shares, trade_type):
