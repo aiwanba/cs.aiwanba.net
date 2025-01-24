@@ -59,24 +59,62 @@ def init_db():
     """初始化数据库"""
     with app.app_context():
         try:
-            # 检查表是否存在，如果不存在则创建
-            if not db.engine.has_table('users'):
+            inspector = db.inspect(db.engine)
+            if not inspector.has_table('users'):
                 db.create_all()
                 print("数据库表创建完成")
             else:
                 print("数据库表已存在，跳过创建")
             
-            # 初始化数据（仅当表为空时）
-            if not User.query.first():
-                # 初始化用户、公司、股票等数据
-                # ...
-                print("初始化数据完成")
-            else:
-                print("数据库已有数据，跳过初始化")
+            # 初始化数据（无论表是否为空）
+            init_data()
         except Exception as e:
             db.session.rollback()
             print(f"初始化数据时出错: {str(e)}")
             raise
+
+def init_data():
+    """初始化数据"""
+    if not User.query.first():
+        # 创建默认管理员用户
+        admin = User(
+            username='admin',
+            email='admin@example.com',
+            password_hash='admin123',
+            is_ai=False
+        )
+        db.session.add(admin)
+        db.session.flush()  # 确保 admin.id 可用
+        
+        # 创建默认公司
+        company = Company(
+            name='默认公司',
+            owner_id=admin.id,
+            initial_capital=1000000,
+            current_stock_price=100,
+            total_shares=10000
+        )
+        db.session.add(company)
+        db.session.flush()  # 确保 company.id 可用
+        
+        # 创建默认股票
+        stock = Stock(
+            company_id=company.id,  # 使用 company.id
+            owner_id=admin.id,      # 使用 admin.id
+            shares=10000,
+            current_price=100
+        )
+        db.session.add(stock)
+        
+        try:
+            db.session.commit()
+            print("初始化数据完成")
+        except Exception as e:
+            db.session.rollback()
+            print(f"初始化数据失败: {str(e)}")
+            raise
+    else:
+        print("数据库已有数据，跳过初始化")
 
 def test_db_connection():
     """测试数据库连接"""
