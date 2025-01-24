@@ -20,23 +20,6 @@
 ### 创建文件
 | 序列号 | 文件名称 | 文件描述 |
 |-------|----------|----------|
-| 1 | app.py | Flask应用主入口文件 |
-| 2 | models/company.py | 公司模型定义文件 |
-| 3 | models/user.py | 用户模型定义文件 |
-| 4 | models/stock.py | 股票模型定义文件 |
-| 5 | models/bank.py | 银行系统模型定义文件 |
-| 6 | services/bank_service.py | 银行业务服务层 |
-| 7 | api/bank_api.py | 银行系统API接口 |
-| 8 | models/transaction.py | 交易系统模型定义文件 |
-| 9 | services/transaction_service.py | 交易业务服务层 |
-| 10 | api/transaction_api.py | 交易系统API接口 |
-| 11 | services/stock_price_service.py | 股票价格更新服务 |
-| 12 | tasks/stock_price_updater.py | 股票价格更新定时任务 |
-| 13 | api/stock_api.py | 股票价格查询API |
-| 14 | models/ai_strategy.py | AI交易策略模型 |
-| 15 | services/ai_trading_service.py | AI交易服务 |
-| 16 | api/ai_trading_api.py | AI交易API |
-| 17 | requirements.txt | 项目依赖包管理文件 |
 
 ### 添加文件
 | 序列号 | 文件名称 | 文件描述 |
@@ -98,156 +81,17 @@
 #     - AI玩家可以学习其他玩家的交易模式，不断优化自己的交易策略
 
 ## 编码标准
-1. 命名规范
-   - 类名：使用驼峰命名法，如 BankAccount
-   - 函数名：使用小写字母和下划线，如 create_account
-   - 变量名：使用小写字母和下划线，如 current_price
-   - 常量名：使用大写字母和下划线，如 MAX_RETRY_COUNT
-
-2. 代码格式
-   - 使用4个空格进行缩进
-   - 每行最大长度为120字符
-   - 类和函数之间空两行
-   - 函数内的逻辑块之间空一行
-
-3. 注释规范
-   - 所有类和公共方法必须有文档字符串
-   - 复杂的业务逻辑需要添加行内注释
-   - 注释要说明代码的"为什么"而不是"是什么"
 
 ## 首选库
-| 库名 | 版本 | 用途 |
-|------|------|------|
-| Flask | 2.0.1 | Web框架 |
-| SQLAlchemy | 1.4.23 | ORM数据库框架 |
-| Flask-SQLAlchemy | 2.5.1 | Flask的SQLAlchemy扩展 |
-| Flask-Migrate | 3.1.0 | 数据库迁移工具 |
-| APScheduler | 3.8.1 | 定时任务调度器 |
-| pandas | 1.3.3 | 数据分析工具 |
-| numpy | 1.21.2 | 科学计算库 |
-| scikit-learn | 0.24.2 | 机器学习库 |
-| pytz | 2023.3 | 时区处理 |
 
 ## 文件结构
-```
-project/
-├── app.py              # 应用入口文件
-├── config.py           # 配置文件
-├── models/             # 数据模型
-│   ├── __init__.py
-│   ├── company.py     # 公司模型
-│   ├── user.py        # 用户模型
-│   ├── stock.py       # 股票模型
-│   ├── bank.py        # 银行模型
-│   ├── transaction.py # 交易模型
-│   └── ai_strategy.py # AI策略模型
-├── services/           # 业务逻辑层
-│   ├── bank_service.py # 银行业务服务
-│   ├── transaction_service.py # 交易业务服务
-│   ├── stock_price_service.py # 股票价格服务
-│   └── ai_trading_service.py # AI交易服务
-├── api/                # API路由
-│   ├── bank_api.py     # 银行系统API
-│   ├── transaction_api.py # 交易系统API
-│   ├── stock_api.py    # 股票系统API
-│   └── ai_trading_api.py # AI交易API
-├── tasks/              # 定时任务
-│   └── stock_price_updater.py # 股票价格更新任务
-└── tests/              # 测试文件
-```
 
 ## 性能优化指南
-1. **数据库优化**：
-   - 为常用查询字段添加索引。
-   - 使用批量操作减少数据库连接次数。
-   - 定期清理无用数据，保持数据库轻量化。
-
-2. **代码优化**：
-   - 避免在循环中进行数据库查询，使用预加载或批量查询。
-   - 使用生成器处理大数据集，减少内存占用。
 
 ## 测试要求
-1. **单元测试**：
-   - 使用 `pytest` 框架编写单元测试。
-   - 测试覆盖率要求达到 80% 以上。
-   - 每个模块都要有对应的测试用例，特别是核心业务逻辑。
-
-2. **集成测试**：
-   - 使用 `pytest` 和 `Flask-Testing` 进行 API 接口测试。
-   - 测试数据库操作的正确性，包括事务处理和错误回滚。
-   - 测试各个模块之间的交互，确保数据一致性。
-
-3. **性能测试**：
-   - 使用 `Locust` 或 `JMeter` 进行并发测试，确保系统能处理高并发请求。
-   - 测试数据库性能，优化慢查询。
-   - 使用 `pytest-benchmark` 进行关键代码的性能测试。
 
 ## 文档规范
-1. **代码注释**：
-   - 所有公共方法和类必须有文档字符串，说明功能、参数和返回值。
-   - 复杂的业务逻辑需要添加行内注释，解释关键步骤。
-   - 注释要说明代码的 "为什么" 而不是 "是什么"。
-
-2. **API 文档**：
-   - 使用 `Swagger` 或 `Flask-RESTPlus` 自动生成 API 文档。
-   - 每个 API 接口必须有详细的说明，包括请求参数、响应格式和错误码。
-
-3. **项目文档**：
-   - 编写 `README.md`，说明项目背景、安装步骤和运行方法。
-   - 维护 `CHANGELOG.md`，记录每个版本的变更内容。
 
 ## 错误处理
-1. **异常处理规范**：
-   - 使用具体的异常类型而不是笼统的 `Exception`。
-   - 所有的 API 接口都要进行异常捕获，返回统一的错误格式。
-   - 数据库操作要在事务中进行，确保数据一致性。
-
-2. **日志记录**：
-   - 使用 Python 的 `logging` 模块记录日志。
-   - 记录所有的错误和关键操作，包含时间戳、错误类型和详细信息。
-   - 日志文件按天分割，定期清理旧日志。
 
 ## 项目下一步(备注：已实现和未实现)
-1. **性能优化**：
-   - [ ] 添加数据库索引 已实现
-   - [ ] 实现缓存机制 已实现
-   - [ ] 优化 SQL 查询 已实现
-
-2. **功能增强**：
-   - [ ] 添加更多的 AI 交易策略 未实现
-   - [ ] 实现实时市场数据推送 未实现
-   - [ ] 添加交易图表展示（用类似文档格式） 未实现
-
-## 文件依赖关系
-1. **模型依赖**：
-   - `models/__init__.py`: 依赖 `app.py`
-   - `models/company.py`: 依赖 `models/user.py`
-   - `models/stock.py`: 依赖 `models/company.py`
-   - `models/bank.py`: 依赖 `models/company.py`
-   - `models/transaction.py`: 依赖 `models/company.py`, `models/stock.py`
-   - `models/ai_strategy.py`: 依赖 `models/user.py`
-
-2. **服务层依赖**：
-   - `services/bank_service.py`: 依赖 `models/bank.py`, `models/company.py`
-   - `services/transaction_service.py`: 依赖 `models/transaction.py`, `models/stock.py`, `services/bank_service.py`
-   - `services/stock_price_service.py`: 依赖 `models/stock.py`, `models/transaction.py`
-   - `services/ai_trading_service.py`: 依赖 `models/ai_strategy.py`, `services/transaction_service.py`
-
-3. **API 层依赖**：
-   - `api/bank_api.py`: 依赖 `services/bank_service.py`
-   - `api/transaction_api.py`: 依赖 `services/transaction_service.py`
-   - `api/stock_api.py`: 依赖 `services/stock_price_service.py`
-   - `api/ai_trading_api.py`: 依赖 `services/ai_trading_service.py`
-
-4. **任务依赖**：
-   - `tasks/stock_price_updater.py`: 依赖 `services/stock_price_service.py`
-
-## 数据库迁移
-1. **初始化迁移环境**：
-   - 运行 `flask db init` 创建迁移目录。
-2. **生成迁移脚本**：
-   - 运行 `flask db migrate -m "描述"` 生成迁移脚本。
-3. **应用迁移**：
-   - 运行 `flask db upgrade` 应用迁移。
-4. **回滚迁移**：
-   - 运行 `flask db downgrade` 回滚到上一个版本。
