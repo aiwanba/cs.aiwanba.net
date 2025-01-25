@@ -1,7 +1,6 @@
 from flask import Flask, render_template, jsonify
 from apps.extensions import init_extensions, db, socketio
 from flask_socketio import emit, join_room, leave_room
-from apscheduler.schedulers.background import BackgroundScheduler
 import pymysql
 
 # 使用 PyMySQL 替代 MySQLdb
@@ -80,6 +79,12 @@ def create_app():
     
     return app
 
+# 创建应用实例
+app = create_app()
+
+# 创建应用上下文
+app_ctx = app.app_context()
+app_ctx.push()
+
 if __name__ == '__main__':
-    app = create_app()
     socketio.run(app, debug=True, host='0.0.0.0', port=5010) 
