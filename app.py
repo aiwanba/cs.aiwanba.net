@@ -193,10 +193,12 @@ class TradeOrder(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # 买入/卖出
+    type = db.Column(db.Integer, nullable=False)  # 1:买入, 2:卖出
     price = db.Column(db.DECIMAL(10,2), nullable=False)
     shares = db.Column(db.BigInteger, nullable=False)
-    status = db.Column(db.Integer, default=1)  # 1:待成交, 2:已成交, 3:已取消
+    status = db.Column(db.Integer, default=0)  # 0:待成交, 1:部分成交, 2:全部成交, 3:已取消
+    dealt_shares = db.Column(db.BigInteger, default=0)  # 已成交股数
+    dealt_amount = db.Column(db.DECIMAL(20,2), default=0.00)  # 已成交金额
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -205,19 +207,18 @@ class TradeRecord(db.Model):
     __tablename__ = 'trade_records'
     
     id = db.Column(db.BigInteger, primary_key=True)
-    order_id = db.Column(db.BigInteger, db.ForeignKey('trade_orders.id'), nullable=False)
-    buyer_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
-    seller_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    buyer_order_id = db.Column(db.BigInteger, db.ForeignKey('trade_orders.id'), nullable=False)
+    seller_order_id = db.Column(db.BigInteger, db.ForeignKey('trade_orders.id'), nullable=False)
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
     price = db.Column(db.DECIMAL(10,2), nullable=False)
     shares = db.Column(db.BigInteger, nullable=False)
-    total_amount = db.Column(db.DECIMAL(20,2), nullable=False)
+    amount = db.Column(db.DECIMAL(20,2), nullable=False)  # 成交金额
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
 
     __table_args__ = (
-        db.Index('idx_buyer', 'buyer_id'),
-        db.Index('idx_seller', 'seller_id'),
-        db.Index('idx_company', 'company_id'),
+        db.Index('idx_buyer_order', 'buyer_order_id'),
+        db.Index('idx_seller_order', 'seller_order_id'),
+        db.Index('idx_company', 'company_id')
     )
 
 @login_manager.user_loader
