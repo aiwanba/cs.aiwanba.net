@@ -119,14 +119,65 @@
 ## 文件结构
 | 文件夹/文件 | 文件描述 |
 |--------|----------|
-| /www/wwwroot/cs.aiwanba.net/ | 项目根目录（待创建） |
-| ├── app.py | 应用入口文件（待创建） |
-| ├── gunicorn_conf.py | Gunicorn 配置文件（待创建） |
-| ├── requirements.txt | 项目依赖文件（待创建） |
-| ├── .cursorrules | 项目规范文件（当前文件） |
-| └── doc/ | 文档目录（已创建） |
-|     └── 生产环境部署配置文档.md | 部署配置说明文档（已创建） |
-| /www/wwwlogs/python/cs_aiwanba_net/ | 日志目录（待创建） |
+| /www/wwwroot/cs.aiwanba.net/ | 项目根目录 |
+| ├── app.py | Flask应用入口文件 |
+| ├── gunicorn_conf.py | Gunicorn配置文件 |
+| ├── requirements.txt | 项目依赖文件 |
+| ├── .cursorrules | 项目规范文件 |
+| ├── apps/ | 应用代码目录 |
+| │   ├── __init__.py | 应用包初始化文件 |
+| │   ├── models/ | 数据模型目录 |
+| │   │   ├── __init__.py | 模型包初始化文件 |
+| │   │   ├── user.py | 用户模型 |
+| │   │   ├── company.py | 公司模型 |
+| │   │   ├── stock.py | 股票持有记录模型 |
+| │   │   ├── transaction.py | 交易记录模型 |
+| │   │   ├── bank.py | 银行账户模型 |
+| │   │   ├── news.py | 新闻模型 |
+| │   │   └── ai.py | AI行为模型 |
+| │   ├── services/ | 服务层目录 |
+| │   │   ├── __init__.py | 服务包初始化文件 |
+| │   │   ├── auth_service.py | 认证服务 |
+| │   │   ├── trading_service.py | 交易服务 |
+| │   │   ├── company_service.py | 公司管理服务 |
+| │   │   ├── bank_service.py | 银行业务服务 |
+| │   │   ├── news_service.py | 新闻服务 |
+| │   │   ├── ai_service.py | AI交易服务 |
+| │   │   └── socket_service.py | WebSocket服务 |
+| │   └── api/ | API接口目录 |
+| │       ├── __init__.py | API包初始化文件 |
+| │       ├── auth.py | 认证API |
+| │       ├── trading.py | 交易API |
+| │       ├── company.py | 公司管理API |
+| │       ├── bank.py | 银行业务API |
+| │       ├── news.py | 新闻API |
+| │       └── ai.py | AI交易API |
+| ├── templates/ | 模板目录 |
+| │   ├── index.html | 首页模板 |
+| │   ├── company/ | 公司相关模板 |
+| │   │   └── create.html | 创建公司页面 |
+| │   └── trading/ | 交易相关模板 |
+| │       └── trade.html | 交易页面 |
+| ├── static/ | 静态文件目录 |
+| │   ├── css/ | 样式文件目录 |
+| │   ├── js/ | JavaScript文件目录 |
+| │   │   └── socket.js | WebSocket客户端处理 |
+| │   └── img/ | 图片资源目录 |
+| ├── tests/ | 测试目录 |
+| │   ├── __init__.py | 测试包初始化文件 |
+| │   ├── conftest.py | 测试配置文件 |
+| │   ├── test_basic.py | 基本测试用例 |
+| │   └── performance_test.py | 性能测试脚本 |
+| ├── migrations/ | 数据库迁移目录 |
+| │   ├── env.py | 迁移环境配置 |
+| │   └── versions/ | 迁移版本目录 |
+| │       └── initial_migration.py | 初始数据库迁移文件 |
+| └── doc/ | 文档目录 |
+|     ├── 生产环境部署配置文档.md | 部署配置说明文档 |
+|     └── 部署指南.md | 生产环境部署指南 |
+| /www/wwwlogs/python/cs_aiwanba_net/ | 日志目录 |
+| ├── gunicorn_access.log | 访问日志文件 |
+| └── gunicorn_error.log | 错误日志文件 |
 
 ---
 
@@ -204,25 +255,32 @@
 | 12 | apps/models/news.py | 新闻模型 |
 | 13 | apps/models/ai.py | AI行为模型 |
 | 14 | migrations/env.py | 数据库迁移环境配置 |
-| 15 | apps/services/auth_service.py | 认证服务 |
-| 16 | apps/services/trading_service.py | 交易服务 |
-| 17 | apps/api/auth.py | 认证API |
-| 18 | apps/services/company_service.py | 公司管理服务 |
-| 19 | apps/api/company.py | 公司管理API |
-| 20 | templates/company/create.html | 创建公司页面 |
-| 21 | apps/api/trading.py | 交易API |
-| 22 | templates/trading/trade.html | 交易页面 |
-| 23 | apps/services/bank_service.py | 银行业务服务 |
-| 24 | apps/api/bank.py | 银行业务API |
-| 25 | apps/services/news_service.py | 新闻服务 |
-| 26 | apps/api/news.py | 新闻API |
-| 27 | apps/services/ai_service.py | AI交易服务 |
-| 28 | apps/api/ai.py | AI交易API |
-| 29 | apps/services/socket_service.py | WebSocket服务 |
-| 30 | static/js/socket.js | WebSocket客户端处理 |
-| 31 | tests/conftest.py | 测试配置文件 |
-| 32 | tests/test_basic.py | 基本测试用例 |
-| 33 | tests/performance_test.py | 性能测试脚本 |
+| 15 | migrations/versions/initial_migration.py | 初始数据库迁移文件 |
+| 16 | apps/services/auth_service.py | 认证服务 |
+| 17 | apps/services/trading_service.py | 交易服务 |
+| 18 | apps/api/auth.py | 认证API |
+| 19 | apps/services/company_service.py | 公司管理服务 |
+| 20 | apps/api/company.py | 公司管理API |
+| 21 | templates/company/create.html | 创建公司页面 |
+| 22 | apps/api/trading.py | 交易API |
+| 23 | templates/trading/trade.html | 交易页面 |
+| 24 | apps/services/bank_service.py | 银行业务服务 |
+| 25 | apps/api/bank.py | 银行业务API |
+| 26 | apps/services/news_service.py | 新闻服务 |
+| 27 | apps/api/news.py | 新闻API |
+| 28 | apps/services/ai_service.py | AI交易服务 |
+| 29 | apps/api/ai.py | AI交易API |
+| 30 | apps/services/socket_service.py | WebSocket服务 |
+| 31 | static/js/socket.js | WebSocket客户端处理 |
+| 32 | tests/conftest.py | 测试配置文件 |
+| 33 | tests/test_basic.py | 基本测试用例 |
+| 34 | tests/performance_test.py | 性能测试脚本 |
+| 35 | doc/部署指南.md | 生产环境部署指南 |
+| 36 | apps/__init__.py | 应用包初始化文件 |
+| 37 | apps/models/__init__.py | 数据模型包初始化文件 |
+| 38 | apps/services/__init__.py | 服务层包初始化文件 |
+| 39 | apps/api/__init__.py | API接口包初始化文件 |
+| 40 | tests/__init__.py | 测试包初始化文件 |
 
 ### 修改文件
 | 序列号 | 文件名称 | 修改内容 |
@@ -244,6 +302,9 @@
 | 0.0.9 | 添加AI交易系统：AI行为决策和自动交易 |
 | 0.1.0 | 添加实时数据推送：WebSocket服务和前端更新 |
 | 0.1.1 | 添加部署和测试配置：测试脚本和性能测试 |
+| 0.1.2 | 添加生产环境部署指南：部署步骤和维护说明 |
+| 0.1.3 | 创建项目目录结构和初始化文件 |
+| 0.1.4 | 添加数据库迁移文件：初始化数据库结构 |
 
 ---
 
@@ -259,11 +320,17 @@
 - 无
 
 ### 下一步计划
-1. 生产环境部署
-   - 服务器环境配置
-   - 数据库初始化
-   - 服务启动和监控
-2. 功能测试和优化
+1. 执行部署
+   - 创建目录结构 ✓
+   - 初始化包文件 ✓
+   - 按部署指南配置环境
+   - 初始化数据库 ✓
+   - 启动服务
+2. 进行测试
    - 运行单元测试
    - 执行性能测试
-   - 根据测试结果优化
+   - 验证功能完整性
+3. 优化系统
+   - 分析测试结果
+   - 优化性能瓶颈
+   - 完善错误处理
