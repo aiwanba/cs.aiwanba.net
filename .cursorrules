@@ -19,6 +19,9 @@
   - **性能优化指南**：提供性能优化的建议和最佳实践
     - 包含加载优化、渲染优化等方案
     - 需注明适用场景和实现方式
+  - **测试要求**：明确测试的范围、方法和工具
+    - 单元测试覆盖率目标值
+    - E2E测试的核心流程
   - **文档规范**：规定代码注释、README等的编写标准
     - 公共方法必须使用JSDoc注释
     - 复杂逻辑需添加行内说明
@@ -103,6 +106,7 @@
 | gunicorn | ^20.1.0 | WSGI HTTP 服务器 |
 | eventlet | ^0.33.3 | Socket.IO异步支持 |
 | Flask-SocketIO | ^5.3.4 | WebSocket 实时通信 |
+| Flask-Migrate | ^4.0.4 | 数据库迁移工具 |
 | Flask-Login | ^0.6.2 | 用户认证管理 |
 | Flask-WTF | ^1.1.1 | 表单验证和CSRF保护 |
 | PyJWT | ^2.7.0 | JWT token认证 |
@@ -120,19 +124,60 @@
 | ├── gunicorn_conf.py | Gunicorn配置文件 |
 | ├── requirements.txt | 项目依赖文件 |
 | ├── .cursorrules | 项目规范文件 |
-| ├── .gitignore | Git忽略文件 |
 | ├── apps/ | 应用代码目录 |
 | │   ├── __init__.py | 应用包初始化文件 |
-| │   ├── extensions.py | Flask扩展初始化文件 |
 | │   ├── models/ | 数据模型目录 |
+| │   │   ├── __init__.py | 模型包初始化文件 |
+| │   │   ├── user.py | 用户模型 |
+| │   │   ├── company.py | 公司模型 |
+| │   │   ├── stock.py | 股票持有记录模型 |
+| │   │   ├── transaction.py | 交易记录模型 |
+| │   │   ├── bank.py | 银行账户模型 |
+| │   │   ├── news.py | 新闻模型 |
+| │   │   └── ai.py | AI行为模型 |
 | │   ├── services/ | 服务层目录 |
+| │   │   ├── __init__.py | 服务包初始化文件 |
+| │   │   ├── auth_service.py | 认证服务 |
+| │   │   ├── trading_service.py | 交易服务 |
+| │   │   ├── company_service.py | 公司管理服务 |
+| │   │   ├── bank_service.py | 银行业务服务 |
+| │   │   ├── news_service.py | 新闻服务 |
+| │   │   ├── ai_service.py | AI交易服务 |
+| │   │   └── socket_service.py | WebSocket服务 |
 | │   └── api/ | API接口目录 |
+| │       ├── __init__.py | API包初始化文件 |
+| │       ├── auth.py | 认证API |
+| │       ├── trading.py | 交易API |
+| │       ├── company.py | 公司管理API |
+| │       ├── bank.py | 银行业务API |
+| │       ├── news.py | 新闻API |
+| │       └── ai.py | AI交易API |
 | ├── templates/ | 模板目录 |
+| │   ├── index.html | 首页模板 |
+| │   ├── company/ | 公司相关模板 |
+| │   │   └── create.html | 创建公司页面 |
+| │   └── trading/ | 交易相关模板 |
+| │       └── trade.html | 交易页面 |
 | ├── static/ | 静态文件目录 |
-| ├── scripts/ | 脚本目录 |
-| │   └── init_db.sql | 数据库初始化脚本 |
+| │   ├── css/ | 样式文件目录 |
+| │   ├── js/ | JavaScript文件目录 |
+| │   │   └── socket.js | WebSocket客户端处理 |
+| │   └── img/ | 图片资源目录 |
+| ├── tests/ | 测试目录 |
+| │   ├── __init__.py | 测试包初始化文件 |
+| │   ├── conftest.py | 测试配置文件 |
+| │   ├── test_basic.py | 基本测试用例 |
+| │   └── performance_test.py | 性能测试脚本 |
+| ├── migrations/ | 数据库迁移目录 |
+| │   ├── env.py | 迁移环境配置 |
+| │   └── versions/ | 迁移版本目录 |
+| │       └── initial_migration.py | 初始数据库迁移文件 |
 | └── doc/ | 文档目录 |
+|     ├── 生产环境部署配置文档.md | 部署配置说明文档 |
+|     └── 部署指南.md | 生产环境部署指南 |
 | /www/wwwlogs/python/cs_aiwanba_net/ | 日志目录 |
+| ├── gunicorn_access.log | 访问日志文件 |
+| └── gunicorn_error.log | 错误日志文件 |
 
 ---
 
@@ -144,6 +189,17 @@
 - 使用 WebSocket 实现实时数据推送
 - 实现数据缓存机制
 - 优化数据库查询性能
+
+---
+
+## 测试要求
+- 单元测试覆盖率目标 > 80%
+- 必须包含API接口测试
+- 必须包含性能压力测试
+- 必须验证WebSocket连接稳定性
+- 必须测试数据库事务完整性
+
+---
 
 ## 文档规范
 - **代码注释**：  
@@ -191,17 +247,131 @@
 ---
 
 ## 文件变更记录
-### 最新变更
-1. 移除了数据库迁移相关代码和文件
-2. 添加了 scripts/init_db.sql 用于数据库初始化
-3. 更新了 app.py 移除迁移相关代码
-4. 更新了 extensions.py 移除迁移相关代码
-5. 更新了项目文档
+### 创建文件
+| 序列号 | 文件名称 | 文件描述 |
+|-------|----------|----------|
+| 1 | doc/生产环境部署配置文档.md | 生产环境部署配置说明文档 |
+| 2 | .cursorrules | 项目规范文件 |
+| 3 | requirements.txt | 项目依赖配置文件 |
+| 4 | gunicorn_conf.py | Gunicorn服务器配置文件 |
+| 5 | app.py | Flask应用入口文件 |
+| 6 | templates/index.html | 首页模板文件 |
+| 7 | apps/models/user.py | 用户模型 |
+| 8 | apps/models/company.py | 公司模型 |
+| 9 | apps/models/stock.py | 股票持有记录模型 |
+| 10 | apps/models/transaction.py | 交易记录模型 |
+| 11 | apps/models/bank.py | 银行账户模型 |
+| 12 | apps/models/news.py | 新闻模型 |
+| 13 | apps/models/ai.py | AI行为模型 |
+| 14 | migrations/env.py | 数据库迁移环境配置 |
+| 15 | migrations/versions/initial_migration.py | 初始数据库迁移文件 |
+| 16 | apps/services/auth_service.py | 认证服务 |
+| 17 | apps/services/trading_service.py | 交易服务 |
+| 18 | apps/api/auth.py | 认证API |
+| 19 | apps/services/company_service.py | 公司管理服务 |
+| 20 | apps/api/company.py | 公司管理API |
+| 21 | templates/company/create.html | 创建公司页面 |
+| 22 | apps/api/trading.py | 交易API |
+| 23 | templates/trading/trade.html | 交易页面 |
+| 24 | apps/services/bank_service.py | 银行业务服务 |
+| 25 | apps/api/bank.py | 银行业务API |
+| 26 | apps/services/news_service.py | 新闻服务 |
+| 27 | apps/api/news.py | 新闻API |
+| 28 | apps/services/ai_service.py | AI交易服务 |
+| 29 | apps/api/ai.py | AI交易API |
+| 30 | apps/services/socket_service.py | WebSocket服务 |
+| 31 | static/js/socket.js | WebSocket客户端处理 |
+| 32 | tests/conftest.py | 测试配置文件 |
+| 33 | tests/test_basic.py | 基本测试用例 |
+| 34 | tests/performance_test.py | 性能测试脚本 |
+| 35 | doc/部署指南.md | 生产环境部署指南 |
+| 36 | apps/__init__.py | 应用包初始化文件 |
+| 37 | apps/models/__init__.py | 数据模型包初始化文件 |
+| 38 | apps/services/__init__.py | 服务层包初始化文件 |
+| 39 | apps/api/__init__.py | API接口包初始化文件 |
+| 40 | tests/__init__.py | 测试包初始化文件 |
+| 41 | scripts/start.sh | 服务启动脚本 |
+| 42 | scripts/stop.sh | 服务停止脚本 |
+| 43 | scripts/restart.sh | 服务重启脚本 |
 
-### 下一步计划
-1. 完善用户认证系统
-2. 实现实时交易功能
-3. 开发 AI 交易策略
-4. 添加市场分析工具
-5. 优化系统性能
-6. 完善错误处理机制
+### 修改文件
+| 序列号 | 文件名称 | 修改内容 |
+|-------|----------|----------|
+| 1 | .cursorrules | 初始化项目规范文件 |
+| 2 | .cursorrules | 更新文件变更记录 |
+
+### 版本变更
+| 版本号 | 变更说明 |
+|-------|----------|
+| 0.0.1 | 项目初始化：创建项目规范文件和部署文档 |
+| 0.0.2 | 创建基础项目框架：添加配置文件和基础模板 |
+| 0.0.3 | 添加数据库模型：创建核心数据模型文件 |
+| 0.0.4 | 添加业务逻辑：创建服务层和API接口 |
+| 0.0.5 | 添加公司管理功能：服务层、API和前端页面 |
+| 0.0.6 | 完善交易功能：添加卖出、持仓和历史记录功能 |
+| 0.0.7 | 添加银行业务功能：存款、贷款和利息计算 |
+| 0.0.8 | 添加新闻系统：新闻生成和市场影响 |
+| 0.0.9 | 添加AI交易系统：AI行为决策和自动交易 |
+| 0.1.0 | 添加实时数据推送：WebSocket服务和前端更新 |
+| 0.1.1 | 添加部署和测试配置：测试脚本和性能测试 |
+| 0.1.2 | 添加生产环境部署指南：部署步骤和维护说明 |
+| 0.1.3 | 创建项目目录结构和初始化文件 |
+| 0.1.4 | 添加数据库迁移文件：初始化数据库结构 |
+| 0.1.5 | 添加服务管理脚本：启动、停止和重启服务 |
+
+---
+
+## 项目下一步
+1. 完成基础功能开发
+   - 用户认证系统 ✓
+   - 公司管理系统 ✓
+   - 交易系统 ✓
+   - 银行系统 ✓
+   - 新闻系统 ✓
+   - AI交易系统 ✓
+   
+2. 进行系统测试
+   - 单元测试
+   - 集成测试
+   - 性能测试
+   - 安全测试
+
+3. 优化系统性能
+   - 数据库优化
+   - 缓存优化
+   - 并发优化
+   - 网络优化
+
+4. 部署上线
+   - 环境配置
+   - 数据迁移
+   - 服务部署
+   - 监控配置
+
+### 部署步骤
+1. 创建并配置虚拟环境：
+```bash
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+2. 初始化数据库：
+```bash
+flask db upgrade
+```
+
+3. 设置脚本权限：
+```bash
+chmod +x scripts/*.sh
+```
+
+4. 启动服务：
+```bash
+./scripts/start.sh
+```
+
+5. 验证服务状态：
+```bash
+curl http://localhost:5010
+```
