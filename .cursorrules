@@ -55,9 +55,6 @@
   * ECharts (用于股票走势图)
 - WebSocket：
   * Socket.IO (用于实时数据更新)
-- 开发工具：
-  * VSCode
-  * Chrome DevTools
 
 ## 2. 项目功能模块
 ### 2.1 公司模块
