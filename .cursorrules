@@ -78,6 +78,8 @@
 | 23 | templates/company/info.html | 公司详情页面 |
 | 24 | models/ai_player.py | AI玩家数据模型 |
 | 25 | services/ai_trading.py | AI交易服务 |
+| 26 | models/bank.py | 银行相关数据模型 |
+| 27 | services/bank.py | 银行业务服务 |
 
 ### 修改文件
 | 序号 | 文件名称 | 修改内容 |
@@ -114,3 +116,4 @@
 | 0.1.6 | 添加公司详情页面 |
 | 0.1.7 | 完善公司创建功能 |
 | 0.1.8 | 添加AI交易功能 |
+| 0.2.0 | 添加银行系统基础功能 |
