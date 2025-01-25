@@ -432,73 +432,105 @@ def company_detail(code):
 @app.route('/company/<code>/trade', methods=['POST'])
 @login_required
 def trade_stock(code):
-    company = Company.query.filter_by(code=code).first_or_404()
-    
-    # 获取交易参数
-    trade_type = int(request.form.get('type'))  # 1:买入 2:卖出
-    price = float(request.form.get('price'))
-    shares = int(request.form.get('shares'))
-    
-    # 基本验证
-    if shares % 100 != 0:
-        return render_template('company/detail.html', 
-                             company=company, 
-                             error='交易数量必须是100的整数倍')
-    
-    if price <= 0:
-        return render_template('company/detail.html', 
-                             company=company, 
-                             error='价格必须大于0')
-    
-    # 创建交易订单
-    order = TradeOrder(
-        user_id=current_user.id,
-        company_id=company.id,
-        type=trade_type,
-        price=price,
-        shares=shares,
-        status=0  # 待成交
-    )
-    
     try:
-        if trade_type == 1:  # 买入
-            # 检查资金是否足够
-            total_amount = price * shares
-            if current_user.balance < total_amount:
-                return render_template('company/detail.html', 
-                                     company=company, 
-                                     error='可用资金不足')
+        # 获取交易参数
+        action = request.form.get('action')  # 买入/卖出
+        price = Decimal(request.form.get('price', '0'))
+        quantity = int(request.form.get('quantity', '0'))
+        
+        # 验证输入
+        if not all([action, price, quantity]):
+            return jsonify({'success': False, 'message': '请填写所有交易信息'})
+        
+        if price <= 0:
+            return jsonify({'success': False, 'message': '交易价格必须大于0'})
+        
+        if quantity <= 0:
+            return jsonify({'success': False, 'message': '交易数量必须大于0'})
+        
+        if quantity % 100 != 0:
+            return jsonify({'success': False, 'message': '交易数量必须是100的整数倍'})
+        
+        # 获取公司信息
+        company = Company.query.filter_by(code=code).first_or_404()
+        
+        # 计算交易金额
+        amount = price * quantity
+        
+        if action == 'buy':
+            # 检查余额
+            if current_user.balance < amount:
+                return jsonify({'success': False, 'message': f'余额不足，需要{amount}元，当前余额{current_user.balance}元'})
             
-            # 冻结资金
-            current_user.balance -= total_amount
+            # 扣除资金
+            current_user.balance -= amount
             
-        else:  # 卖出
-            # 检查持仓是否足够
+            # 更新或创建持仓记录
             holding = StockHolding.query.filter_by(
                 user_id=current_user.id,
                 company_id=company.id
             ).first()
             
-            if not holding or holding.shares < shares:
-                return render_template('company/detail.html', 
-                                     company=company, 
-                                     error='可用股份不足')
+            if holding:
+                # 更新现有持仓
+                total_cost = holding.shares * holding.average_cost + amount
+                holding.shares += quantity
+                holding.average_cost = total_cost / holding.shares
+            else:
+                # 创建新持仓
+                holding = StockHolding(
+                    user_id=current_user.id,
+                    company_id=company.id,
+                    shares=quantity,
+                    average_cost=price
+                )
+                db.session.add(holding)
         
+        elif action == 'sell':
+            # 检查持仓
+            holding = StockHolding.query.filter_by(
+                user_id=current_user.id,
+                company_id=company.id
+            ).first()
+            
+            if not holding:
+                return jsonify({'success': False, 'message': '没有该股票的持仓'})
+            
+            if holding.shares < quantity:
+                return jsonify({'success': False, 'message': f'持仓不足，当前持仓{holding.shares}股'})
+            
+            # 增加资金
+            current_user.balance += amount
+            
+            # 更新持仓
+            holding.shares -= quantity
+            if holding.shares == 0:
+                db.session.delete(holding)
+        
+        # 创建交易记录
+        order = TradeOrder(
+            user_id=current_user.id,
+            company_id=company.id,
+            type=1 if action == 'buy' else 2,
+            price=price,
+            shares=quantity,
+            status=2 if action == 'buy' else 3,
+            dealt_amount=amount
+        )
         db.session.add(order)
+        
+        # 更新公司股价
+        company.current_price = price
+        company.market_value = company.current_price * company.total_shares
+        
         db.session.commit()
         
-        # 尝试撮合交易
-        match_orders(company.id)
-        
-        return render_template('company/detail.html', 
-                             company=company, 
-                             success='交易委托已提交')
+        return jsonify({'success': True, 'message': '交易成功'})
         
     except Exception as e:
         db.session.rollback()
-        return render_template('company/detail.html', 
-                             company=company, 
-                             error='交易失败，请稍后重试')
+        print(f"交易失败: {str(e)}")
+        return jsonify({'success': False, 'message': '交易失败：' + str(e)})
 
 def match_orders(company_id):
     """撮合交易"""
