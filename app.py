@@ -640,8 +640,33 @@ def portfolio():
     # 获取每个持仓的公司信息
     for holding in holdings:
         holding.company = db.session.get(Company, holding.company_id)
+        
+        # 计算持仓市值和盈亏
+        holding.market_value = holding.shares * holding.company.current_price
+        holding.profit = holding.market_value - (holding.shares * holding.average_cost)
+        holding.profit_percent = (holding.profit / (holding.shares * holding.average_cost)) * 100
     
-    return render_template('portfolio/index.html', holdings=holdings)
+    # 获取最近交易记录
+    orders = TradeOrder.query.filter_by(user_id=current_user.id)\
+        .order_by(TradeOrder.created_at.desc())\
+        .limit(20)\
+        .all()
+    
+    # 为每个订单加载公司信息
+    for order in orders:
+        order.company = db.session.get(Company, order.company_id)
+    
+    # 计算总资产
+    stock_value = sum(h.market_value for h in holdings)
+    total_assets = current_user.balance + stock_value
+    total_profit = sum(h.profit for h in holdings)
+    
+    return render_template('user/portfolio.html',
+                         holdings=holdings,
+                         orders=orders,
+                         total_assets=total_assets,
+                         stock_value=stock_value,
+                         total_profit=total_profit)
 
 # API：获取股票K线数据
 @app.route('/api/stock/<code>/kline')
@@ -653,6 +678,17 @@ def get_stock_kline(code):
         .order_by(StockPrice.date.desc())\
         .limit(30)\
         .all()
+    
+    # 如果没有历史数据，返回默认数据
+    if not prices:
+        return jsonify([{
+            'date': (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d'),
+            'open': float(company.current_price),
+            'high': float(company.current_price),
+            'low': float(company.current_price),
+            'close': float(company.current_price),
+            'volume': 0
+        } for i in range(30)])
     
     return jsonify([{
         'date': price.date.strftime('%Y-%m-%d'),
