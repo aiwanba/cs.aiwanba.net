@@ -349,27 +349,34 @@ def logout():
 @app.route('/company/create', methods=['GET', 'POST'])
 @login_required
 def create_company():
-    if request.method == 'POST':
-        # 获取表单数据
+    if request.method == 'GET':
+        return render_template('company/create.html')
+    
+    try:
         name = request.form.get('name')
         code = request.form.get('code')
         description = request.form.get('description')
         industry = request.form.get('industry')
-        registered_capital = float(request.form.get('registered_capital'))
-        total_shares = int(request.form.get('total_shares'))
-        price = float(request.form.get('price'))
+        registered_capital = Decimal(request.form.get('registered_capital'))
+        total_shares = int(request.form.get('total_shares', 0))
+        
+        # 验证输入
+        if not all([name, code, industry, registered_capital, total_shares]):
+            return render_template('company/create.html', error='请填写所有必填字段')
         
         # 验证股票代码格式
         if not re.match(r'^[A-Z0-9]{6}$', code):
             return render_template('company/create.html', error='股票代码必须是6位大写字母或数字')
         
+        if registered_capital <= 0:
+            return render_template('company/create.html', error='注册资本必须大于0')
+        
+        if total_shares <= 0:
+            return render_template('company/create.html', error='总股本必须大于0')
+        
         # 检查股票代码是否已存在
         if Company.query.filter_by(code=code).first():
             return render_template('company/create.html', error='股票代码已存在')
-        
-        # 验证发行总额
-        if total_shares * price != registered_capital:
-            return render_template('company/create.html', error='发行总额必须等于注册资本')
         
         # 检查用户资金是否足够
         if current_user.balance < registered_capital:
@@ -384,7 +391,7 @@ def create_company():
                 industry=industry,
                 registered_capital=registered_capital,
                 total_shares=total_shares,
-                current_price=price,
+                current_price=Decimal(str(registered_capital / total_shares)),
                 market_value=registered_capital,
                 creator_id=current_user.id
             )
@@ -398,7 +405,7 @@ def create_company():
                 user_id=current_user.id,
                 company_id=company.id,
                 shares=total_shares,
-                average_cost=price
+                average_cost=registered_capital / total_shares
             )
             db.session.add(holding)
             
@@ -406,10 +413,13 @@ def create_company():
             return redirect(url_for('company_detail', code=code))
             
         except Exception as e:
+            print(f"创建公司失败: {str(e)}")  # 添加错误日志
             db.session.rollback()
             return render_template('company/create.html', error='创建失败，请稍后重试')
     
-    return render_template('company/create.html')
+    except Exception as e:
+        print(f"创建公司参数验证失败: {str(e)}")  # 添加错误日志
+        return render_template('company/create.html', error='参数验证失败，请检查输入')
 
 # 路由：公司详情
 @app.route('/company/<code>')
@@ -1022,7 +1032,15 @@ def add_comment(news_id):
     
     return jsonify({'success': True})
 
-# 生成新闻的定时任务
+# 修复定时任务的应用上下文问题
+def with_app_context(func):
+    def wrapper(*args, **kwargs):
+        with app.app_context():
+            return func(*args, **kwargs)
+    return wrapper
+
+# 使用装饰器包装定时任务
+@with_app_context
 def generate_news():
     """定时生成新闻"""
     try:
@@ -1068,6 +1086,7 @@ def generate_news():
         print(f"生成新闻失败: {str(e)}")
 
 # 计算存款利息
+@with_app_context
 def calculate_deposit_interest():
     """计算存款利息（每天执行）"""
     try:
@@ -1101,6 +1120,7 @@ def calculate_deposit_interest():
         print(f"计算存款利息失败: {str(e)}")
 
 # 处理贷款还款
+@with_app_context
 def process_loan_payment():
     """处理贷款还款（每月1号执行）"""
     try:
