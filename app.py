@@ -92,25 +92,30 @@ class StockPrice(db.Model):
     )
 
 # AI玩家模型
-class AIPlayer(db.Model):
-    __tablename__ = 'ai_players'
+class AIStrategy(db.Model):
+    __tablename__ = 'ai_strategies'
     
     id = db.Column(db.BigInteger, primary_key=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
-    strategy = db.Column(db.String(50), nullable=False)  # 交易策略：保守、激进、均衡
-    risk_level = db.Column(db.Integer, default=1)  # 风险等级：1-5
-    min_position = db.Column(db.Integer, default=0)  # 最小持仓比例
-    max_position = db.Column(db.Integer, default=100)  # 最大持仓比例
-    status = db.Column(db.Integer, default=1)
+    ai_user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    strategy_type = db.Column(db.Integer, nullable=False)  # 1:保守, 2:稳健, 3:激进
+    risk_level = db.Column(db.Integer, nullable=False)  # 风险等级(1-5)
+    min_price = db.Column(db.DECIMAL(10,2))  # 最低买入价
+    max_price = db.Column(db.DECIMAL(10,2))  # 最高买入价
+    position_limit = db.Column(db.Integer, default=100)  # 持仓上限(%)
+    status = db.Column(db.Integer, default=1)  # 0:禁用, 1:启用
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.Index('idx_ai_user', 'ai_user_id'),
+    )
 
 # AI交易记录
 class AITradeLog(db.Model):
     __tablename__ = 'ai_trade_logs'
     
     id = db.Column(db.BigInteger, primary_key=True)
-    ai_id = db.Column(db.BigInteger, db.ForeignKey('ai_players.id'), nullable=False)
+    ai_id = db.Column(db.BigInteger, db.ForeignKey('ai_strategies.id'), nullable=False)
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
     action = db.Column(db.String(20), nullable=False)  # 买入/卖出
     reason = db.Column(db.String(255), nullable=False)  # 交易原因
@@ -148,31 +153,21 @@ class LoanAccount(db.Model):
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-# 交易记录模型
-class BankTransaction(db.Model):
-    __tablename__ = 'bank_transactions'
-    
-    id = db.Column(db.BigInteger, primary_key=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
-    type = db.Column(db.String(20), nullable=False)  # 存款、取款、贷款、还款
-    amount = db.Column(db.DECIMAL(20,2), nullable=False)
-    account_id = db.Column(db.BigInteger, nullable=False)  # 关联的账户ID
-    description = db.Column(db.String(255))
-    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
-
 # 新闻模型
 class News(db.Model):
     __tablename__ = 'news'
     
     id = db.Column(db.BigInteger, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    type = db.Column(db.String(50), nullable=False)  # 系统新闻、公司新闻、市场新闻
-    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'))  # 相关公司ID
-    impact_level = db.Column(db.Integer, default=1)  # 影响等级：1-5
-    views = db.Column(db.Integer, default=0)  # 浏览量
-    status = db.Column(db.Integer, default=1)
+    type = db.Column(db.Integer, nullable=False)  # 1:系统新闻, 2:公司公告, 3:市场动态
+    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'))
+    impact_score = db.Column(db.Integer, default=0)  # 影响力评分
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.Index('idx_company', 'company_id'),
+    )
 
 # 新闻评论模型
 class NewsComment(db.Model):
@@ -220,6 +215,65 @@ class TradeRecord(db.Model):
         db.Index('idx_seller_order', 'seller_order_id'),
         db.Index('idx_company', 'company_id')
     )
+
+# 聊天消息模型
+class ChatMessage(db.Model):
+    __tablename__ = 'chat_messages'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    sender_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    receiver_id = db.Column(db.BigInteger, db.ForeignKey('users.id'))  # NULL表示群发
+    content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.Integer, nullable=False)  # 1:文本, 2:图片, 3:表情
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.Index('idx_sender', 'sender_id'),
+        db.Index('idx_receiver', 'receiver_id'),
+    )
+
+# 团队模型
+class Team(db.Model):
+    __tablename__ = 'teams'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    leader_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    description = db.Column(db.String(200))
+    member_limit = db.Column(db.Integer, default=10)
+    status = db.Column(db.Integer, default=1)  # 0:解散, 1:正常
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.Index('idx_leader', 'leader_id'),
+    )
+
+# 团队成员模型
+class TeamMember(db.Model):
+    __tablename__ = 'team_members'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    team_id = db.Column(db.BigInteger, db.ForeignKey('teams.id'), nullable=False)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    role = db.Column(db.Integer, default=0)  # 0:成员, 1:管理员
+    contribution = db.Column(db.DECIMAL(20,2), default=0.00)
+    joined_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.UniqueConstraint('team_id', 'user_id', name='idx_team_user'),
+    )
+
+# 系统配置模型
+class SystemConfig(db.Model):
+    __tablename__ = 'system_configs'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    key = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.Text, nullable=False)
+    description = db.Column(db.String(200))
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -657,19 +711,19 @@ def ai_trading_strategy(ai_player):
         
         # 获取AI当前持仓
         holding = StockHolding.query.filter_by(
-            user_id=ai_player.user_id,
+            user_id=ai_player.ai_user_id,
             company_id=company.id
         ).first()
         
         # 交易信号判断
-        if ai_player.strategy == '保守':
+        if ai_player.strategy_type == 1:
             # 保守策略：金叉买入，死叉卖出
             if ma5 > ma10 and not holding:  # 金叉
                 create_ai_order(ai_player, company, 'buy', '金叉买入信号')
             elif ma5 < ma10 and holding:  # 死叉
                 create_ai_order(ai_player, company, 'sell', '死叉卖出信号')
                 
-        elif ai_player.strategy == '激进':
+        elif ai_player.strategy_type == 3:
             # 激进策略：放量上涨买入，放量下跌卖出
             volume_ratio = volumes[0] / sum(volumes[1:6]) * 5  # 当前成交量/5日平均成交量
             price_change = (closes[0] - closes[1]) / closes[1] * 100  # 价格涨跌幅
@@ -701,11 +755,11 @@ def create_ai_order(ai_player, company, action, reason):
         db.session.add(log)
         
         # 获取用户信息
-        user = User.query.get(ai_player.user_id)
+        user = User.query.get(ai_player.ai_user_id)
         
         if action == 'buy':
             # 计算可买数量
-            available_money = user.balance * (ai_player.max_position / 100)
+            available_money = user.balance * (ai_player.position_limit / 100)
             shares = int(available_money / company.current_price / 100) * 100
             
             if shares >= 100:  # 最小100股
@@ -743,7 +797,7 @@ def create_ai_order(ai_player, company, action, reason):
 # 定时任务：AI交易
 def ai_trading_task():
     """AI交易定时任务"""
-    ai_players = AIPlayer.query.filter_by(status=1).all()
+    ai_players = AIStrategy.query.filter_by(status=1).all()
     
     for ai_player in ai_players:
         ai_trading_strategy(ai_player)
@@ -752,7 +806,7 @@ def ai_trading_task():
 @app.route('/ai')
 @login_required
 def ai_index():
-    ai_players = AIPlayer.query.filter_by(user_id=current_user.id).all()
+    ai_players = AIStrategy.query.filter_by(ai_user_id=current_user.id).all()
     return render_template('ai/index.html', ai_players=ai_players)
 
 # 路由：创建AI玩家
@@ -760,12 +814,13 @@ def ai_index():
 @login_required
 def create_ai():
     try:
-        ai = AIPlayer(
-            user_id=current_user.id,
-            strategy=request.form.get('strategy'),
+        ai = AIStrategy(
+            ai_user_id=current_user.id,
+            strategy_type=int(request.form.get('strategy')),
             risk_level=int(request.form.get('risk_level')),
-            min_position=int(request.form.get('min_position')),
-            max_position=int(request.form.get('max_position'))
+            min_price=Decimal(request.form.get('min_price')),
+            max_price=Decimal(request.form.get('max_price')),
+            position_limit=int(request.form.get('position_limit'))
         )
         db.session.add(ai)
         db.session.commit()
@@ -777,7 +832,7 @@ def create_ai():
 @app.route('/ai/<int:ai_id>/toggle', methods=['POST'])
 @login_required
 def toggle_ai(ai_id):
-    ai = AIPlayer.query.filter_by(id=ai_id, user_id=current_user.id).first_or_404()
+    ai = AIStrategy.query.filter_by(id=ai_id, ai_user_id=current_user.id).first_or_404()
     ai.status = 1 if ai.status == 0 else 0
     db.session.commit()
     return jsonify({'success': True})
@@ -786,7 +841,7 @@ def toggle_ai(ai_id):
 @app.route('/ai/<int:ai_id>/logs')
 @login_required
 def ai_logs(ai_id):
-    ai = AIPlayer.query.filter_by(id=ai_id, user_id=current_user.id).first_or_404()
+    ai = AIStrategy.query.filter_by(id=ai_id, ai_user_id=current_user.id).first_or_404()
     logs = AITradeLog.query.filter_by(ai_id=ai_id)\
         .order_by(AITradeLog.created_at.desc())\
         .limit(100)\
@@ -863,17 +918,13 @@ def create_deposit():
         # 扣除用户余额
         current_user.balance -= amount
         
-        # 记录交易
-        transaction = BankTransaction(
-            user_id=current_user.id,
-            type='存款',
-            amount=amount,
-            account_id=deposit.id,
-            description=f'创建{deposit_type}存款'
-        )
+        # 计算利息
+        interest = float(amount) * float(interest_rate) / 100
+        
+        # 更新存款账户
+        deposit.amount = float(deposit.amount) + interest
         
         db.session.add(deposit)
-        db.session.add(transaction)
         db.session.commit()
         
         return jsonify({'success': True})
@@ -1002,9 +1053,9 @@ def generate_news():
                 news = News(
                     title=title,
                     content=content,
-                    type='市场新闻',
+                    type=3,  # 市场动态
                     company_id=company.id,
-                    impact_level=min(5, int(abs(price_change) / 2))
+                    impact_score=min(5, int(abs(price_change) / 2))
                 )
                 db.session.add(news)
         
@@ -1032,16 +1083,6 @@ def calculate_deposit_interest():
                 user = User.query.get(deposit.user_id)
                 user.balance = float(user.balance) + interest
                 
-                # 记录交易
-                transaction = BankTransaction(
-                    user_id=user.id,
-                    type='利息',
-                    amount=interest,
-                    account_id=deposit.id,
-                    description='活期存款利息'
-                )
-                db.session.add(transaction)
-            
             # 定期存款到期处理
             elif deposit.end_date and deposit.end_date <= datetime.now().date():
                 user = User.query.get(deposit.user_id)
@@ -1050,16 +1091,6 @@ def calculate_deposit_interest():
                 
                 user.balance = float(user.balance) + float(deposit.amount) + total_interest
                 deposit.status = 2  # 已提前支取
-                
-                # 记录交易
-                transaction = BankTransaction(
-                    user_id=user.id,
-                    type='利息',
-                    amount=total_interest,
-                    account_id=deposit.id,
-                    description='定期存款到期'
-                )
-                db.session.add(transaction)
         
         db.session.commit()
         
@@ -1082,16 +1113,6 @@ def process_loan_payment():
                 loan.remaining_amount = float(loan.remaining_amount) - \
                     (float(loan.monthly_payment) - float(loan.monthly_payment) * \
                     float(loan.interest_rate) / 100 / 12)
-                
-                # 记录交易
-                transaction = BankTransaction(
-                    user_id=user.id,
-                    type='还款',
-                    amount=float(loan.monthly_payment),
-                    account_id=loan.id,
-                    description='贷款月供'
-                )
-                db.session.add(transaction)
                 
                 # 判断是否已还清
                 if float(loan.remaining_amount) <= 0:
