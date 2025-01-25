@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}创建公司 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">创建新公司</h4>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">公司名称</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="code" class="form-label">股票代码</label>
+                        <input type="text" class="form-control" id="code" name="code" pattern="[A-Z0-9]{6}" required>
+                        <div class="form-text">请输入6位大写字母或数字的股票代码</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="industry" class="form-label">所属行业</label>
+                        <select class="form-select" id="industry" name="industry" required>
+                            <option value="">请选择行业</option>
+                            <option value="科技">科技</option>
+                            <option value="金融">金融</option>
+                            <option value="医疗">医疗</option>
+                            <option value="制造">制造</option>
+                            <option value="能源">能源</option>
+                            <option value="消费">消费</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">公司简介</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="registered_capital" class="form-label">注册资本（元）</label>
+                        <input type="number" class="form-control" id="registered_capital" name="registered_capital" min="1000000" required>
+                        <div class="form-text">最低注册资本100万元</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="total_shares" class="form-label">发行股数</label>
+                        <input type="number" class="form-control" id="total_shares" name="total_shares" min="10000" required>
+                        <div class="form-text">最少发行1万股</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">发行价格（元/股）</label>
+                        <input type="number" class="form-control" id="price" name="price" min="1" step="0.01" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">创建公司</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 自动计算和验证
+    const capitalInput = document.getElementById('registered_capital');
+    const sharesInput = document.getElementById('total_shares');
+    const priceInput = document.getElementById('price');
+    
+    function validateInputs() {
+        const capital = parseFloat(capitalInput.value) || 0;
+        const shares = parseInt(sharesInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        
+        // 计算总市值
+        const marketValue = shares * price;
+        
+        // 验证总市值是否等于注册资本
+        if (marketValue !== capital) {
+            priceInput.setCustomValidity('发行总市值必须等于注册资本');
+        } else {
+            priceInput.setCustomValidity('');
+        }
+    }
+    
+    capitalInput.addEventListener('input', validateInputs);
+    sharesInput.addEventListener('input', validateInputs);
+    priceInput.addEventListener('input', validateInputs);
+});
+</script>
+{% endblock %} 
