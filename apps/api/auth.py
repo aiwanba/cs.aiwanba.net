@@ -6,6 +6,7 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
+    """用户注册"""
     data = request.get_json()
     user = AuthService.register(
         data['username'],
@@ -23,6 +24,7 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    """用户登录"""
     data = request.get_json()
     user = AuthService.login(data['username'], data['password'])
     if user:
@@ -35,4 +37,10 @@ def login():
                 'email': user.email
             }
         })
-    return jsonify({'message': '用户名或密码错误'}), 401 
+    return jsonify({'message': '用户名或密码错误'}), 401
+
+@auth_bp.route('/logout')
+def logout():
+    """用户登出"""
+    logout_user()
+    return jsonify({'message': '登出成功'}) 

@@ -12,7 +12,7 @@ def buy_stock():
     data = request.get_json()
     company = Company.query.get_or_404(data['company_id'])
     
-    success, message = TradingService.buy_stock(
+    success, result = TradingService.buy_stock(
         current_user,
         company,
         int(data['shares']),
@@ -20,17 +20,25 @@ def buy_stock():
     )
     
     if success:
-        return jsonify({'message': message})
-    return jsonify({'message': message}), 400
+        return jsonify({
+            'message': '购买成功',
+            'transaction': {
+                'id': result.id,
+                'shares': result.shares,
+                'price': float(result.price),
+                'total_amount': float(result.total_amount)
+            }
+        })
+    return jsonify({'message': result}), 400
 
 @trading_bp.route('/sell', methods=['POST'])
 @login_required
 def sell_stock():
-    """卖出股票"""
+    """出售股票"""
     data = request.get_json()
     company = Company.query.get_or_404(data['company_id'])
     
-    success, message = TradingService.sell_stock(
+    success, result = TradingService.sell_stock(
         current_user,
         company,
         int(data['shares']),
@@ -38,8 +46,16 @@ def sell_stock():
     )
     
     if success:
-        return jsonify({'message': message})
-    return jsonify({'message': message}), 400
+        return jsonify({
+            'message': '出售成功',
+            'transaction': {
+                'id': result.id,
+                'shares': result.shares,
+                'price': float(result.price),
+                'total_amount': float(result.total_amount)
+            }
+        })
+    return jsonify({'message': result}), 400
 
 @trading_bp.route('/holdings', methods=['GET'])
 @login_required

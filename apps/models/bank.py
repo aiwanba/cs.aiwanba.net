@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from apps.extensions import db
 
 class BankAccount(db.Model):
     """银行账户模型"""

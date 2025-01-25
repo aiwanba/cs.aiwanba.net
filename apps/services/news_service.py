@@ -1,7 +1,7 @@
 from datetime import datetime
 from apps.models.news import News
 from apps.models.company import Company
-from app import db
+from apps.extensions import db
 
 class NewsService:
     @staticmethod
@@ -18,21 +18,22 @@ class NewsService:
         db.session.add(news)
         db.session.commit()
         
-        # 应用市场影响
+        # 应用市场效应
         news.apply_market_effect()
+        
         return news
     
     @staticmethod
     def get_news_list(news_type=None, company_id=None, limit=20):
         """获取新闻列表"""
-        query = News.query.order_by(News.created_at.desc())
+        query = News.query
         
         if news_type:
             query = query.filter_by(type=news_type)
         if company_id:
             query = query.filter_by(company_id=company_id)
             
-        return query.limit(limit).all()
+        return query.order_by(News.created_at.desc()).limit(limit).all()
     
     @staticmethod
     def generate_market_news():

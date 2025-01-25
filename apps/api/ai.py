@@ -6,27 +6,31 @@ ai_bp = Blueprint('ai', __name__)
 
 @ai_bp.route('/create', methods=['POST'])
 @login_required
-def create_ai_player():
-    """创建AI玩家（仅管理员）"""
-    if not current_user.is_admin:
-        return jsonify({'message': '权限不足'}), 403
-        
+def create_ai():
+    """创建AI玩家"""
     data = request.get_json()
-    ai_player = AIService.create_ai_player(
+    ai = AIService.create_ai_player(
         data['name'],
-        float(data.get('initial_balance', 1000000))
+        float(data.get('balance', 10000.0)),
+        float(data.get('risk_preference', 0.5))
     )
     
     return jsonify({
         'message': 'AI玩家创建成功',
-        'ai_player': {
-            'id': ai_player.id,
-            'name': ai_player.name,
-            'balance': float(ai_player.balance),
-            'risk_preference': ai_player.risk_preference,
-            'trading_frequency': ai_player.trading_frequency
+        'ai': {
+            'id': ai.id,
+            'name': ai.name,
+            'balance': float(ai.balance),
+            'risk_preference': ai.risk_preference
         }
     })
+
+@ai_bp.route('/decisions')
+@login_required
+def get_decisions():
+    """获取AI决策"""
+    results = AIService.make_decisions()
+    return jsonify({'decisions': results})
 
 @ai_bp.route('/run', methods=['POST'])
 @login_required

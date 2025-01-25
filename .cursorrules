@@ -97,11 +97,15 @@
 ## 首选库
 | 库名称 | 版本 | 用途 |
 |--------|------|------|
-| Flask | ^2.0.1 | Web 框架 |
+| Flask | ^2.3.3 | Web 框架 |
+| Werkzeug | ^2.3.7 | WSGI 工具库 |
+| SQLAlchemy | ^2.0.23 | ORM 框架 |
+| Flask-SQLAlchemy | ^3.1.1 | Flask SQLAlchemy 集成 |
+| PyMySQL | ^1.1.0 | MySQL Python 驱动 |
+| mysqlclient | ^2.2.4 | MySQL C 驱动 |
 | gunicorn | ^20.1.0 | WSGI HTTP 服务器 |
 | eventlet | ^0.33.3 | Socket.IO异步支持 |
 | Flask-SocketIO | ^5.3.4 | WebSocket 实时通信 |
-| Flask-SQLAlchemy | ^2.5.1 | ORM 数据库操作 |
 | Flask-Migrate | ^4.0.4 | 数据库迁移工具 |
 | Flask-Login | ^0.6.2 | 用户认证管理 |
 | Flask-WTF | ^1.1.1 | 表单验证和CSRF保护 |

@@ -1,5 +1,5 @@
-from apps.models.user import User
-from app import db
+from apps.models.auth import User
+from apps.extensions import db
 
 class AuthService:
     @staticmethod

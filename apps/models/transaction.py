@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from apps.extensions import db
 
 class Transaction(db.Model):
     """交易记录模型"""

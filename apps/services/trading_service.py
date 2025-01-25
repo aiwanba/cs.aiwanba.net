@@ -1,6 +1,6 @@
 from apps.models.transaction import Transaction
 from apps.models.stock import StockHolding
-from app import db
+from apps.extensions import db
 
 class TradingService:
     @staticmethod
@@ -11,11 +11,11 @@ class TradingService:
         # 检查用户余额
         if float(user.balance) < total_amount:
             return False, "余额不足"
-            
+        
         # 检查可用股数
         if company.available_shares < shares:
             return False, "可用股数不足"
-            
+        
         # 创建交易记录
         transaction = Transaction(
             user_id=user.id,
@@ -26,46 +26,48 @@ class TradingService:
             total_amount=total_amount
         )
         
-        # 更新用户持股
-        holding = StockHolding.query.filter_by(
+        # 更新用户余额
+        user.balance -= total_amount
+        
+        # 更新公司可用股数
+        company.available_shares -= shares
+        
+        # 更新或创建持股记录
+        stock = StockHolding.query.filter_by(
             holder_id=user.id,
             company_id=company.id
         ).first()
         
-        if holding:
-            holding.shares += shares
+        if stock:
+            # 更新现有持股
+            stock.shares += shares
             # 更新平均购买价格
-            total_cost = (float(holding.purchase_price) * (holding.shares - shares) + 
-                         float(price) * shares)
-            holding.purchase_price = total_cost / holding.shares
+            stock.purchase_price = (float(stock.purchase_price) * stock.shares + total_amount) / (stock.shares + shares)
         else:
-            holding = StockHolding(
+            # 创建新持股记录
+            stock = StockHolding(
                 holder_id=user.id,
                 company_id=company.id,
                 shares=shares,
                 purchase_price=price
             )
-            db.session.add(holding)
-        
-        # 更新用户余额和公司可用股数
-        user.balance -= total_amount
-        company.available_shares -= shares
+            db.session.add(stock)
         
         db.session.add(transaction)
         db.session.commit()
         
-        return True, "交易成功"
-
+        return True, transaction
+    
     @staticmethod
     def sell_stock(user, company, shares, price):
-        """卖出股票"""
-        # 检查用户持股
-        holding = StockHolding.query.filter_by(
+        """出售股票"""
+        # 检查持股记录
+        stock = StockHolding.query.filter_by(
             holder_id=user.id,
             company_id=company.id
         ).first()
         
-        if not holding or holding.shares < shares:
+        if not stock or stock.shares < shares:
             return False, "持股数量不足"
         
         total_amount = shares * price
@@ -80,19 +82,21 @@ class TradingService:
             total_amount=total_amount
         )
         
-        # 更新持股记录
-        holding.shares -= shares
-        if holding.shares == 0:
-            db.session.delete(holding)
-        
-        # 更新用户余额和公司可用股数
+        # 更新用户余额
         user.balance += total_amount
+        
+        # 更新公司可用股数
         company.available_shares += shares
+        
+        # 更新持股记录
+        stock.shares -= shares
+        if stock.shares == 0:
+            db.session.delete(stock)
         
         db.session.add(transaction)
         db.session.commit()
         
-        return True, "交易成功"
+        return True, transaction
     
     @staticmethod
     def get_user_holdings(user_id):

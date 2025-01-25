@@ -1,7 +1,7 @@
 from apps.models.company import Company
 from apps.models.stock import StockHolding
 from apps.models.news import News
-from app import db
+from apps.extensions import db
 
 class CompanyService:
     @staticmethod
@@ -57,15 +57,16 @@ class CompanyService:
         return True, company
 
     @staticmethod
-    def get_market_overview():
-        """获取市场概览"""
+    def get_market_data():
+        """获取市场数据"""
         companies = Company.query.all()
-        market_data = []
         total_market_value = 0
+        market_data = []
         
         for company in companies:
             market_value = company.market_value()
             total_market_value += market_value
+            
             market_data.append({
                 'id': company.id,
                 'name': company.name,

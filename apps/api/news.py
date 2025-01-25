@@ -10,16 +10,16 @@ def get_news_list():
     """获取新闻列表"""
     news_type = request.args.get('type')
     company_id = request.args.get('company_id', type=int)
-    limit = request.args.get('limit', type=int, default=20)
+    limit = request.args.get('limit', 20, type=int)
     
     news_list = NewsService.get_news_list(news_type, company_id, limit)
+    
     return jsonify({
         'news': [{
             'id': news.id,
             'title': news.title,
             'content': news.content,
             'type': news.type,
-            'company_id': news.company_id,
             'company_name': news.company.name if news.company else None,
             'impact': news.impact,
             'created_at': news.created_at.strftime('%Y-%m-%d %H:%M:%S')
@@ -29,17 +29,14 @@ def get_news_list():
 @news_bp.route('/create', methods=['POST'])
 @login_required
 def create_news():
-    """创建新闻（仅管理员）"""
-    if not current_user.is_admin:
-        return jsonify({'message': '权限不足'}), 403
-        
+    """创建新闻"""
     data = request.get_json()
     news = NewsService.create_news(
         data['title'],
         data['content'],
         data['type'],
         data.get('company_id'),
-        float(data.get('impact', 0))
+        data.get('impact', 0)
     )
     
     return jsonify({
@@ -47,6 +44,7 @@ def create_news():
         'news': {
             'id': news.id,
             'title': news.title,
+            'content': news.content,
             'type': news.type,
             'created_at': news.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }

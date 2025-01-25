@@ -30,13 +30,13 @@ def create_company():
         })
     return jsonify({'message': result}), 400
 
-@company_bp.route('/market', methods=['GET'])
-def get_market_overview():
-    """获取市场概览"""
-    market_data = CompanyService.get_market_overview()
-    return jsonify(market_data)
+@company_bp.route('/market/data')
+def get_market_data():
+    """获取市场数据"""
+    data = CompanyService.get_market_data()
+    return jsonify(data)
 
-@company_bp.route('/<int:company_id>', methods=['GET'])
+@company_bp.route('/<int:company_id>')
 def get_company(company_id):
     """获取公司详情"""
     company = Company.query.get_or_404(company_id)

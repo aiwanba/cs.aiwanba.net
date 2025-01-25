@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from apps.extensions import db
 
 class StockHolding(db.Model):
     """股票持有记录模型"""

@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from apps.extensions import db
 
 class Company(db.Model):
     """公司模型"""
@@ -12,7 +12,7 @@ class Company(db.Model):
     available_shares = db.Column(db.Integer, nullable=False)  # 可交易股数
     current_price = db.Column(db.Numeric(10, 2), nullable=False)  # 当前股价
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     
     # 关系
     stocks = db.relationship('StockHolding', backref='company', lazy='dynamic')

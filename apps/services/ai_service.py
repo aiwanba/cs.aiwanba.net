@@ -3,22 +3,80 @@ import random
 from apps.models.ai import AIPlayer
 from apps.models.company import Company
 from apps.services.trading_service import TradingService
-from app import db
+from apps.extensions import db
 
 class AIService:
     @staticmethod
-    def create_ai_player(name, initial_balance=1000000):
+    def create_ai_player(name, balance=10000.0, risk_preference=0.5):
         """创建AI玩家"""
-        ai_player = AIPlayer(
+        ai = AIPlayer(
             name=name,
-            balance=initial_balance,
-            risk_preference=random.uniform(0.3, 0.7),  # 风险偏好
-            trading_frequency=random.uniform(0.2, 0.8)  # 交易频率
+            balance=balance,
+            risk_preference=risk_preference,
+            trading_frequency=random.uniform(0.3, 0.8)
         )
-        db.session.add(ai_player)
+        
+        db.session.add(ai)
         db.session.commit()
-        return ai_player
+        
+        return ai
     
+    @staticmethod
+    def make_decisions():
+        """AI玩家决策"""
+        ai_players = AIPlayer.query.all()
+        companies = Company.query.all()
+        results = []
+        
+        for ai in ai_players:
+            # 根据风险偏好和交易频率决定是否交易
+            if random.random() > ai.trading_frequency:
+                continue
+                
+            for company in companies:
+                decision = random.choice(['buy', 'sell', 'hold'])
+                success = False
+                message = ""
+                
+                if decision == 'buy':
+                    # 计算购买数量和价格
+                    max_shares = int(float(ai.balance) / float(company.current_price))
+                    if max_shares > 0:
+                        shares = random.randint(1, min(max_shares, 100))
+                        success, result = TradingService.buy_stock(
+                            ai,
+                            company,
+                            shares,
+                            float(company.current_price)
+                        )
+                        message = "购买成功" if success else result
+                
+                elif decision == 'sell':
+                    # 查找持仓并卖出
+                    holding = next(
+                        (h for h in ai.stocks if h.company_id == company.id),
+                        None
+                    )
+                    if holding:
+                        shares = random.randint(1, holding.shares)
+                        success, result = TradingService.sell_stock(
+                            ai,
+                            company,
+                            shares,
+                            float(company.current_price)
+                        )
+                        message = "出售成功" if success else result
+                
+                results.append({
+                    'ai_name': ai.name,
+                    'company_name': company.name,
+                    'action': decision,
+                    'success': success,
+                    'message': message
+                })
+        
+        return results
+
     @staticmethod
     def analyze_market():
         """分析市场状况"""
@@ -36,98 +94,10 @@ class AIService:
                 'company_id': company.id,
                 'buy_signal': 0,  # -1到1之间，大于0表示买入信号
                 'price_signal': 0,  # 价格合理性，-1到1之间
-                'volume_signal': 0  # 成交量信号，-1到1之间
             }
-            
-            # 分析可用股数占比
-            volume_ratio = available_shares / company.total_shares
-            signal['volume_signal'] = 1 - (2 * volume_ratio)  # 股数越少，信号越强
-            
-            # 分析价格趋势（这里简化处理，实际应该分析历史数据）
-            if price < market_value / company.total_shares:
-                signal['price_signal'] = 0.5
-            
-            # 综合信号
-            signal['buy_signal'] = (
-                signal['price_signal'] * 0.6 +
-                signal['volume_signal'] * 0.4
-            )
-            
             market_data.append(signal)
         
         return market_data
-    
-    @staticmethod
-    def make_trading_decision(ai_player):
-        """AI交易决策"""
-        market_data = AIService.analyze_market()
-        decisions = []
-        
-        for signal in market_data:
-            # 根据AI的风险偏好调整信号
-            adjusted_signal = signal['buy_signal'] * ai_player.risk_preference
-            
-            # 根据交易频率决定是否执行交易
-            if random.random() < ai_player.trading_frequency:
-                company = Company.query.get(signal['company_id'])
-                
-                if adjusted_signal > 0.3:  # 买入信号
-                    # 计算购买数量
-                    max_shares = min(
-                        int(float(ai_player.balance) / float(company.current_price)),
-                        company.available_shares
-                    )
-                    if max_shares > 0:
-                        shares = random.randint(1, max_shares)
-                        decisions.append({
-                            'type': 'buy',
-                            'company': company,
-                            'shares': shares,
-                            'price': float(company.current_price)
-                        })
-                elif adjusted_signal < -0.3:  # 卖出信号
-                    # 检查持仓
-                    holding = ai_player.get_holding(company.id)
-                    if holding and holding.shares > 0:
-                        shares = random.randint(1, holding.shares)
-                        decisions.append({
-                            'type': 'sell',
-                            'company': company,
-                            'shares': shares,
-                            'price': float(company.current_price)
-                        })
-        
-        return decisions
-    
-    @staticmethod
-    def execute_trades(ai_player):
-        """执行AI交易"""
-        decisions = AIService.make_trading_decision(ai_player)
-        results = []
-        
-        for decision in decisions:
-            if decision['type'] == 'buy':
-                success, message = TradingService.buy_stock(
-                    ai_player,
-                    decision['company'],
-                    decision['shares'],
-                    decision['price']
-                )
-            else:  # sell
-                success, message = TradingService.sell_stock(
-                    ai_player,
-                    decision['company'],
-                    decision['shares'],
-                    decision['price']
-                )
-            
-            results.append({
-                'success': success,
-                'message': message,
-                'decision': decision
-            })
-        
-        return results
     
     @staticmethod
     def run_ai_trading():
@@ -136,10 +106,43 @@ class AIService:
         results = []
         
         for ai_player in ai_players:
-            trades = AIService.execute_trades(ai_player)
-            results.append({
-                'ai_player': ai_player.name,
-                'trades': trades
-            })
+            # 分析市场
+            market_data = AIService.analyze_market()
+            
+            # 生成交易决策
+            decisions = []
+            for signal in market_data:
+                if signal['buy_signal'] > 0.5:  # 买入阈值
+                    decisions.append({
+                        'type': 'buy',
+                        'company_id': signal['company_id'],
+                        'shares': 100,  # 示例固定数量
+                        'price': Company.query.get(signal['company_id']).current_price
+                    })
+            
+            # 执行交易
+            for decision in decisions:
+                company = Company.query.get(decision['company_id'])
+                if decision['type'] == 'buy':
+                    success, message = TradingService.buy_stock(
+                        ai_player,
+                        company,
+                        decision['shares'],
+                        float(decision['price'])
+                    )
+                else:  # sell
+                    success, message = TradingService.sell_stock(
+                        ai_player,
+                        company,
+                        decision['shares'],
+                        float(decision['price'])
+                    )
+                
+                results.append({
+                    'ai_player': ai_player.name,
+                    'action': decision,
+                    'success': success,
+                    'message': message
+                })
         
         return results 

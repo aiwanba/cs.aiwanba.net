@@ -1,23 +1,22 @@
 from datetime import datetime
-from app import db
+from apps.extensions import db
 
-class AIAction(db.Model):
-    """AI行为模型"""
-    __tablename__ = 'ai_actions'
+class AIPlayer(db.Model):
+    """AI玩家模型"""
+    __tablename__ = 'ai_players'
     
     id = db.Column(db.Integer, primary_key=True)
-    ai_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    action_type = db.Column(db.String(20), nullable=False)  # 'buy', 'sell', 'create_company' 等
-    target_id = db.Column(db.Integer)  # 目标ID（公司ID等）
-    parameters = db.Column(db.JSON)  # 行为参数
-    result = db.Column(db.String(20))  # 行为结果
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    balance = db.Column(db.Numeric(10, 2), nullable=False)
+    risk_preference = db.Column(db.Float, nullable=False)  # 风险偏好
+    trading_frequency = db.Column(db.Float, nullable=False)  # 交易频率
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    def execute(self):
+    def execute_action(self, action_type, **params):
         """执行AI行为"""
-        if self.action_type == 'buy':
+        if action_type == 'buy':
             # 实现购买逻辑
             pass
-        elif self.action_type == 'sell':
+        elif action_type == 'sell':
             # 实现出售逻辑
             pass 

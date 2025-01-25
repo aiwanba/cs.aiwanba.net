@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from apps.extensions import db
+from apps.extensions import db, login_manager
 
 class User(UserMixin, db.Model):
     """用户模型"""
@@ -32,4 +32,9 @@ class User(UserMixin, db.Model):
     def get_total_assets(self):
         """计算总资产（现金 + 股票市值）"""
         stock_value = sum(holding.current_value() for holding in self.stocks)
-        return float(self.balance) + stock_value 
+        return float(self.balance) + stock_value
+
+@login_manager.user_loader
+def load_user(user_id):
+    """加载用户"""
+    return User.query.get(int(user_id)) 

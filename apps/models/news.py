@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from apps.extensions import db
 
 class News(db.Model):
     """新闻模型"""

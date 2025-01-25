@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from apps.models.bank import BankAccount
-from app import db
+from apps.extensions import db
 
 class BankService:
     # 基准利率配置
@@ -12,31 +12,41 @@ class BankService:
     @staticmethod
     def create_savings_account(user):
         """创建储蓄账户"""
+        # 检查是否已有储蓄账户
+        existing = BankAccount.query.filter_by(
+            user_id=user.id,
+            account_type='savings'
+        ).first()
+        
+        if existing:
+            return False, "已有储蓄账户"
+        
         account = BankAccount(
             user_id=user.id,
             account_type='savings',
             balance=0,
             interest_rate=BankService.RATES['savings']
         )
+        
         db.session.add(account)
         db.session.commit()
-        return account
+        
+        return True, account
     
     @staticmethod
-    def create_loan(user, amount, duration_days):
-        """创建贷款"""
-        # 检查用户信用和现有贷款
-        existing_loan = BankAccount.query.filter_by(
+    def create_loan_account(user, amount, duration_days):
+        """创建贷款账户"""
+        # 检查是否已有未还清的贷款
+        existing = BankAccount.query.filter_by(
             user_id=user.id,
             account_type='loan',
             status='active'
         ).first()
         
-        if existing_loan:
-            return False, "已有未还清的贷款"
-            
-        # 创建贷款账户
-        loan = BankAccount(
+        if existing:
+            return False, "已有未还清贷款"
+        
+        account = BankAccount(
             user_id=user.id,
             account_type='loan',
             balance=amount,
@@ -44,12 +54,13 @@ class BankService:
             end_date=datetime.utcnow() + timedelta(days=duration_days)
         )
         
-        # 发放贷款到用户余额
+        # 发放贷款
         user.balance += amount
         
-        db.session.add(loan)
+        db.session.add(account)
         db.session.commit()
-        return True, loan
+        
+        return True, account
     
     @staticmethod
     def deposit(account_id, amount):
@@ -57,15 +68,15 @@ class BankService:
         account = BankAccount.query.get(account_id)
         if not account or account.account_type != 'savings':
             return False, "账户不存在或类型错误"
-            
+        
         if float(account.user.balance) < amount:
             return False, "余额不足"
-            
+        
         account.balance += amount
         account.user.balance -= amount
         
         db.session.commit()
-        return True, "存款成功"
+        return True, account
     
     @staticmethod
     def withdraw(account_id, amount):
@@ -73,34 +84,37 @@ class BankService:
         account = BankAccount.query.get(account_id)
         if not account or account.account_type != 'savings':
             return False, "账户不存在或类型错误"
-            
+        
         if float(account.balance) < amount:
-            return False, "存款余额不足"
-            
+            return False, "存款不足"
+        
         account.balance -= amount
         account.user.balance += amount
         
         db.session.commit()
-        return True, "取款成功"
+        return True, account
     
     @staticmethod
-    def repay_loan(loan_id, amount):
+    def repay_loan(account_id, amount):
         """还贷"""
-        loan = BankAccount.query.get(loan_id)
-        if not loan or loan.account_type != 'loan' or loan.status != 'active':
-            return False, "贷款账户不存在或已结清"
-            
-        if float(loan.user.balance) < amount:
-            return False, "余额不足"
-            
-        loan.balance -= amount
-        loan.user.balance -= amount
+        account = BankAccount.query.get(account_id)
+        if not account or account.account_type != 'loan':
+            return False, "账户不存在或类型错误"
         
-        if float(loan.balance) <= 0:
-            loan.status = 'closed'
-            
+        if float(account.user.balance) < amount:
+            return False, "余额不足"
+        
+        if float(account.balance) < amount:
+            return False, "还款金额超过贷款余额"
+        
+        account.balance -= amount
+        account.user.balance -= amount
+        
+        if float(account.balance) == 0:
+            account.status = 'closed'
+        
         db.session.commit()
-        return True, "还款成功"
+        return True, account
     
     @staticmethod
     def calculate_daily_interest():
