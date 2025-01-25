@@ -156,6 +156,8 @@ CREATE TABLE `ai_strategies` (
     `ai_user_id` BIGINT UNSIGNED NOT NULL COMMENT 'AI用户ID',
     `strategy_type` TINYINT NOT NULL COMMENT '策略类型(1:保守,2:稳健,3:激进)',
     `risk_level` TINYINT NOT NULL COMMENT '风险等级(1-5)',
+    `min_position` INT NOT NULL DEFAULT 0 COMMENT '最小持仓比例(%)',
+    `max_position` INT NOT NULL DEFAULT 100 COMMENT '最大持仓比例(%)',
     `min_price` DECIMAL(10,2) DEFAULT NULL COMMENT '最低买入价',
     `max_price` DECIMAL(10,2) DEFAULT NULL COMMENT '最高买入价',
     `position_limit` INT DEFAULT 100 COMMENT '持仓上限(%)',
@@ -163,7 +165,8 @@ CREATE TABLE `ai_strategies` (
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    KEY `idx_ai_user` (`ai_user_id`)
+    KEY `idx_ai_user` (`ai_user_id`),
+    CONSTRAINT `ai_strategies_ibfk_1` FOREIGN KEY (`ai_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI策略表';
 
 -- 聊天消息表

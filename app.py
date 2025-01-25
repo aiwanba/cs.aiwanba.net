@@ -110,6 +110,8 @@ class AIStrategy(db.Model):
     ai_user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
     strategy_type = db.Column(db.Integer, nullable=False)  # 1:保守, 2:稳健, 3:激进
     risk_level = db.Column(db.Integer, nullable=False)  # 风险等级(1-5)
+    min_position = db.Column(db.Integer, nullable=False, default=0)  # 最小持仓比例(%)
+    max_position = db.Column(db.Integer, nullable=False, default=100)  # 最大持仓比例(%)
     min_price = db.Column(db.DECIMAL(10,2))  # 最低买入价
     max_price = db.Column(db.DECIMAL(10,2))  # 最高买入价
     position_limit = db.Column(db.Integer, default=100)  # 持仓上限(%)
@@ -909,6 +911,8 @@ def create_ai():
             ai_user_id=current_user.id,
             strategy_type=int(request.form.get('strategy')),
             risk_level=int(request.form.get('risk_level')),
+            min_position=int(request.form.get('min_position')),
+            max_position=int(request.form.get('max_position')),
             min_price=Decimal(request.form.get('min_price')),
             max_price=Decimal(request.form.get('max_price')),
             position_limit=int(request.form.get('position_limit')),
