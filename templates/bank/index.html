@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}银行 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="bank-container">
+    <div class="bank-header">
+        <h2>银行账户</h2>
+        <div class="account-info">
+            <div class="balance">
+                <label>账户余额</label>
+                <span class="amount">{{ "%.2f"|format(account.balance) }}</span>
+            </div>
+            <div class="interest-rate">
+                <label>年利率</label>
+                <span>{{ "%.2f"|format(account.interest_rate) }}%</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="bank-operations">
+        <div class="operation-panel">
+            <h3>存取款</h3>
+            <form id="depositForm" class="operation-form">
+                <div class="form-group">
+                    <label for="depositAmount">存款金额</label>
+                    <input type="number" id="depositAmount" min="0.01" step="0.01" required>
+                </div>
+                <button type="submit" class="btn">存款</button>
+            </form>
+
+            <form id="withdrawForm" class="operation-form">
+                <div class="form-group">
+                    <label for="withdrawAmount">取款金额</label>
+                    <input type="number" id="withdrawAmount" min="0.01" step="0.01" required>
+                </div>
+                <button type="submit" class="btn">取款</button>
+            </form>
+        </div>
+
+        <div class="operation-panel">
+            <h3>贷款服务</h3>
+            <form id="loanForm" class="operation-form">
+                <div class="form-group">
+                    <label for="loanAmount">贷款金额</label>
+                    <input type="number" id="loanAmount" min="1000" step="1000" required>
+                </div>
+                <div class="form-group">
+                    <label for="loanTerm">贷款期限（月）</label>
+                    <select id="loanTerm" required>
+                        <option value="3">3个月</option>
+                        <option value="6">6个月</option>
+                        <option value="12">12个月</option>
+                        <option value="24">24个月</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn">申请贷款</button>
+            </form>
+        </div>
+    </div>
+
+    {% if loans %}
+    <div class="loans-panel">
+        <h3>我的贷款</h3>
+        <div class="loans-list">
+            {% for loan in loans %}
+            <div class="loan-item">
+                <div class="loan-info">
+                    <span class="loan-amount">贷款金额：{{ "%.2f"|format(loan.amount) }}</span>
+                    <span class="loan-rate">年利率：{{ "%.2f"|format(loan.interest_rate) }}%</span>
+                    <span class="loan-term">期限：{{ loan.term_months }}个月</span>
+                    <span class="loan-remaining">剩余待还：{{ "%.2f"|format(loan.remaining_amount) }}</span>
+                </div>
+                {% if loan.status == 'active' %}
+                <form class="repay-form" data-loan-id="{{ loan.id }}">
+                    <input type="number" class="repay-amount" min="0.01" step="0.01" placeholder="还款金额" required>
+                    <button type="submit" class="btn">还款</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="transactions-panel">
+        <h3>最近交易</h3>
+        <div class="transactions-list">
+            {% for tx in transactions %}
+            <div class="transaction-item">
+                <span class="tx-time">{{ tx.created_at }}</span>
+                <span class="tx-type">{{ tx.type }}</span>
+                <span class="tx-amount">{{ "%.2f"|format(tx.amount) }}</span>
+                <span class="tx-balance">余额：{{ "%.2f"|format(tx.balance_after) }}</span>
+                {% if tx.description %}
+                <span class="tx-desc">{{ tx.description }}</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 处理存款表单提交
+document.getElementById('depositForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(document.getElementById('depositAmount').value);
+    
+    try {
+        const response = await fetch('/bank/deposit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                account_id: {{ account.id }},
+                amount
+            })
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('存款失败，请重试');
+    }
+});
+
+// 处理取款表单提交
+document.getElementById('withdrawForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(document.getElementById('withdrawAmount').value);
+    
+    try {
+        const response = await fetch('/bank/withdraw', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                account_id: {{ account.id }},
+                amount
+            })
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('取款失败，请重试');
+    }
+});
+
+// 处理贷款申请表单提交
+document.getElementById('loanForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(document.getElementById('loanAmount').value);
+    const term_months = parseInt(document.getElementById('loanTerm').value);
+    
+    try {
+        const response = await fetch('/bank/loan/apply', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                amount,
+                term_months
+            })
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('申请失败，请重试');
+    }
+});
+
+// 处理还款表单提交
+document.querySelectorAll('.repay-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const loan_id = form.dataset.loanId;
+        const amount = parseFloat(form.querySelector('.repay-amount').value);
+        
+        try {
+            const response = await fetch('/bank/loan/repay', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    loan_id,
+                    amount
+                })
+            });
+            const result = await response.json();
+            alert(result.message);
+            if (result.success) {
+                location.reload();
+            }
+        } catch (error) {
+            alert('还款失败，请重试');
+        }
+    });
+});
+</script>
+{% endblock %} 

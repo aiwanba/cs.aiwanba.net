@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}社交中心 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="social-container">
+    <div class="social-header">
+        <h2>社交中心</h2>
+        <div class="social-nav">
+            <a href="{{ url_for('social.teams_page') }}" class="btn">投资团队</a>
+            <a href="{{ url_for('social.messages_page') }}" class="btn">
+                我的消息
+                <span class="badge" id="unreadCount">0</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="social-content">
+        <div class="teams-preview">
+            <div class="section-header">
+                <h3>热门团队</h3>
+                <a href="{{ url_for('social.teams_page') }}" class="btn">查看更多</a>
+            </div>
+            <div class="teams-list">
+                {% for team in hot_teams %}
+                <div class="team-card">
+                    <h4>{{ team.name }}</h4>
+                    <p>{{ team.description }}</p>
+                    <div class="team-meta">
+                        <span>成员: {{ team.members|length }}</span>
+                        <span>讨论: {{ team.discussions|length }}</span>
+                    </div>
+                    <a href="{{ url_for('social.team_page', team_id=team.id) }}" class="btn">查看详情</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="recent-discussions">
+            <div class="section-header">
+                <h3>最新讨论</h3>
+            </div>
+            <div class="discussions-list">
+                {% for discussion in recent_discussions %}
+                <div class="discussion-card">
+                    <div class="discussion-meta">
+                        <span class="team-name">{{ discussion.team.name }}</span>
+                        <span class="time">{{ discussion.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    </div>
+                    <h4>{{ discussion.title }}</h4>
+                    <p>{{ discussion.content[:200] }}...</p>
+                    <div class="discussion-footer">
+                        <span>评论: {{ discussion.comments|length }}</span>
+                        <a href="{{ url_for('social.team_page', team_id=discussion.team_id) }}#discussion-{{ discussion.id }}" class="btn">参与讨论</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 获取未读消息数
+async function getUnreadCount() {
+    try {
+        const response = await fetch('/social/messages/unread/count');
+        const result = await response.json();
+        if (result.success) {
+            document.getElementById('unreadCount').textContent = result.data.count;
+        }
+    } catch (error) {
+        console.error('获取未读消息数失败:', error);
+    }
+}
+
+// 页面加载时获取未读消息数
+document.addEventListener('DOMContentLoaded', getUnreadCount);
+
+// 每分钟更新一次未读消息数
+setInterval(getUnreadCount, 60000);
+</script>
+{% endblock %} 

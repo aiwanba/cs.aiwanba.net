@@ -146,4 +146,556 @@ main {
     display: block;
     color: #6c757d;
     margin-top: 0.25rem;
+}
+
+/* 银行页面样式 */
+.bank-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.bank-header {
+    margin-bottom: 2rem;
+}
+
+.account-info {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+}
+
+.account-info .amount {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.bank-operations {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.operation-panel {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 4px;
+}
+
+.operation-form {
+    margin-top: 1rem;
+}
+
+.loans-panel {
+    margin-bottom: 2rem;
+}
+
+.loan-item {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.loan-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.repay-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.transactions-list {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+}
+
+.transaction-item {
+    padding: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    gap: 1rem;
+    align-items: center;
+}
+
+.transaction-item:last-child {
+    border-bottom: none;
+}
+
+.tx-amount {
+    font-weight: bold;
+}
+
+.tx-desc {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* 新闻页面样式 */
+.news-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.news-header {
+    margin-bottom: 2rem;
+}
+
+.news-filters {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+}
+
+.filter-btn {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.filter-btn.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.news-item {
+    background-color: white;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.news-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.news-impact {
+    font-weight: bold;
+}
+
+.news-impact.positive {
+    color: #28a745;
+}
+
+.news-impact.negative {
+    color: #dc3545;
+}
+
+.news-title {
+    margin: 0.5rem 0;
+    font-size: 1.25rem;
+}
+
+.news-content {
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.news-comments {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+
+.comments-list {
+    margin: 1rem 0;
+}
+
+.comment-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.comment-user {
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.comment-time {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.comment-content {
+    margin-top: 0.25rem;
+}
+
+.comment-form {
+    margin-top: 1rem;
+}
+
+.comment-input {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+/* 社交功能样式 */
+.social-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.social-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.social-nav {
+    display: flex;
+    gap: 1rem;
+}
+
+.badge {
+    background-color: #dc3545;
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+
+/* 团队卡片样式 */
+.teams-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.team-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.team-header {
+    margin-bottom: 1rem;
+}
+
+.team-meta {
+    display: flex;
+    gap: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.team-stats {
+    display: flex;
+    justify-content: space-around;
+    margin: 1rem 0;
+    padding: 1rem 0;
+    border-top: 1px solid #dee2e6;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-item label {
+    display: block;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* 讨论样式 */
+.discussion-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.discussion-meta {
+    display: flex;
+    gap: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.comments-section {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+
+.comment-item {
+    padding: 1rem 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.comment-meta {
+    display: flex;
+    gap: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+/* 消息样式 */
+.messages-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.message-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.message-card.unread {
+    border-left: 4px solid #007bff;
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.message-content {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+/* 对话框样式 */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 600px;
+    margin: 2rem auto;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* 市场分析样式 */
+.analysis-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.analysis-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.analysis-nav {
+    display: flex;
+    gap: 1rem;
+}
+
+.analysis-nav .btn {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.analysis-nav .btn.active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* 标签页内容 */
+.analysis-tab {
+    display: none;
+}
+
+.analysis-tab.active {
+    display: block;
+}
+
+/* 市场概览卡片 */
+.overview-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.overview-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.overview-card h4 {
+    margin: 0 0 1rem 0;
+    color: #6c757d;
+}
+
+.overview-card .value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.overview-card .change {
+    font-size: 0.9rem;
+}
+
+.overview-card .change.up {
+    color: #28a745;
+}
+
+.overview-card .change.down {
+    color: #dc3545;
+}
+
+/* 图表容器 */
+.chart-container {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 公司选择器 */
+.company-selector {
+    margin-bottom: 2rem;
+}
+
+.company-selector select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+/* 公司指标 */
+.company-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.metric-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.metric-card h4 {
+    margin: 0 0 1rem 0;
+    color: #6c757d;
+}
+
+.metric-card .value {
+    font-size: 1.25rem;
+    font-weight: bold;
+}
+
+/* 技术指标图表 */
+.technical-charts {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+    .analysis-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .analysis-nav {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .overview-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .company-metrics {
+        grid-template-columns: 1fr;
+    }
 } 

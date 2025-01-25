@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}我的消息 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="messages-container">
+    <div class="messages-header">
+        <h2>我的消息</h2>
+        <button class="btn" id="newMessageBtn">发送新消息</button>
+    </div>
+
+    <div class="messages-content">
+        <div class="messages-list">
+            {% for message in messages %}
+            <div class="message-card {% if not message.read %}unread{% endif %}">
+                <div class="message-header">
+                    {% if message.sender_id == session.user_id %}
+                    <span class="message-to">发送给: {{ message.receiver.username }}</span>
+                    {% else %}
+                    <span class="message-from">来自: {{ message.sender.username }}</span>
+                    {% endif %}
+                    <span class="message-time">{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                </div>
+                <div class="message-content">{{ message.content }}</div>
+                {% if message.sender_id != session.user_id %}
+                <div class="message-actions">
+                    <button class="btn reply-btn" data-user-id="{{ message.sender_id }}">回复</button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- 新消息对话框 -->
+<div class="modal" id="newMessageModal">
+    <div class="modal-content">
+        <h3>发送新消息</h3>
+        <form id="newMessageForm">
+            <div class="form-group">
+                <label>发送给</label>
+                <select name="receiver_id" required>
+                    <option value="">选择接收者...</option>
+                    {% for user in users %}
+                    {% if user.id != session.user_id %}
+                    <option value="{{ user.id }}">{{ user.username }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>消息内容</label>
+                <textarea name="content" required></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn" id="cancelMessage">取消</button>
+                <button type="submit" class="btn">发送</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 处理新消息对话框
+const modal = document.getElementById('newMessageModal');
+const newMessageBtn = document.getElementById('newMessageBtn');
+const cancelBtn = document.getElementById('cancelMessage');
+
+newMessageBtn.addEventListener('click', () => {
+    modal.style.display = 'block';
+});
+
+cancelBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+});
+
+// 处理发送新消息
+const newMessageForm = document.getElementById('newMessageForm');
+newMessageForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(newMessageForm);
+    
+    try {
+        const response = await fetch('/social/message/send', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                receiver_id: formData.get('receiver_id'),
+                content: formData.get('content')
+            })
+        });
+        const result = await response.json();
+        alert(result.message);
+        if (result.success) {
+            location.reload();
+        }
+    } catch (error) {
+        alert('发送失败，请重试');
+    }
+});
+
+// 处理回复消息
+document.querySelectorAll('.reply-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const userId = btn.dataset.userId;
+        document.querySelector('select[name="receiver_id"]').value = userId;
+        modal.style.display = 'block';
+    });
+});
+
+// 标记消息已读
+document.querySelectorAll('.message-card.unread').forEach(async card => {
+    try {
+        const messageId = card.dataset.messageId;
+        await fetch(`/social/message/read/${messageId}`, {
+            method: 'POST'
+        });
+        card.classList.remove('unread');
+    } catch (error) {
+        console.error('标记已读失败:', error);
+    }
+});
+</script>
+{% endblock %} 

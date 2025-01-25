@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}市场新闻 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="news-container">
+    <div class="news-header">
+        <h2>市场新闻</h2>
+        <div class="news-filters">
+            <button class="btn filter-btn active" data-type="all">全部</button>
+            <button class="btn filter-btn" data-type="market">市场动态</button>
+            <button class="btn filter-btn" data-type="company">公司新闻</button>
+            <button class="btn filter-btn" data-type="bank">银行新闻</button>
+        </div>
+    </div>
+
+    <div class="news-list">
+        {% for news in news_list %}
+        <div class="news-item" data-type="{{ news.type }}">
+            <div class="news-meta">
+                <span class="news-time">{{ news.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="news-type">{{ news.type }}</span>
+                {% if news.impact_type %}
+                <span class="news-impact {{ 'positive' if news.impact_value > 0 else 'negative' }}">
+                    {{ "%.1f"|format(news.impact_value * 100) }}%
+                </span>
+                {% endif %}
+            </div>
+            <h3 class="news-title">{{ news.title }}</h3>
+            <div class="news-content">{{ news.content }}</div>
+            
+            <div class="news-comments">
+                <h4>评论 ({{ news.comments|length }})</h4>
+                <div class="comments-list">
+                    {% for comment in news.comments %}
+                    <div class="comment-item">
+                        <span class="comment-user">{{ comment.user.username }}</span>
+                        <span class="comment-time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                        <div class="comment-content">{{ comment.content }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                {% if session.user_id %}
+                <form class="comment-form" data-news-id="{{ news.id }}">
+                    <textarea class="comment-input" placeholder="发表评论..." required></textarea>
+                    <button type="submit" class="btn">评论</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 处理新闻过滤
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        // 更新按钮状态
+        document.querySelector('.filter-btn.active').classList.remove('active');
+        btn.classList.add('active');
+        
+        const type = btn.dataset.type;
+        document.querySelectorAll('.news-item').forEach(item => {
+            if (type === 'all' || item.dataset.type === type) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+});
+
+// 处理评论提交
+document.querySelectorAll('.comment-form').forEach(form => {
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const news_id = form.dataset.newsId;
+        const content = form.querySelector('.comment-input').value;
+        
+        try {
+            const response = await fetch('/news/comment', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    news_id,
+                    content
+                })
+            });
+            const result = await response.json();
+            if (result.success) {
+                location.reload();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            alert('评论失败，请重试');
+        }
+    });
+});
+</script>
+{% endblock %} 
