@@ -278,7 +278,7 @@ class SystemConfig(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 # 路由：首页
 @app.route('/')
@@ -866,8 +866,8 @@ def bank_index():
     loans = LoanAccount.query.filter_by(user_id=current_user.id).all()
     
     # 计算总资产和负债
-    total_deposits = sum(float(d.amount) for d in deposits)
-    total_loans = sum(float(l.remaining_amount) for l in loans)
+    total_deposits = sum(d.amount for d in deposits)
+    total_loans = sum(l.remaining_amount for l in loans)
     
     return render_template('bank/index.html',
                          deposits=deposits,
@@ -880,7 +880,7 @@ def bank_index():
 @login_required
 def create_deposit():
     try:
-        amount = float(request.form.get('amount'))
+        amount = Decimal(request.form.get('amount'))
         deposit_type = request.form.get('type')
         
         if amount <= 0:
@@ -891,18 +891,18 @@ def create_deposit():
         
         # 设置利率
         if deposit_type == '活期':
-            interest_rate = 0.35  # 年利率0.35%
+            interest_rate = Decimal('0.35')  # 年利率0.35%
             end_date = None
         else:  # 定期
             term = int(request.form.get('term'))  # 存期（月）
             if term == 3:
-                interest_rate = 1.1
+                interest_rate = Decimal('1.1')
             elif term == 6:
-                interest_rate = 1.3
+                interest_rate = Decimal('1.3')
             elif term == 12:
-                interest_rate = 1.5
+                interest_rate = Decimal('1.5')
             else:
-                interest_rate = 1.7  # 2年期
+                interest_rate = Decimal('1.7')  # 2年期
             
             end_date = (datetime.now() + timedelta(days=term*30)).date()
         
@@ -920,10 +920,10 @@ def create_deposit():
         current_user.balance -= amount
         
         # 计算利息
-        interest = float(amount) * float(interest_rate) / 100
+        interest = amount * interest_rate / Decimal('100')
         
         # 更新存款账户
-        deposit.amount = float(deposit.amount) + interest
+        deposit.amount = deposit.amount + interest
         
         db.session.add(deposit)
         db.session.commit()
@@ -1082,12 +1082,12 @@ def calculate_deposit_interest():
             
             # 活期存款直接加入余额
             if deposit.type == '活期':
-                user = User.query.get(deposit.user_id)
+                user = db.session.get(User, deposit.user_id)
                 user.balance = float(user.balance) + interest
                 
             # 定期存款到期处理
             elif deposit.end_date and deposit.end_date <= datetime.now().date():
-                user = User.query.get(deposit.user_id)
+                user = db.session.get(User, deposit.user_id)
                 total_interest = float(deposit.amount) * float(deposit.interest_rate) / 100 * \
                     ((deposit.end_date - deposit.start_date).days / 365)
                 
@@ -1107,7 +1107,7 @@ def process_loan_payment():
         loans = LoanAccount.query.filter_by(status=2).all()  # 已放款的贷款
         
         for loan in loans:
-            user = User.query.get(loan.user_id)
+            user = db.session.get(User, loan.user_id)
             
             # 如果余额足够还款
             if float(user.balance) >= float(loan.monthly_payment):
