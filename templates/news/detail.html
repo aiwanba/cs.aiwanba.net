@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}{{ news.title }} - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="card-title">{{ news.title }}</h2>
+        <div class="text-muted mb-3">
+            <small>
+                发布时间：{{ news.created_at.strftime('%Y-%m-%d %H:%M') }} |
+                类型：{{ news.type }} |
+                {% if news.company_id %}
+                相关公司：<a href="{{ url_for('company_detail', code=Company.query.get(news.company_id).code) }}">
+                    {{ Company.query.get(news.company_id).name }}
+                </a> |
+                {% endif %}
+                影响力：{{ '★' * news.impact_level }} |
+                浏览量：{{ news.views }}
+            </small>
+        </div>
+        <div class="news-content">
+            {{ news.content|safe }}
+        </div>
+    </div>
+</div>
+
+<!-- 评论区 -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">评论区</h5>
+    </div>
+    <div class="card-body">
+        {% if current_user.is_authenticated %}
+        <form id="commentForm" class="mb-4">
+            <div class="mb-3">
+                <textarea class="form-control" name="content" rows="3" placeholder="发表你的看法..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">发表评论</button>
+        </form>
+        {% else %}
+        <div class="alert alert-info">
+            请<a href="{{ url_for('login') }}">登录</a>后发表评论
+        </div>
+        {% endif %}
+        
+        <div class="comments-list">
+            {% for comment in comments %}
+            <div class="comment-item border-bottom py-3">
+                <div class="d-flex">
+                    <div class="flex-shrink-0">
+                        <img src="{{ User.query.get(comment.user_id).avatar or url_for('static', filename='img/default-avatar.png') }}"
+                             class="rounded-circle" width="40" height="40" alt="用户头像">
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="d-flex justify-content-between">
+                            <h6 class="mb-0">{{ User.query.get(comment.user_id).nickname }}</h6>
+                            <small class="text-muted">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <p class="mb-0">{{ comment.content }}</p>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <span class="me-2">
+                                    <i class="fas fa-thumbs-up"></i> {{ comment.likes }}
+                                </span>
+                                <a href="#" class="text-muted text-decoration-none">回复</a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('commentForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const content = this.querySelector('textarea[name="content"]').value;
+    if (!content.trim()) {
+        alert('评论内容不能为空');
+        return;
+    }
+    
+    fetch('{{ url_for("add_comment", news_id=news.id) }}', {
+        method: 'POST',
+        body: new FormData(this)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('发表评论失败：' + data.message);
+        }
+    });
+});
+</script>
+{% endblock %} 

@@ -4,6 +4,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
+from datetime import datetime, timedelta
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -107,6 +108,76 @@ class AITradeLog(db.Model):
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
     action = db.Column(db.String(20), nullable=False)  # 买入/卖出
     reason = db.Column(db.String(255), nullable=False)  # 交易原因
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+# 存款账户模型
+class DepositAccount(db.Model):
+    __tablename__ = 'deposit_accounts'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 活期、定期
+    amount = db.Column(db.DECIMAL(20,2), default=0.00)
+    interest_rate = db.Column(db.DECIMAL(5,2), nullable=False)  # 年利率
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)  # 定期存款的到期日
+    status = db.Column(db.Integer, default=1)  # 1:正常, 2:已提前支取
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+# 贷款账户模型
+class LoanAccount(db.Model):
+    __tablename__ = 'loan_accounts'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    amount = db.Column(db.DECIMAL(20,2), nullable=False)  # 贷款金额
+    interest_rate = db.Column(db.DECIMAL(5,2), nullable=False)  # 年利率
+    term = db.Column(db.Integer, nullable=False)  # 贷款期限(月)
+    monthly_payment = db.Column(db.DECIMAL(20,2), nullable=False)  # 月供
+    remaining_amount = db.Column(db.DECIMAL(20,2), nullable=False)  # 剩余本金
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.Integer, default=1)  # 1:审核中, 2:已放款, 3:已还清, 4:已拒绝
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+# 交易记录模型
+class BankTransaction(db.Model):
+    __tablename__ = 'bank_transactions'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # 存款、取款、贷款、还款
+    amount = db.Column(db.DECIMAL(20,2), nullable=False)
+    account_id = db.Column(db.BigInteger, nullable=False)  # 关联的账户ID
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+# 新闻模型
+class News(db.Model):
+    __tablename__ = 'news'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # 系统新闻、公司新闻、市场新闻
+    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'))  # 相关公司ID
+    impact_level = db.Column(db.Integer, default=1)  # 影响等级：1-5
+    views = db.Column(db.Integer, default=0)  # 浏览量
+    status = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+# 新闻评论模型
+class NewsComment(db.Model):
+    __tablename__ = 'news_comments'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    news_id = db.Column(db.BigInteger, db.ForeignKey('news.id'), nullable=False)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    likes = db.Column(db.Integer, default=0)
+    status = db.Column(db.Integer, default=1)
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
 
 @login_manager.user_loader
@@ -686,6 +757,221 @@ def ai_logs(ai_id):
         'action': log.action,
         'reason': log.reason
     } for log in logs])
+
+# 银行路由
+@app.route('/bank')
+@login_required
+def bank_index():
+    # 获取用户的存款账户
+    deposits = DepositAccount.query.filter_by(user_id=current_user.id).all()
+    
+    # 获取用户的贷款账户
+    loans = LoanAccount.query.filter_by(user_id=current_user.id).all()
+    
+    # 计算总资产和负债
+    total_deposits = sum(float(d.amount) for d in deposits)
+    total_loans = sum(float(l.remaining_amount) for l in loans)
+    
+    return render_template('bank/index.html',
+                         deposits=deposits,
+                         loans=loans,
+                         total_deposits=total_deposits,
+                         total_loans=total_loans)
+
+# 存款路由
+@app.route('/bank/deposit', methods=['POST'])
+@login_required
+def create_deposit():
+    try:
+        amount = float(request.form.get('amount'))
+        deposit_type = request.form.get('type')
+        
+        if amount <= 0:
+            return jsonify({'success': False, 'message': '存款金额必须大于0'})
+            
+        if current_user.balance < amount:
+            return jsonify({'success': False, 'message': '余额不足'})
+        
+        # 设置利率
+        if deposit_type == '活期':
+            interest_rate = 0.35  # 年利率0.35%
+            end_date = None
+        else:  # 定期
+            term = int(request.form.get('term'))  # 存期（月）
+            if term == 3:
+                interest_rate = 1.1
+            elif term == 6:
+                interest_rate = 1.3
+            elif term == 12:
+                interest_rate = 1.5
+            else:
+                interest_rate = 1.7  # 2年期
+            
+            end_date = (datetime.now() + timedelta(days=term*30)).date()
+        
+        # 创建存款账户
+        deposit = DepositAccount(
+            user_id=current_user.id,
+            type=deposit_type,
+            amount=amount,
+            interest_rate=interest_rate,
+            start_date=datetime.now().date(),
+            end_date=end_date
+        )
+        
+        # 扣除用户余额
+        current_user.balance -= amount
+        
+        # 记录交易
+        transaction = BankTransaction(
+            user_id=current_user.id,
+            type='存款',
+            amount=amount,
+            account_id=deposit.id,
+            description=f'创建{deposit_type}存款'
+        )
+        
+        db.session.add(deposit)
+        db.session.add(transaction)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+# 贷款申请路由
+@app.route('/bank/loan/apply', methods=['POST'])
+@login_required
+def apply_loan():
+    try:
+        amount = float(request.form.get('amount'))
+        term = int(request.form.get('term'))
+        
+        if amount <= 0:
+            return jsonify({'success': False, 'message': '贷款金额必须大于0'})
+        
+        # 设置利率（根据贷款期限）
+        if term <= 12:
+            interest_rate = 4.35  # 一年以内
+        elif term <= 36:
+            interest_rate = 4.75  # 1-3年
+        else:
+            interest_rate = 4.90  # 3年以上
+            
+        # 计算月供（等额本息）
+        monthly_rate = interest_rate / 100 / 12
+        monthly_payment = amount * monthly_rate * (1 + monthly_rate)**term / ((1 + monthly_rate)**term - 1)
+        
+        # 创建贷款账户
+        loan = LoanAccount(
+            user_id=current_user.id,
+            amount=amount,
+            interest_rate=interest_rate,
+            term=term,
+            monthly_payment=monthly_payment,
+            remaining_amount=amount,
+            start_date=datetime.now().date(),
+            end_date=(datetime.now() + timedelta(days=term*30)).date()
+        )
+        
+        db.session.add(loan)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)})
+
+# 新闻路由
+@app.route('/news')
+def news_index():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    news = News.query.filter_by(status=1)\
+        .order_by(News.created_at.desc())\
+        .paginate(page=page, per_page=per_page)
+    
+    return render_template('news/index.html', news=news)
+
+# 新闻详情路由
+@app.route('/news/<int:news_id>')
+def news_detail(news_id):
+    news = News.query.get_or_404(news_id)
+    news.views += 1
+    db.session.commit()
+    
+    comments = NewsComment.query.filter_by(news_id=news_id, status=1)\
+        .order_by(NewsComment.created_at.desc())\
+        .all()
+    
+    return render_template('news/detail.html', news=news, comments=comments)
+
+# 添加评论路由
+@app.route('/news/<int:news_id>/comment', methods=['POST'])
+@login_required
+def add_comment(news_id):
+    content = request.form.get('content')
+    if not content:
+        return jsonify({'success': False, 'message': '评论内容不能为空'})
+    
+    comment = NewsComment(
+        news_id=news_id,
+        user_id=current_user.id,
+        content=content
+    )
+    
+    db.session.add(comment)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+# 生成新闻的定时任务
+def generate_news():
+    """定时生成新闻"""
+    try:
+        # 获取所有活跃公司
+        companies = Company.query.filter_by(status=1).all()
+        
+        for company in companies:
+            # 获取公司最近的交易数据
+            recent_prices = StockPrice.query.filter_by(company_id=company.id)\
+                .order_by(StockPrice.date.desc())\
+                .limit(2)\
+                .all()
+            
+            if len(recent_prices) < 2:
+                continue
+            
+            # 计算涨跌幅
+            price_change = (float(recent_prices[0].close) - float(recent_prices[1].close)) / float(recent_prices[1].close) * 100
+            
+            # 根据涨跌幅生成新闻
+            if abs(price_change) >= 5:  # 涨跌幅超过5%
+                title = f"{company.name}股价大{('涨' if price_change > 0 else '跌')}，单日涨幅达{abs(price_change):.2f}%"
+                content = f"""
+                今日，{company.name}（{company.code}）股价出现大幅波动，
+                收盘价为{recent_prices[0].close}元，较前一交易日{('上涨' if price_change > 0 else '下跌')}{abs(price_change):.2f}%。
+                成交量为{recent_prices[0].volume}股，市值达到{company.market_value}元。
+                """
+                
+                news = News(
+                    title=title,
+                    content=content,
+                    type='市场新闻',
+                    company_id=company.id,
+                    impact_level=min(5, int(abs(price_change) / 2))
+                )
+                db.session.add(news)
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"生成新闻失败: {str(e)}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
