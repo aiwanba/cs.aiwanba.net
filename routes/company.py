@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session, render_template, abort
+from flask import Blueprint, request, jsonify, session, render_template, abort, redirect, url_for
 from services.company import CompanyService
 
 company_bp = Blueprint('company', __name__)
@@ -65,4 +65,11 @@ def company_info_page(company_id):
 def company_transactions(company_id):
     """获取公司交易历史"""
     transactions = CompanyService.get_company_transactions(company_id)
-    return jsonify({"success": True, "data": transactions}) 
+    return jsonify({"success": True, "data": transactions})
+
+@company_bp.route('/create')
+def create_page():
+    """创建公司页面"""
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login_page'))
+    return render_template('company/create.html') 

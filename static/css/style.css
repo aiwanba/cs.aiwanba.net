@@ -110,4 +110,40 @@ main {
     padding: 0.5rem;
     border: 1px solid #ddd;
     border-radius: 4px;
+}
+
+/* 创建公司页面样式 */
+.create-company {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.company-form {
+    background-color: #f5f5f5;
+    padding: 2rem;
+    border-radius: 4px;
+}
+
+.form-summary {
+    margin: 2rem 0;
+    padding: 1rem;
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.form-summary h3 {
+    margin-top: 0;
+}
+
+.form-summary .note {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+}
+
+.form-group small {
+    display: block;
+    color: #6c757d;
+    margin-top: 0.25rem;
 } 

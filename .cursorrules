@@ -95,6 +95,9 @@
 | 13 | routes/auth.py | 添加退出登录功能 |
 | 14 | routes/company.py | 添加公司详情页面路由 |
 | 15 | services/company.py | 添加获取交易历史功能 |
+| 16 | routes/company.py | 添加创建公司页面路由 |
+| 17 | templates/company/create.html | 更新创建公司页面 |
+| 18 | static/css/style.css | 添加创建公司页面样式 |
 
 ### 版本变更
 | 版本号 | 变更说明 |
@@ -106,3 +109,4 @@
 | 0.1.4 | 添加股票交易功能 |
 | 0.1.5 | 更新首页和样式 |
 | 0.1.6 | 添加公司详情页面 |
+| 0.1.7 | 完善公司创建功能 |
