@@ -891,11 +891,71 @@ def create_ai_order(ai_player, company, action, reason):
 # 使用装饰器包装定时任务
 @with_app_context
 def ai_trading_task():
-    """AI交易定时任务"""
-    ai_players = AIStrategy.query.filter_by(status=1).all()
-    
-    for ai_player in ai_players:
-        ai_trading_strategy(ai_player)
+    """AI交易任务，每5分钟执行一次"""
+    try:
+        # 获取所有启用的AI策略
+        ai_strategies = AIStrategy.query.filter_by(status=1).all()
+        
+        for ai in ai_strategies:
+            # 获取AI用户
+            ai_user = User.query.get(ai.ai_user_id)
+            
+            # 获取所有公司
+            companies = Company.query.filter_by(status=1).all()
+            
+            for company in companies:
+                # 检查价格是否在AI的交易范围内
+                if (ai.min_price and company.current_price < ai.min_price) or \
+                   (ai.max_price and company.current_price > ai.max_price):
+                    continue
+                
+                # 获取当前持仓
+                holding = StockHolding.query.filter_by(
+                    user_id=ai_user.id,
+                    company_id=company.id
+                ).first()
+                
+                current_position = 0
+                if holding:
+                    current_position = (holding.shares * company.current_price) / ai_user.balance * 100
+                
+                # 根据策略类型和风险等级决定操作
+                if current_position < ai.min_position:  # 持仓不足，考虑买入
+                    amount = min(
+                        ai_user.balance,
+                        company.current_price * 100  # 每次买入100股
+                    )
+                    
+                    if amount >= company.current_price:
+                        # 记录交易日志
+                        log = AITradeLog(
+                            ai_id=ai.id,
+                            company_id=company.id,
+                            action='buy',
+                            reason=f'当前持仓{current_position:.2f}%低于最小持仓{ai.min_position}%'
+                        )
+                        db.session.add(log)
+                        
+                        # TODO: 执行买入操作
+                        
+                elif current_position > ai.max_position:  # 持仓过高，考虑卖出
+                    if holding and holding.shares > 0:
+                        # 记录交易日志
+                        log = AITradeLog(
+                            ai_id=ai.id,
+                            company_id=company.id,
+                            action='sell',
+                            reason=f'当前持仓{current_position:.2f}%超过最大持仓{ai.max_position}%'
+                        )
+                        db.session.add(log)
+                        
+                        # TODO: 执行卖出操作
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"AI交易失败: {str(e)}", exc_info=True)
 
 # 路由：AI玩家管理
 @app.route('/ai')
