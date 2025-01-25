@@ -5,6 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import re
 from datetime import datetime, timedelta
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from decimal import Decimal
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -21,6 +24,9 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# 初始化定时任务调度器
+scheduler = BackgroundScheduler()
 
 # 用户模型
 class User(UserMixin, db.Model):
@@ -973,5 +979,137 @@ def generate_news():
         db.session.rollback()
         print(f"生成新闻失败: {str(e)}")
 
+# 计算存款利息
+def calculate_deposit_interest():
+    """计算存款利息（每天执行）"""
+    try:
+        deposits = DepositAccount.query.filter_by(status=1).all()
+        
+        for deposit in deposits:
+            # 计算日利率
+            daily_rate = float(deposit.interest_rate) / 100 / 365
+            
+            # 计算利息
+            interest = float(deposit.amount) * daily_rate
+            
+            # 活期存款直接加入余额
+            if deposit.type == '活期':
+                user = User.query.get(deposit.user_id)
+                user.balance = float(user.balance) + interest
+                
+                # 记录交易
+                transaction = BankTransaction(
+                    user_id=user.id,
+                    type='利息',
+                    amount=interest,
+                    account_id=deposit.id,
+                    description='活期存款利息'
+                )
+                db.session.add(transaction)
+            
+            # 定期存款到期处理
+            elif deposit.end_date and deposit.end_date <= datetime.now().date():
+                user = User.query.get(deposit.user_id)
+                total_interest = float(deposit.amount) * float(deposit.interest_rate) / 100 * \
+                    ((deposit.end_date - deposit.start_date).days / 365)
+                
+                user.balance = float(user.balance) + float(deposit.amount) + total_interest
+                deposit.status = 2  # 已提前支取
+                
+                # 记录交易
+                transaction = BankTransaction(
+                    user_id=user.id,
+                    type='利息',
+                    amount=total_interest,
+                    account_id=deposit.id,
+                    description='定期存款到期'
+                )
+                db.session.add(transaction)
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"计算存款利息失败: {str(e)}")
+
+# 处理贷款还款
+def process_loan_payment():
+    """处理贷款还款（每月1号执行）"""
+    try:
+        loans = LoanAccount.query.filter_by(status=2).all()  # 已放款的贷款
+        
+        for loan in loans:
+            user = User.query.get(loan.user_id)
+            
+            # 如果余额足够还款
+            if float(user.balance) >= float(loan.monthly_payment):
+                user.balance = float(user.balance) - float(loan.monthly_payment)
+                loan.remaining_amount = float(loan.remaining_amount) - \
+                    (float(loan.monthly_payment) - float(loan.monthly_payment) * \
+                    float(loan.interest_rate) / 100 / 12)
+                
+                # 记录交易
+                transaction = BankTransaction(
+                    user_id=user.id,
+                    type='还款',
+                    amount=float(loan.monthly_payment),
+                    account_id=loan.id,
+                    description='贷款月供'
+                )
+                db.session.add(transaction)
+                
+                # 判断是否已还清
+                if float(loan.remaining_amount) <= 0:
+                    loan.status = 3  # 已还清
+            else:
+                # TODO: 处理逾期
+                pass
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"处理贷款还款失败: {str(e)}")
+
+# 添加定时任务
+def init_scheduler():
+    """初始化定时任务"""
+    # AI交易（每5分钟执行一次）
+    scheduler.add_job(
+        ai_trading_task,
+        trigger=CronTrigger(minute='*/5'),
+        id='ai_trading',
+        replace_existing=True
+    )
+    
+    # 新闻生成（每小时执行一次）
+    scheduler.add_job(
+        generate_news,
+        trigger=CronTrigger(minute='0'),
+        id='generate_news',
+        replace_existing=True
+    )
+    
+    # 计算存款利息（每天0点执行）
+    scheduler.add_job(
+        calculate_deposit_interest,
+        trigger=CronTrigger(hour='0'),
+        id='calculate_interest',
+        replace_existing=True
+    )
+    
+    # 处理贷款还款（每月1号0点执行）
+    scheduler.add_job(
+        process_loan_payment,
+        trigger=CronTrigger(day='1', hour='0'),
+        id='loan_payment',
+        replace_existing=True
+    )
+    
+    # 启动调度器
+    scheduler.start()
+
+# 在应用启动时初始化定时任务
 if __name__ == '__main__':
+    init_scheduler()
     app.run(host='0.0.0.0', port=5010, debug=True) 

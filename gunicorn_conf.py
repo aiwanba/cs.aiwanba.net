@@ -22,7 +22,16 @@ loglevel = 'info'
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"'
 
 # 访问日志文件
-accesslog = "/www/wwwlogs/cs.aiwanba.net.access.log"
+accesslog = "/www/wwwroot/cs.aiwanba.net/logs/access.log"
 
 # 错误日志文件
-errorlog = "/www/wwwlogs/cs.aiwanba.net.error.log" 
+errorlog = "/www/wwwroot/cs.aiwanba.net/logs/error.log"
+
+# 进程名称
+proc_name = 'cs_aiwanba_net'
+
+# 启动时执行的钩子
+def on_starting(server):
+    """服务启动时执行"""
+    from app import init_scheduler
+    init_scheduler() 
