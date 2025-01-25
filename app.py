@@ -324,7 +324,7 @@ def register():
             password=generate_password_hash(password),
             nickname=nickname,
             email=email,
-            balance=1000000.00  # 给新用户初始资金1000000.00
+            balance=10000000.00  # 给新用户初始资金10000000.00
         )
         
         try:
