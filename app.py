@@ -634,45 +634,14 @@ def get_market_stocks():
 @app.route('/portfolio')
 @login_required
 def portfolio():
-    # 获取持仓信息
+    # 获取用户的持仓列表
     holdings = StockHolding.query.filter_by(user_id=current_user.id).all()
     
-    # 计算持仓市值和盈亏
-    stock_value = 0
-    total_profit = 0
-    
+    # 获取每个持仓的公司信息
     for holding in holdings:
-        # 获取公司信息
-        holding.company = Company.query.get(holding.company_id)
-        # 计算市值
-        holding.market_value = holding.shares * holding.company.current_price
-        # 计算盈亏
-        holding.profit = holding.market_value - (holding.shares * holding.average_cost)
-        # 计算盈亏比例
-        holding.profit_percent = (holding.profit / (holding.shares * holding.average_cost)) * 100
-        
-        stock_value += holding.market_value
-        total_profit += holding.profit
+        holding.company = db.session.get(Company, holding.company_id)
     
-    # 获取最近交易记录
-    orders = TradeOrder.query.filter_by(user_id=current_user.id)\
-        .order_by(TradeOrder.created_at.desc())\
-        .limit(20)\
-        .all()
-    
-    # 为每个订单加载公司信息
-    for order in orders:
-        order.company = Company.query.get(order.company_id)
-    
-    # 计算总资产
-    total_assets = current_user.balance + stock_value
-    
-    return render_template('user/portfolio.html',
-                         holdings=holdings,
-                         orders=orders,
-                         total_assets=total_assets,
-                         stock_value=stock_value,
-                         total_profit=total_profit)
+    return render_template('portfolio/index.html', holdings=holdings)
 
 # API：获取股票K线数据
 @app.route('/api/stock/<code>/kline')

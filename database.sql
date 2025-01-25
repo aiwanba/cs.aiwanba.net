@@ -42,6 +42,22 @@ CREATE TABLE `companies` (
     KEY `idx_creator` (`creator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='公司表';
 
+-- 股票历史价格表
+CREATE TABLE `stock_prices` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+    `company_id` BIGINT UNSIGNED NOT NULL COMMENT '公司ID',
+    `date` DATE NOT NULL COMMENT '交易日期',
+    `open` DECIMAL(10,2) NOT NULL COMMENT '开盘价',
+    `high` DECIMAL(10,2) NOT NULL COMMENT '最高价',
+    `low` DECIMAL(10,2) NOT NULL COMMENT '最低价',
+    `close` DECIMAL(10,2) NOT NULL COMMENT '收盘价',
+    `volume` BIGINT NOT NULL COMMENT '成交量',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_company_date` (`company_id`, `date`),
+    CONSTRAINT `fk_prices_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='股票历史价格表';
+
 -- 股票持仓表
 CREATE TABLE `stock_holdings` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '持仓ID',
