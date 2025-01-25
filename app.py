@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -904,21 +904,27 @@ def ai_index():
 @login_required
 def create_ai():
     try:
+        # 创建AI玩家
         ai = AIStrategy(
             ai_user_id=current_user.id,
             strategy_type=int(request.form.get('strategy')),
             risk_level=int(request.form.get('risk_level')),
             min_price=Decimal(request.form.get('min_price')),
             max_price=Decimal(request.form.get('max_price')),
-            position_limit=int(request.form.get('position_limit'))
+            position_limit=int(request.form.get('position_limit')),
+            status=1  # 默认启用
         )
+        
         db.session.add(ai)
         db.session.commit()
+        
+        flash('AI玩家创建成功', 'success')
         return redirect(url_for('ai_index'))
+        
     except Exception as e:
-        db.session.rollback()
         logging.error(f"创建AI玩家失败: {str(e)}", exc_info=True)
-        return render_template('ai/index.html', error='创建AI玩家失败')
+        flash('创建AI玩家失败，请重试', 'danger')
+        return redirect(url_for('ai_index'))
 
 # 路由：切换AI状态
 @app.route('/ai/<int:ai_id>/toggle', methods=['POST'])
