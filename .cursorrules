@@ -64,7 +64,11 @@
      - 数据库交互（MySQL）
      - AI 行为算法实现
      - API 接口服务
-     - 前端界面开发
+     - 前端技术栈：
+       - HTML5 + CSS3：基础页面结构和样式
+       - Bootstrap 5：响应式布局和基础组件
+       - jQuery：DOM操作和AJAX请求
+       - Chart.js：股票走势图表展示
      - 实时消息推送
      - 性能优化和安全防护
 
@@ -98,6 +102,17 @@
 | MySQL-python | ^5.7.40 | MySQL 数据库驱动 |
 | Flask-SQLAlchemy | ^2.5+ | ORM 数据库操作 |
 | Flask-SocketIO | ^5.0+ | WebSocket 实时通信 |
+| Flask-Login | ^0.6+ | 用户认证管理 |
+| Flask-Migrate | ^4.0+ | 数据库迁移工具 |
+| Flask-WTF | ^1.1+ | 表单验证和CSRF保护 |
+| PyJWT | ^2.0+ | JWT token认证 |
+| APScheduler | ^3.10+ | 定时任务（AI行为、利率调整等） |
+| python-socketio | ^5.0+ | Socket.IO服务端实现 |
+| eventlet | ^0.33+ | Socket.IO异步支持 |
+| pandas | ^2.0+ | 数据分析（股票价格计算） |
+| Bootstrap | ^5.3+ | 前端UI框架 |
+| jQuery | ^3.7+ | 前端交互处理 |
+| Chart.js | ^4.0+ | 图表展示 |
 
 ---
 
