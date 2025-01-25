@@ -118,8 +118,8 @@ document.getElementById('depositForm').addEventListener('submit', async (e) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                account_id: {{ account.id }},
-                amount
+                account_id: "{{ account.id }}",
+                amount: amount
             })
         });
         const result = await response.json();
@@ -144,8 +144,8 @@ document.getElementById('withdrawForm').addEventListener('submit', async (e) => 
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                account_id: {{ account.id }},
-                amount
+                account_id: "{{ account.id }}",
+                amount: amount
             })
         });
         const result = await response.json();
@@ -171,8 +171,8 @@ document.getElementById('loanForm').addEventListener('submit', async (e) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                amount,
-                term_months
+                amount: amount,
+                term_months: term_months
             })
         });
         const result = await response.json();
@@ -199,8 +199,8 @@ document.querySelectorAll('.repay-form').forEach(form => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    loan_id,
-                    amount
+                    loan_id: loan_id,
+                    amount: amount
                 })
             });
             const result = await response.json();
