@@ -8,6 +8,17 @@ from datetime import datetime, timedelta
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from decimal import Decimal
+import logging
+
+# 配置日志
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -433,37 +444,48 @@ def company_detail(code):
 @login_required
 def trade_stock(code):
     try:
+        logging.info(f"开始处理交易请求 - 用户:{current_user.username}, 股票代码:{code}")
         # 获取交易参数
-        action = request.form.get('action')  # 买入/卖出
+        action = 'buy' if request.form.get('type') == '1' else 'sell'  # 根据type判断买卖
         price = Decimal(request.form.get('price', '0'))
-        quantity = int(request.form.get('quantity', '0'))
+        quantity = int(request.form.get('shares', '0'))  # 修改为shares
+        
+        logging.debug(f"交易参数 - 操作:{action}, 价格:{price}, 数量:{quantity}")
         
         # 验证输入
         if not all([action, price, quantity]):
+            logging.warning("交易参数不完整")
             return jsonify({'success': False, 'message': '请填写所有交易信息'})
         
         if price <= 0:
+            logging.warning(f"无效的交易价格: {price}")
             return jsonify({'success': False, 'message': '交易价格必须大于0'})
         
         if quantity <= 0:
+            logging.warning(f"无效的交易数量: {quantity}")
             return jsonify({'success': False, 'message': '交易数量必须大于0'})
         
         if quantity % 100 != 0:
+            logging.warning(f"交易数量不是100的整数倍: {quantity}")
             return jsonify({'success': False, 'message': '交易数量必须是100的整数倍'})
         
         # 获取公司信息
         company = Company.query.filter_by(code=code).first_or_404()
+        logging.debug(f"获取到公司信息 - 名称:{company.name}, 当前价格:{company.current_price}")
         
         # 计算交易金额
         amount = price * quantity
+        logging.debug(f"计算交易金额: {amount}")
         
         if action == 'buy':
             # 检查余额
             if current_user.balance < amount:
+                logging.warning(f"余额不足 - 需要:{amount}, 当前余额:{current_user.balance}")
                 return jsonify({'success': False, 'message': f'余额不足，需要{amount}元，当前余额{current_user.balance}元'})
             
             # 扣除资金
             current_user.balance -= amount
+            logging.debug(f"扣除资金后余额: {current_user.balance}")
             
             # 更新或创建持仓记录
             holding = StockHolding.query.filter_by(
@@ -476,6 +498,7 @@ def trade_stock(code):
                 total_cost = holding.shares * holding.average_cost + amount
                 holding.shares += quantity
                 holding.average_cost = total_cost / holding.shares
+                logging.debug(f"更新持仓 - 总股数:{holding.shares}, 平均成本:{holding.average_cost}")
             else:
                 # 创建新持仓
                 holding = StockHolding(
@@ -485,6 +508,7 @@ def trade_stock(code):
                     average_cost=price
                 )
                 db.session.add(holding)
+                logging.debug("创建新持仓记录")
         
         elif action == 'sell':
             # 检查持仓
@@ -494,18 +518,24 @@ def trade_stock(code):
             ).first()
             
             if not holding:
+                logging.warning("没有该股票的持仓")
                 return jsonify({'success': False, 'message': '没有该股票的持仓'})
             
             if holding.shares < quantity:
+                logging.warning(f"持仓不足 - 需要:{quantity}, 当前持仓:{holding.shares}")
                 return jsonify({'success': False, 'message': f'持仓不足，当前持仓{holding.shares}股'})
             
             # 增加资金
             current_user.balance += amount
+            logging.debug(f"增加资金后余额: {current_user.balance}")
             
             # 更新持仓
             holding.shares -= quantity
             if holding.shares == 0:
                 db.session.delete(holding)
+                logging.debug("清空持仓，删除记录")
+            else:
+                logging.debug(f"更新持仓数量: {holding.shares}")
         
         # 创建交易记录
         order = TradeOrder(
@@ -518,18 +548,21 @@ def trade_stock(code):
             dealt_amount=amount
         )
         db.session.add(order)
+        logging.debug(f"创建交易记录 - 订单ID:{order.id}")
         
         # 更新公司股价
         company.current_price = price
         company.market_value = company.current_price * company.total_shares
+        logging.debug(f"更新公司信息 - 最新价格:{company.current_price}, 市值:{company.market_value}")
         
         db.session.commit()
+        logging.info(f"交易成功 - 用户:{current_user.username}, 操作:{action}, 金额:{amount}")
         
         return jsonify({'success': True, 'message': '交易成功'})
         
     except Exception as e:
         db.session.rollback()
-        print(f"交易失败: {str(e)}")
+        logging.error(f"交易失败: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': '交易失败：' + str(e)})
 
 def match_orders(company_id):
@@ -883,6 +916,8 @@ def create_ai():
         db.session.commit()
         return redirect(url_for('ai_index'))
     except Exception as e:
+        db.session.rollback()
+        logging.error(f"创建AI玩家失败: {str(e)}", exc_info=True)
         return render_template('ai/index.html', error='创建AI玩家失败')
 
 # 路由：切换AI状态
