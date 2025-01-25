@@ -130,9 +130,12 @@ class AITradeLog(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     ai_id = db.Column(db.BigInteger, db.ForeignKey('ai_strategies.id'), nullable=False)
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
-    action = db.Column(db.String(20), nullable=False)  # 买入/卖出
-    reason = db.Column(db.String(255), nullable=False)  # 交易原因
+    action = db.Column(db.String(50), nullable=False)  # buy/sell
+    reason = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+    ai_strategy = db.relationship('AIStrategy', backref='trade_logs')
+    company = db.relationship('Company')
 
 # 存款账户模型
 class DepositAccount(db.Model):

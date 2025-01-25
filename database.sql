@@ -169,6 +169,21 @@ CREATE TABLE `ai_strategies` (
     CONSTRAINT `ai_strategies_ibfk_1` FOREIGN KEY (`ai_user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI策略表';
 
+-- AI交易日志表
+CREATE TABLE `ai_trade_logs` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+    `ai_id` BIGINT UNSIGNED NOT NULL COMMENT 'AI策略ID',
+    `company_id` BIGINT UNSIGNED NOT NULL COMMENT '公司ID',
+    `action` VARCHAR(50) NOT NULL COMMENT '操作类型(buy/sell)',
+    `reason` TEXT NOT NULL COMMENT '操作原因',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_ai_id` (`ai_id`),
+    KEY `idx_company` (`company_id`),
+    CONSTRAINT `fk_ai_trade_logs_ai` FOREIGN KEY (`ai_id`) REFERENCES `ai_strategies` (`id`),
+    CONSTRAINT `fk_ai_trade_logs_company` FOREIGN KEY (`company_id`) REFERENCES `companies` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI交易日志表';
+
 -- 聊天消息表
 CREATE TABLE `chat_messages` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '消息ID',
