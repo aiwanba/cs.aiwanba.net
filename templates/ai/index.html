@@ -43,10 +43,10 @@
                         <td>{{ ai.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
                         <td>
                             <button class="btn btn-sm btn-{{ 'danger' if ai.status == 1 else 'success' }}"
-                                    onclick="toggleAI({{ ai.id }})">
+                                    onclick="toggleAI('{{ ai.id }}')">
                                 {{ '停止' if ai.status == 1 else '启动' }}
                             </button>
-                            <button class="btn btn-sm btn-info" onclick="viewLogs({{ ai.id }})">
+                            <button class="btn btn-sm btn-info" onclick="viewLogs('{{ ai.id }}')">
                                 查看日志
                             </button>
                         </td>
@@ -70,10 +70,10 @@
                 <form id="createAIForm" action="{{ url_for('create_ai') }}" method="post">
                     <div class="mb-3">
                         <label class="form-label">交易策略</label>
-                        <select class="form-select" name="strategy" required>
-                            <option value="保守">保守型</option>
-                            <option value="均衡">均衡型</option>
-                            <option value="激进">激进型</option>
+                        <select class="form-control" id="strategy" name="strategy" required>
+                            <option value="1">保守型</option>
+                            <option value="2">稳健型</option>
+                            <option value="3">激进型</option>
                         </select>
                     </div>
                     <div class="mb-3">
