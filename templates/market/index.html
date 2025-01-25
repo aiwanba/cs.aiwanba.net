@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}交易大厅 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">股票市场</h4>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary active" data-filter="all">全部</button>
+            <button type="button" class="btn btn-outline-primary" data-filter="科技">科技</button>
+            <button type="button" class="btn btn-outline-primary" data-filter="金融">金融</button>
+            <button type="button" class="btn btn-outline-primary" data-filter="医疗">医疗</button>
+            <button type="button" class="btn btn-outline-primary" data-filter="制造">制造</button>
+            <button type="button" class="btn btn-outline-primary" data-filter="能源">能源</button>
+            <button type="button" class="btn btn-outline-primary" data-filter="消费">消费</button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>行业</th>
+                        <th>现价</th>
+                        <th>涨跌</th>
+                        <th>涨跌幅</th>
+                        <th>成交量</th>
+                        <th>市值</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stocks %}
+                    <tr data-industry="{{ stock.industry }}">
+                        <td>{{ stock.code }}</td>
+                        <td>{{ stock.name }}</td>
+                        <td>{{ stock.industry }}</td>
+                        <td>¥{{ "%.2f"|format(stock.current_price) }}</td>
+                        <td class="{{ 'text-danger' if stock.price_change > 0 else 'text-success' if stock.price_change < 0 else '' }}">
+                            {{ "%.2f"|format(stock.price_change) }}
+                        </td>
+                        <td class="{{ 'text-danger' if stock.price_change_percent > 0 else 'text-success' if stock.price_change_percent < 0 else '' }}">
+                            {{ "%.2f"|format(stock.price_change_percent) }}%
+                        </td>
+                        <td>{{ "{:,}".format(stock.volume) }}</td>
+                        <td>¥{{ "{:,.2f}".format(stock.market_value) }}</td>
+                        <td>
+                            <a href="{{ url_for('company_detail', code=stock.code) }}" class="btn btn-sm btn-primary">交易</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 行业筛选
+    const filterButtons = document.querySelectorAll('[data-filter]');
+    const stockRows = document.querySelectorAll('tbody tr');
+    
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const industry = this.dataset.filter;
+            
+            // 更新按钮状态
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 筛选股票
+            stockRows.forEach(row => {
+                if (industry === 'all' || row.dataset.industry === industry) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+    
+    // 自动刷新数据（每30秒）
+    setInterval(function() {
+        fetch('/api/market/stocks')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(stock => {
+                    const row = document.querySelector(`tr[data-code="${stock.code}"]`);
+                    if (row) {
+                        // 更新股票数据
+                        row.querySelector('td:nth-child(4)').textContent = `¥${stock.current_price.toFixed(2)}`;
+                        row.querySelector('td:nth-child(5)').textContent = stock.price_change.toFixed(2);
+                        row.querySelector('td:nth-child(6)').textContent = `${stock.price_change_percent.toFixed(2)}%`;
+                        row.querySelector('td:nth-child(7)').textContent = stock.volume.toLocaleString();
+                        row.querySelector('td:nth-child(8)').textContent = `¥${stock.market_value.toLocaleString()}`;
+                    }
+                });
+            });
+    }, 30000);
+});
+</script>
+{% endblock %} 

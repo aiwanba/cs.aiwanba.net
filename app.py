@@ -378,5 +378,80 @@ def update_holdings(buyer_id, seller_id, company_id, shares, price):
     if seller_holding.shares == 0:
         db.session.delete(seller_holding)
 
+# 路由：交易大厅
+@app.route('/market')
+def market():
+    # 获取所有上市公司
+    stocks = Company.query.filter_by(status=1).all()
+    
+    # 计算涨跌幅
+    for stock in stocks:
+        # 获取昨日收盘价（这里简化处理，使用当前价格）
+        # TODO: 实现历史价格记录
+        yesterday_price = stock.current_price
+        
+        stock.price_change = stock.current_price - yesterday_price
+        stock.price_change_percent = (stock.price_change / yesterday_price * 100) if yesterday_price > 0 else 0
+        stock.volume = 0  # TODO: 实现成交量统计
+    
+    return render_template('market/index.html', stocks=stocks)
+
+# API：获取实时行情
+@app.route('/api/market/stocks')
+def get_market_stocks():
+    stocks = Company.query.filter_by(status=1).all()
+    return jsonify([{
+        'code': stock.code,
+        'current_price': float(stock.current_price),
+        'price_change': 0,  # TODO: 实现价格变动计算
+        'price_change_percent': 0,
+        'volume': 0,
+        'market_value': float(stock.market_value)
+    } for stock in stocks])
+
+# 路由：个人资产
+@app.route('/portfolio')
+@login_required
+def portfolio():
+    # 获取持仓信息
+    holdings = StockHolding.query.filter_by(user_id=current_user.id).all()
+    
+    # 计算持仓市值和盈亏
+    stock_value = 0
+    total_profit = 0
+    
+    for holding in holdings:
+        # 获取公司信息
+        holding.company = Company.query.get(holding.company_id)
+        # 计算市值
+        holding.market_value = holding.shares * holding.company.current_price
+        # 计算盈亏
+        holding.profit = holding.market_value - (holding.shares * holding.average_cost)
+        # 计算盈亏比例
+        holding.profit_percent = (holding.profit / (holding.shares * holding.average_cost)) * 100
+        
+        stock_value += holding.market_value
+        total_profit += holding.profit
+    
+    # 获取最近交易记录
+    orders = TradeOrder.query.filter_by(user_id=current_user.id)\
+        .order_by(TradeOrder.created_at.desc())\
+        .limit(20)\
+        .all()
+    
+    # 为每个订单加载公司信息
+    for order in orders:
+        order.company = Company.query.get(order.company_id)
+    
+    # 计算总资产
+    total_assets = current_user.balance + stock_value
+    
+    return render_template('user/portfolio.html',
+                         holdings=holdings,
+                         orders=orders,
+                         total_assets=total_assets,
+                         stock_value=stock_value,
+                         total_profit=total_profit)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
