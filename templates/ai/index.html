@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}AI玩家管理 - 股票交易游戏{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">AI玩家管理</h4>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAIModal">
+            创建AI玩家
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>策略</th>
+                        <th>风险等级</th>
+                        <th>持仓范围</th>
+                        <th>状态</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ai in ai_players %}
+                    <tr>
+                        <td>{{ ai.id }}</td>
+                        <td>{{ ai.strategy }}</td>
+                        <td>
+                            {% for i in range(ai.risk_level) %}
+                            <i class="fas fa-star text-warning"></i>
+                            {% endfor %}
+                        </td>
+                        <td>{{ ai.min_position }}% - {{ ai.max_position }}%</td>
+                        <td>
+                            <span class="badge {{ 'bg-success' if ai.status == 1 else 'bg-danger' }}">
+                                {{ '运行中' if ai.status == 1 else '已停止' }}
+                            </span>
+                        </td>
+                        <td>{{ ai.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-{{ 'danger' if ai.status == 1 else 'success' }}"
+                                    onclick="toggleAI({{ ai.id }})">
+                                {{ '停止' if ai.status == 1 else '启动' }}
+                            </button>
+                            <button class="btn btn-sm btn-info" onclick="viewLogs({{ ai.id }})">
+                                查看日志
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 创建AI玩家模态框 -->
+<div class="modal fade" id="createAIModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">创建AI玩家</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createAIForm" action="{{ url_for('create_ai') }}" method="post">
+                    <div class="mb-3">
+                        <label class="form-label">交易策略</label>
+                        <select class="form-select" name="strategy" required>
+                            <option value="保守">保守型</option>
+                            <option value="均衡">均衡型</option>
+                            <option value="激进">激进型</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">风险等级</label>
+                        <select class="form-select" name="risk_level" required>
+                            <option value="1">★</option>
+                            <option value="2">★★</option>
+                            <option value="3">★★★</option>
+                            <option value="4">★★★★</option>
+                            <option value="5">★★★★★</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">最小持仓比例</label>
+                        <input type="number" class="form-control" name="min_position" 
+                               min="0" max="100" value="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">最大持仓比例</label>
+                        <input type="number" class="form-control" name="max_position" 
+                               min="0" max="100" value="100" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">创建</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 交易日志模态框 -->
+<div class="modal fade" id="logsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">交易日志</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="logsTable">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>股票</th>
+                                <th>操作</th>
+                                <th>原因</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleAI(aiId) {
+    fetch(`/ai/${aiId}/toggle`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('操作失败：' + data.message);
+            }
+        });
+}
+
+function viewLogs(aiId) {
+    fetch(`/ai/${aiId}/logs`)
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#logsTable tbody');
+            tbody.innerHTML = '';
+            
+            data.forEach(log => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${log.created_at}</td>
+                    <td>${log.company_name}</td>
+                    <td>${log.action}</td>
+                    <td>${log.reason}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            new bootstrap.Modal(document.getElementById('logsModal')).show();
+        });
+}
+</script>
+{% endblock %} 

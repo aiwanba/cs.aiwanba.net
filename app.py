@@ -84,6 +84,31 @@ class StockPrice(db.Model):
         db.Index('idx_company_date', 'company_id', 'date'),
     )
 
+# AI玩家模型
+class AIPlayer(db.Model):
+    __tablename__ = 'ai_players'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    strategy = db.Column(db.String(50), nullable=False)  # 交易策略：保守、激进、均衡
+    risk_level = db.Column(db.Integer, default=1)  # 风险等级：1-5
+    min_position = db.Column(db.Integer, default=0)  # 最小持仓比例
+    max_position = db.Column(db.Integer, default=100)  # 最大持仓比例
+    status = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+# AI交易记录
+class AITradeLog(db.Model):
+    __tablename__ = 'ai_trade_logs'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    ai_id = db.Column(db.BigInteger, db.ForeignKey('ai_players.id'), nullable=False)
+    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
+    action = db.Column(db.String(20), nullable=False)  # 买入/卖出
+    reason = db.Column(db.String(255), nullable=False)  # 交易原因
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -490,6 +515,177 @@ def get_stock_kline(code):
         'close': float(price.close),
         'volume': price.volume
     } for price in prices])
+
+# AI交易策略
+def ai_trading_strategy(ai_player):
+    """AI交易策略"""
+    # 获取所有上市公司
+    companies = Company.query.filter_by(status=1).all()
+    
+    for company in companies:
+        # 获取公司最近的K线数据
+        prices = StockPrice.query.filter_by(company_id=company.id)\
+            .order_by(StockPrice.date.desc())\
+            .limit(30)\
+            .all()
+        
+        if len(prices) < 30:
+            continue
+            
+        # 计算技术指标
+        closes = [float(price.close) for price in prices]
+        volumes = [price.volume for price in prices]
+        
+        # 5日均线
+        ma5 = sum(closes[:5]) / 5
+        # 10日均线
+        ma10 = sum(closes[:10]) / 10
+        # 当前价格
+        current_price = closes[0]
+        
+        # 获取AI当前持仓
+        holding = StockHolding.query.filter_by(
+            user_id=ai_player.user_id,
+            company_id=company.id
+        ).first()
+        
+        # 交易信号判断
+        if ai_player.strategy == '保守':
+            # 保守策略：金叉买入，死叉卖出
+            if ma5 > ma10 and not holding:  # 金叉
+                create_ai_order(ai_player, company, 'buy', '金叉买入信号')
+            elif ma5 < ma10 and holding:  # 死叉
+                create_ai_order(ai_player, company, 'sell', '死叉卖出信号')
+                
+        elif ai_player.strategy == '激进':
+            # 激进策略：放量上涨买入，放量下跌卖出
+            volume_ratio = volumes[0] / sum(volumes[1:6]) * 5  # 当前成交量/5日平均成交量
+            price_change = (closes[0] - closes[1]) / closes[1] * 100  # 价格涨跌幅
+            
+            if volume_ratio > 2 and price_change > 5 and not holding:  # 放量上涨
+                create_ai_order(ai_player, company, 'buy', '放量上涨买入信号')
+            elif volume_ratio > 2 and price_change < -5 and holding:  # 放量下跌
+                create_ai_order(ai_player, company, 'sell', '放量下跌卖出信号')
+                
+        else:  # 均衡策略
+            # 均衡策略：结合均线和成交量
+            volume_ratio = volumes[0] / sum(volumes[1:6]) * 5
+            
+            if ma5 > ma10 and volume_ratio > 1.5 and not holding:
+                create_ai_order(ai_player, company, 'buy', '均线金叉+放量买入信号')
+            elif ma5 < ma10 and volume_ratio > 1.5 and holding:
+                create_ai_order(ai_player, company, 'sell', '均线死叉+放量卖出信号')
+
+def create_ai_order(ai_player, company, action, reason):
+    """创建AI交易订单"""
+    try:
+        # 记录交易日志
+        log = AITradeLog(
+            ai_id=ai_player.id,
+            company_id=company.id,
+            action=action,
+            reason=reason
+        )
+        db.session.add(log)
+        
+        # 获取用户信息
+        user = User.query.get(ai_player.user_id)
+        
+        if action == 'buy':
+            # 计算可买数量
+            available_money = user.balance * (ai_player.max_position / 100)
+            shares = int(available_money / company.current_price / 100) * 100
+            
+            if shares >= 100:  # 最小100股
+                order = TradeOrder(
+                    user_id=user.id,
+                    company_id=company.id,
+                    type=1,  # 买入
+                    price=company.current_price,
+                    shares=shares
+                )
+                db.session.add(order)
+                
+        else:  # sell
+            holding = StockHolding.query.filter_by(
+                user_id=user.id,
+                company_id=company.id
+            ).first()
+            
+            if holding:
+                order = TradeOrder(
+                    user_id=user.id,
+                    company_id=company.id,
+                    type=2,  # 卖出
+                    price=company.current_price,
+                    shares=holding.shares
+                )
+                db.session.add(order)
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"AI交易失败: {str(e)}")
+
+# 定时任务：AI交易
+def ai_trading_task():
+    """AI交易定时任务"""
+    ai_players = AIPlayer.query.filter_by(status=1).all()
+    
+    for ai_player in ai_players:
+        ai_trading_strategy(ai_player)
+
+# 路由：AI玩家管理
+@app.route('/ai')
+@login_required
+def ai_index():
+    ai_players = AIPlayer.query.filter_by(user_id=current_user.id).all()
+    return render_template('ai/index.html', ai_players=ai_players)
+
+# 路由：创建AI玩家
+@app.route('/ai/create', methods=['POST'])
+@login_required
+def create_ai():
+    try:
+        ai = AIPlayer(
+            user_id=current_user.id,
+            strategy=request.form.get('strategy'),
+            risk_level=int(request.form.get('risk_level')),
+            min_position=int(request.form.get('min_position')),
+            max_position=int(request.form.get('max_position'))
+        )
+        db.session.add(ai)
+        db.session.commit()
+        return redirect(url_for('ai_index'))
+    except Exception as e:
+        return render_template('ai/index.html', error='创建AI玩家失败')
+
+# 路由：切换AI状态
+@app.route('/ai/<int:ai_id>/toggle', methods=['POST'])
+@login_required
+def toggle_ai(ai_id):
+    ai = AIPlayer.query.filter_by(id=ai_id, user_id=current_user.id).first_or_404()
+    ai.status = 1 if ai.status == 0 else 0
+    db.session.commit()
+    return jsonify({'success': True})
+
+# 路由：获取AI交易日志
+@app.route('/ai/<int:ai_id>/logs')
+@login_required
+def ai_logs(ai_id):
+    ai = AIPlayer.query.filter_by(id=ai_id, user_id=current_user.id).first_or_404()
+    logs = AITradeLog.query.filter_by(ai_id=ai_id)\
+        .order_by(AITradeLog.created_at.desc())\
+        .limit(100)\
+        .all()
+    
+    return jsonify([{
+        'created_at': log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+        'company_name': Company.query.get(log.company_id).name,
+        'action': log.action,
+        'reason': log.reason
+    } for log in logs])
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
