@@ -192,16 +192,58 @@
 |-------|----------|----------|
 | 1 | doc/生产环境部署配置文档.md | 生产环境部署配置说明文档 |
 | 2 | .cursorrules | 项目规范文件 |
+| 3 | requirements.txt | 项目依赖配置文件 |
+| 4 | gunicorn_conf.py | Gunicorn服务器配置文件 |
+| 5 | app.py | Flask应用入口文件 |
+| 6 | templates/index.html | 首页模板文件 |
+| 7 | apps/models/user.py | 用户模型 |
+| 8 | apps/models/company.py | 公司模型 |
+| 9 | apps/models/stock.py | 股票持有记录模型 |
+| 10 | apps/models/transaction.py | 交易记录模型 |
+| 11 | apps/models/bank.py | 银行账户模型 |
+| 12 | apps/models/news.py | 新闻模型 |
+| 13 | apps/models/ai.py | AI行为模型 |
+| 14 | migrations/env.py | 数据库迁移环境配置 |
+| 15 | apps/services/auth_service.py | 认证服务 |
+| 16 | apps/services/trading_service.py | 交易服务 |
+| 17 | apps/api/auth.py | 认证API |
+| 18 | apps/services/company_service.py | 公司管理服务 |
+| 19 | apps/api/company.py | 公司管理API |
+| 20 | templates/company/create.html | 创建公司页面 |
+| 21 | apps/api/trading.py | 交易API |
+| 22 | templates/trading/trade.html | 交易页面 |
+| 23 | apps/services/bank_service.py | 银行业务服务 |
+| 24 | apps/api/bank.py | 银行业务API |
+| 25 | apps/services/news_service.py | 新闻服务 |
+| 26 | apps/api/news.py | 新闻API |
+| 27 | apps/services/ai_service.py | AI交易服务 |
+| 28 | apps/api/ai.py | AI交易API |
+| 29 | apps/services/socket_service.py | WebSocket服务 |
+| 30 | static/js/socket.js | WebSocket客户端处理 |
+| 31 | tests/conftest.py | 测试配置文件 |
+| 32 | tests/test_basic.py | 基本测试用例 |
+| 33 | tests/performance_test.py | 性能测试脚本 |
 
 ### 修改文件
 | 序列号 | 文件名称 | 修改内容 |
 |-------|----------|----------|
 | 1 | .cursorrules | 初始化项目规范文件 |
+| 2 | .cursorrules | 更新文件变更记录 |
 
 ### 版本变更
 | 版本号 | 变更说明 |
 |-------|----------|
 | 0.0.1 | 项目初始化：创建项目规范文件和部署文档 |
+| 0.0.2 | 创建基础项目框架：添加配置文件和基础模板 |
+| 0.0.3 | 添加数据库模型：创建核心数据模型文件 |
+| 0.0.4 | 添加业务逻辑：创建服务层和API接口 |
+| 0.0.5 | 添加公司管理功能：服务层、API和前端页面 |
+| 0.0.6 | 完善交易功能：添加卖出、持仓和历史记录功能 |
+| 0.0.7 | 添加银行业务功能：存款、贷款和利息计算 |
+| 0.0.8 | 添加新闻系统：新闻生成和市场影响 |
+| 0.0.9 | 添加AI交易系统：AI行为决策和自动交易 |
+| 0.1.0 | 添加实时数据推送：WebSocket服务和前端更新 |
+| 0.1.1 | 添加部署和测试配置：测试脚本和性能测试 |
 
 ---
 
@@ -209,19 +251,19 @@
 ### 已实现功能
 - 项目规范文件(.cursorrules)创建完成
 - 部署配置文档创建完成
+- 基础项目框架搭建完成
+- 数据库模型设计完成
+- 基础业务逻辑实现
 
 ### 未实现功能
-- 项目基础框架搭建
-- 生产环境配置实现
-- 所有核心功能模块开发
+- 无
 
 ### 下一步计划
-1. 创建项目基础框架
-   - 创建项目目录结构
-   - 创建并配置 app.py
-   - 创建并配置 gunicorn_conf.py
-   - 创建 requirements.txt
-2. 实现数据库设计
-3. 开发核心功能模块
-4. 实现前端界面
-5. 部署和测试
+1. 生产环境部署
+   - 服务器环境配置
+   - 数据库初始化
+   - 服务启动和监控
+2. 功能测试和优化
+   - 运行单元测试
+   - 执行性能测试
+   - 根据测试结果优化
