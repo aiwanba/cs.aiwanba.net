@@ -201,5 +201,182 @@ def create_company():
     
     return render_template('company/create.html')
 
+# 路由：公司详情
+@app.route('/company/<code>')
+def company_detail(code):
+    company = Company.query.filter_by(code=code).first_or_404()
+    return render_template('company/detail.html', company=company)
+
+# 路由：股票交易
+@app.route('/company/<code>/trade', methods=['POST'])
+@login_required
+def trade_stock(code):
+    company = Company.query.filter_by(code=code).first_or_404()
+    
+    # 获取交易参数
+    trade_type = int(request.form.get('type'))  # 1:买入 2:卖出
+    price = float(request.form.get('price'))
+    shares = int(request.form.get('shares'))
+    
+    # 基本验证
+    if shares % 100 != 0:
+        return render_template('company/detail.html', 
+                             company=company, 
+                             error='交易数量必须是100的整数倍')
+    
+    if price <= 0:
+        return render_template('company/detail.html', 
+                             company=company, 
+                             error='价格必须大于0')
+    
+    # 创建交易订单
+    order = TradeOrder(
+        user_id=current_user.id,
+        company_id=company.id,
+        type=trade_type,
+        price=price,
+        shares=shares,
+        status=0  # 待成交
+    )
+    
+    try:
+        if trade_type == 1:  # 买入
+            # 检查资金是否足够
+            total_amount = price * shares
+            if current_user.balance < total_amount:
+                return render_template('company/detail.html', 
+                                     company=company, 
+                                     error='可用资金不足')
+            
+            # 冻结资金
+            current_user.balance -= total_amount
+            
+        else:  # 卖出
+            # 检查持仓是否足够
+            holding = StockHolding.query.filter_by(
+                user_id=current_user.id,
+                company_id=company.id
+            ).first()
+            
+            if not holding or holding.shares < shares:
+                return render_template('company/detail.html', 
+                                     company=company, 
+                                     error='可用股份不足')
+        
+        db.session.add(order)
+        db.session.commit()
+        
+        # 尝试撮合交易
+        match_orders(company.id)
+        
+        return render_template('company/detail.html', 
+                             company=company, 
+                             success='交易委托已提交')
+        
+    except Exception as e:
+        db.session.rollback()
+        return render_template('company/detail.html', 
+                             company=company, 
+                             error='交易失败，请稍后重试')
+
+def match_orders(company_id):
+    """撮合交易"""
+    # 获取所有未成交的买单（按价格降序）
+    buy_orders = TradeOrder.query.filter_by(
+        company_id=company_id,
+        type=1,
+        status=0
+    ).order_by(TradeOrder.price.desc()).all()
+    
+    # 获取所有未成交的卖单（按价格升序）
+    sell_orders = TradeOrder.query.filter_by(
+        company_id=company_id,
+        type=2,
+        status=0
+    ).order_by(TradeOrder.price.asc()).all()
+    
+    for buy_order in buy_orders:
+        for sell_order in sell_orders:
+            # 如果买入价大于等于卖出价，可以成交
+            if buy_order.price >= sell_order.price:
+                # 确定成交数量
+                deal_shares = min(
+                    buy_order.shares - buy_order.dealt_shares,
+                    sell_order.shares - sell_order.dealt_shares
+                )
+                
+                if deal_shares > 0:
+                    # 创建成交记录
+                    record = TradeRecord(
+                        buyer_order_id=buy_order.id,
+                        seller_order_id=sell_order.id,
+                        company_id=company_id,
+                        price=sell_order.price,  # 以卖方价格成交
+                        shares=deal_shares,
+                        amount=sell_order.price * deal_shares
+                    )
+                    db.session.add(record)
+                    
+                    # 更新订单状态
+                    buy_order.dealt_shares += deal_shares
+                    buy_order.dealt_amount += record.amount
+                    sell_order.dealt_shares += deal_shares
+                    sell_order.dealt_amount += record.amount
+                    
+                    # 更新订单状态
+                    if buy_order.dealt_shares == buy_order.shares:
+                        buy_order.status = 2  # 全部成交
+                    else:
+                        buy_order.status = 1  # 部分成交
+                        
+                    if sell_order.dealt_shares == sell_order.shares:
+                        sell_order.status = 2  # 全部成交
+                    else:
+                        sell_order.status = 1  # 部分成交
+                    
+                    # 更新持仓
+                    update_holdings(buy_order.user_id, sell_order.user_id, 
+                                  company_id, deal_shares, sell_order.price)
+                    
+                    # 更新公司当前股价
+                    company = Company.query.get(company_id)
+                    company.current_price = sell_order.price
+                    company.market_value = company.current_price * company.total_shares
+                    
+                    db.session.commit()
+
+def update_holdings(buyer_id, seller_id, company_id, shares, price):
+    """更新持仓记录"""
+    # 更新买方持仓
+    buyer_holding = StockHolding.query.filter_by(
+        user_id=buyer_id,
+        company_id=company_id
+    ).first()
+    
+    if buyer_holding:
+        # 计算新的平均成本
+        total_cost = (buyer_holding.average_cost * buyer_holding.shares + 
+                     price * shares)
+        buyer_holding.shares += shares
+        buyer_holding.average_cost = total_cost / buyer_holding.shares
+    else:
+        buyer_holding = StockHolding(
+            user_id=buyer_id,
+            company_id=company_id,
+            shares=shares,
+            average_cost=price
+        )
+        db.session.add(buyer_holding)
+    
+    # 更新卖方持仓
+    seller_holding = StockHolding.query.filter_by(
+        user_id=seller_id,
+        company_id=company_id
+    ).first()
+    
+    seller_holding.shares -= shares
+    if seller_holding.shares == 0:
+        db.session.delete(seller_holding)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
