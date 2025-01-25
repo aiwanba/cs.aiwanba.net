@@ -96,12 +96,8 @@
 | gunicorn | ^20.0+ | WSGI HTTP 服务器 |
 | uvicorn | ^0.15+ | ASGI 服务器 |
 | MySQL-python | ^5.7.40 | MySQL 数据库驱动 |
-| Flask-SocketIO | ^5.0+ | WebSocket 支持 |
-| pandas | ^1.3+ | 数据分析处理 |
-| numpy | ^1.21+ | 数学计算支持 |
-| scikit-learn | ^1.0+ | AI 算法支持 |
 | Flask-SQLAlchemy | ^2.5+ | ORM 数据库操作 |
-| redis | ^4.0+ | 缓存和消息队列 |
+| Flask-SocketIO | ^5.0+ | WebSocket 实时通信 |
 
 ---
 
@@ -125,10 +121,9 @@
 ---
 
 ## 测试要求
-- 在部署前进行完整的功能测试
-- 确保数据库连接正常
-- 验证日志写入权限
-- 检查端口(5010)可用性
+- 部署前检查数据库连接是否正常
+- 检查端口(5010)是否可用
+- 验证日志目录权限
 
 ---
 
