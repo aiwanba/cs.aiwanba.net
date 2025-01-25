@@ -8,6 +8,7 @@ from routes.bank import bank_bp
 from routes.news import news_bp
 from routes.social import social_bp
 from routes.analysis import analysis_bp
+from routes.trading import trading_bp
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -29,6 +30,7 @@ app.register_blueprint(bank_bp, url_prefix='/bank')
 app.register_blueprint(news_bp, url_prefix='/news')
 app.register_blueprint(social_bp, url_prefix='/social')
 app.register_blueprint(analysis_bp, url_prefix='/analysis')
+app.register_blueprint(trading_bp, url_prefix='/trading')
 
 # 注册路由
 @app.route('/')

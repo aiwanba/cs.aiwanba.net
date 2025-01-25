@@ -1,36 +1,33 @@
-{% extends "base.html" %}
+{% extends "layouts/module.html" %}
 
 {% block title %}我的消息 - 股票交易游戏{% endblock %}
 
-{% block content %}
-<div class="messages-container">
-    <div class="messages-header">
-        <h2>我的消息</h2>
-        <button class="btn" id="newMessageBtn">发送新消息</button>
-    </div>
+{% block module_title %}我的消息{% endblock %}
 
-    <div class="messages-content">
-        <div class="messages-list">
-            {% for message in messages %}
-            <div class="message-card {% if not message.read %}unread{% endif %}">
-                <div class="message-header">
-                    {% if message.sender_id == session.user_id %}
-                    <span class="message-to">发送给: {{ message.receiver.username }}</span>
-                    {% else %}
-                    <span class="message-from">来自: {{ message.sender.username }}</span>
-                    {% endif %}
-                    <span class="message-time">{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                </div>
-                <div class="message-content">{{ message.content }}</div>
-                {% if message.sender_id != session.user_id %}
-                <div class="message-actions">
-                    <button class="btn reply-btn" data-user-id="{{ message.sender_id }}">回复</button>
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
+{% block module_actions %}
+<button class="btn" id="newMessageBtn">发送新消息</button>
+{% endblock %}
+
+{% block module_content %}
+<div class="messages-list">
+    {% for message in messages %}
+    <div class="message-card {% if not message.read %}unread{% endif %}">
+        <div class="message-header">
+            {% if message.sender_id == session.user_id %}
+            <span class="message-to">发送给: {{ message.receiver.username }}</span>
+            {% else %}
+            <span class="message-from">来自: {{ message.sender.username }}</span>
+            {% endif %}
+            <span class="message-time">{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
         </div>
+        <div class="message-content">{{ message.content }}</div>
+        {% if message.sender_id != session.user_id %}
+        <div class="message-actions">
+            <button class="btn reply-btn" data-user-id="{{ message.sender_id }}">回复</button>
+        </div>
+        {% endif %}
     </div>
+    {% endfor %}
 </div>
 
 <!-- 新消息对话框 -->

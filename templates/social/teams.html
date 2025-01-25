@@ -1,50 +1,51 @@
-{% extends "base.html" %}
+{% extends "layouts/module.html" %}
 
 {% block title %}投资团队 - 股票交易游戏{% endblock %}
 
-{% block content %}
-<div class="teams-container">
-    <div class="teams-header">
-        <h2>投资团队</h2>
-        <a href="{{ url_for('social.create_team') }}" class="btn">创建团队</a>
-    </div>
+{% block module_title %}投资团队{% endblock %}
 
-    <div class="teams-filters">
-        <input type="text" id="searchTeam" placeholder="搜索团队..." class="search-input">
-        <select id="sortTeams" class="sort-select">
-            <option value="newest">最新创建</option>
-            <option value="members">成员最多</option>
-            <option value="active">最活跃</option>
-        </select>
-    </div>
+{% block module_actions %}
+<a href="{{ url_for('social.create_team') }}" class="btn">创建团队</a>
+{% endblock %}
 
-    <div class="teams-grid">
-        {% for team in teams %}
-        <div class="team-card">
-            <div class="team-header">
-                <h3>{{ team.name }}</h3>
-                <span class="member-count">{{ team.members|length }}名成员</span>
+{% block module_filters %}
+<div class="teams-filters">
+    <input type="text" id="searchTeam" placeholder="搜索团队..." class="search-input">
+    <select id="sortTeams" class="sort-select">
+        <option value="newest">最新创建</option>
+        <option value="members">成员最多</option>
+        <option value="active">最活跃</option>
+    </select>
+</div>
+{% endblock %}
+
+{% block module_content %}
+<div class="teams-grid">
+    {% for team in teams %}
+    <div class="team-card">
+        <div class="team-header">
+            <h3>{{ team.name }}</h3>
+            <span class="member-count">{{ team.members|length }}名成员</span>
+        </div>
+        <p class="team-desc">{{ team.description }}</p>
+        <div class="team-stats">
+            <div class="stat-item">
+                <label>讨论</label>
+                <span>{{ team.discussions|length }}</span>
             </div>
-            <p class="team-desc">{{ team.description }}</p>
-            <div class="team-stats">
-                <div class="stat-item">
-                    <label>讨论</label>
-                    <span>{{ team.discussions|length }}</span>
-                </div>
-                <div class="stat-item">
-                    <label>创建时间</label>
-                    <span>{{ team.created_at.strftime('%Y-%m-%d') }}</span>
-                </div>
-            </div>
-            <div class="team-actions">
-                <a href="{{ url_for('social.team_page', team_id=team.id) }}" class="btn">查看详情</a>
-                {% if not team.is_member %}
-                <button class="btn join-btn" data-team-id="{{ team.id }}">加入团队</button>
-                {% endif %}
+            <div class="stat-item">
+                <label>创建时间</label>
+                <span>{{ team.created_at.strftime('%Y-%m-%d') }}</span>
             </div>
         </div>
-        {% endfor %}
+        <div class="team-actions">
+            <a href="{{ url_for('social.team_page', team_id=team.id) }}" class="btn">查看详情</a>
+            {% if not team.is_member %}
+            <button class="btn join-btn" data-team-id="{{ team.id }}">加入团队</button>
+            {% endif %}
+        </div>
     </div>
+    {% endfor %}
 </div>
 {% endblock %}
 

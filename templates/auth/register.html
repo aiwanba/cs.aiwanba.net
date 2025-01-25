@@ -1,10 +1,11 @@
-{% extends "base.html" %}
+{% extends "layouts/module.html" %}
 
 {% block title %}注册 - 股票交易游戏{% endblock %}
 
-{% block content %}
-<div class="auth-container">
-    <h2>用户注册</h2>
+{% block module_title %}用户注册{% endblock %}
+
+{% block module_content %}
+<div class="auth-form-container">
     <form id="registerForm" class="auth-form">
         <div class="form-group">
             <label for="username">用户名</label>
@@ -22,8 +23,8 @@
             <label for="confirm_password">确认密码</label>
             <input type="password" id="confirm_password" name="confirm_password" required>
         </div>
-        <button type="submit">注册</button>
-        <p>已有账号？<a href="{{ url_for('auth.login_page') }}">立即登录</a></p>
+        <button type="submit" class="btn">注册</button>
+        <p class="form-link">已有账号？<a href="{{ url_for('auth.login_page') }}">立即登录</a></p>
     </form>
 </div>
 {% endblock %}

@@ -7,7 +7,9 @@ class BankAccount(db.Model):
     __tablename__ = 'bank_accounts'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # 玩家账户
+    ai_player_id = db.Column(db.Integer, db.ForeignKey('ai_players.id'), nullable=True)  # AI账户
+    account_type = db.Column(db.String(20), nullable=False)  # 账户类型：player/ai
     balance = db.Column(db.Numeric(15, 2), default=0)  # 存款余额
     interest_rate = db.Column(db.Numeric(5, 2), default=3.00)  # 年利率，默认3%
     created_at = db.Column(db.DateTime, default=datetime.now)

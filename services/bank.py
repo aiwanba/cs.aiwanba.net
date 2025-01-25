@@ -1,4 +1,4 @@
-from models import db, BankAccount, BankLoan, BankTransaction, User
+from models import db, BankAccount, BankLoan, BankTransaction, User, AIPlayer
 from decimal import Decimal
 from datetime import datetime, timedelta
 
@@ -6,16 +6,92 @@ class BankService:
     """银行服务"""
     
     @staticmethod
-    def create_account(user_id):
+    def get_account(account_holder_id, account_type='player'):
+        """获取银行账户"""
+        if account_type == 'player':
+            return BankAccount.query.filter_by(user_id=account_holder_id).first()
+        else:
+            return BankAccount.query.filter_by(ai_player_id=account_holder_id).first()
+    
+    @staticmethod
+    def get_user_loans(user_id):
+        """获取用户贷款列表"""
+        return BankLoan.query.filter_by(user_id=user_id).all()
+    
+    @staticmethod
+    def get_recent_transactions(account_id, limit=10):
+        """获取最近交易记录"""
+        return BankTransaction.query.filter_by(account_id=account_id)\
+            .order_by(BankTransaction.created_at.desc())\
+            .limit(limit).all()
+    
+    @staticmethod
+    def create_account(account_holder_id, account_type='player', initial_balance=100000.00):
         """创建银行账户"""
-        if BankAccount.query.filter_by(user_id=user_id).first():
+        # 检查账户是否已存在
+        existing_account = BankService.get_account(account_holder_id, account_type)
+        if existing_account:
             return False, "已有银行账户"
             
-        account = BankAccount(user_id=user_id)
+        # 创建新账户
+        account = BankAccount(
+            account_type=account_type,
+            balance=initial_balance
+        )
+        
+        if account_type == 'player':
+            account.user_id = account_holder_id
+        else:
+            account.ai_player_id = account_holder_id
+            
         try:
             db.session.add(account)
             db.session.commit()
             return True, account
+        except Exception as e:
+            db.session.rollback()
+            return False, str(e)
+    
+    @staticmethod
+    def transfer(from_account_id, to_account_id, amount, description='转账'):
+        """账户间转账"""
+        from_account = BankAccount.query.get(from_account_id)
+        to_account = BankAccount.query.get(to_account_id)
+        
+        if not all([from_account, to_account]):
+            return False, "账户不存在"
+            
+        if from_account.balance < Decimal(str(amount)):
+            return False, "余额不足"
+            
+        try:
+            # 扣除转出账户金额
+            from_account.balance -= Decimal(str(amount))
+            # 记录转出交易
+            from_transaction = BankTransaction(
+                account_id=from_account_id,
+                type='transfer_out',
+                amount=amount,
+                balance_after=from_account.balance,
+                description=f"{description} - 转出"
+            )
+            
+            # 增加转入账户金额
+            to_account.balance += Decimal(str(amount))
+            # 记录转入交易
+            to_transaction = BankTransaction(
+                account_id=to_account_id,
+                type='transfer_in',
+                amount=amount,
+                balance_after=to_account.balance,
+                description=f"{description} - 转入"
+            )
+            
+            db.session.add(from_transaction)
+            db.session.add(to_transaction)
+            db.session.commit()
+            
+            return True, {"from": from_transaction, "to": to_transaction}
         except Exception as e:
             db.session.rollback()
             return False, str(e)

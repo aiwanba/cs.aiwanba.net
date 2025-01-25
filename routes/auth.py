@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for
 from services.auth import AuthService
+from models.user import User
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -57,4 +58,23 @@ def login():
 def logout():
     """退出登录"""
     session.pop('user_id', None)
-    return redirect(url_for('index')) 
+    return redirect(url_for('index'))
+
+@auth_bp.route('/user_info')
+def get_user_info():
+    """获取用户信息"""
+    if 'user_id' not in session:
+        return jsonify({"success": False, "message": "请先登录"}), 401
+        
+    user = User.query.get(session['user_id'])
+    if not user:
+        return jsonify({"success": False, "message": "用户不存在"}), 404
+        
+    return jsonify({
+        "success": True,
+        "data": {
+            "username": user.username,
+            "email": user.email,
+            "balance": float(user.balance)
+        }
+    }) 

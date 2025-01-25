@@ -1,5 +1,6 @@
 from decimal import Decimal
 from models import db, Company, StockHolding, Transaction, User
+from services.bank import BankService
 
 class TradingService:
     """交易服务"""
@@ -7,24 +8,39 @@ class TradingService:
     @staticmethod
     def buy_stock(buyer_id, company_id, shares, price):
         """买入股票"""
-        # 检查公司是否存在
+        # 获取买家银行账户
+        buyer_account = BankService.get_account(buyer_id, 'player')
+        if not buyer_account:
+            return False, "买家银行账户不存在"
+            
+        # 获取公司所有者银行账户
         company = Company.query.get(company_id)
         if not company:
             return False, "公司不存在"
             
-        # 检查可用股份
-        if company.available_shares < shares:
-            return False, "可用股份不足"
+        seller_account = BankService.get_account(company.owner_id, 'player')
+        if not seller_account:
+            return False, "卖家银行账户不存在"
             
         # 计算交易总额
         total_amount = Decimal(str(price)) * shares
         
-        # 检查买家余额
-        buyer = User.query.get(buyer_id)
-        if not buyer or buyer.balance < total_amount:
-            return False, "余额不足"
+        # 执行转账
+        success, result = BankService.transfer(
+            buyer_account.id,
+            seller_account.id,
+            total_amount,
+            f"股票交易 - 公司ID:{company_id}"
+        )
+        
+        if not success:
+            return False, result
             
         try:
+            # 检查可用股份
+            if company.available_shares < shares:
+                return False, "可用股份不足"
+            
             # 更新公司股份
             company.available_shares -= shares
             
@@ -44,20 +60,6 @@ class TradingService:
                 )
                 db.session.add(stock_holding)
             
-            # 更新买家余额
-            buyer.balance -= total_amount
-            
-            # 记录交易
-            transaction = Transaction(
-                company_id=company_id,
-                seller_id=company.owner_id,
-                buyer_id=buyer_id,
-                shares=shares,
-                price=price,
-                total_amount=total_amount
-            )
-            db.session.add(transaction)
-            
             # 更新公司当前股价
             company.current_price = price
             
@@ -71,6 +73,11 @@ class TradingService:
     @staticmethod
     def sell_stock(seller_id, company_id, shares, price):
         """卖出股票"""
+        # 获取卖家银行账户
+        seller_account = BankService.get_account(seller_id, 'player')
+        if not seller_account:
+            return False, "卖家银行账户不存在"
+        
         # 检查持股数量
         stock_holding = StockHolding.query.filter_by(
             user_id=seller_id,
@@ -79,12 +86,19 @@ class TradingService:
         
         if not stock_holding or stock_holding.shares < shares:
             return False, "持股不足"
-            
-        # 检查公司是否存在
+        
+        # 获取公司和公司所有者账户
         company = Company.query.get(company_id)
         if not company:
             return False, "公司不存在"
-            
+        
+        buyer_account = BankService.get_account(company.owner_id, 'player')
+        if not buyer_account:
+            return False, "买家银行账户不存在"
+        
+        # 计算交易总额
+        total_amount = Decimal(str(price)) * shares
+        
         try:
             # 更新卖家持股
             stock_holding.shares -= shares
@@ -94,23 +108,17 @@ class TradingService:
             # 更新公司可用股份
             company.available_shares += shares
             
-            # 计算交易总额
-            total_amount = Decimal(str(price)) * shares
-            
-            # 更新卖家余额
-            seller = User.query.get(seller_id)
-            seller.balance += total_amount
-            
-            # 记录交易
-            transaction = Transaction(
-                company_id=company_id,
-                seller_id=seller_id,
-                buyer_id=company.owner_id,
-                shares=shares,
-                price=price,
-                total_amount=total_amount
+            # 执行转账
+            success, result = BankService.transfer(
+                buyer_account.id,
+                seller_account.id,
+                total_amount,
+                f"股票交易 - 公司ID:{company_id}"
             )
-            db.session.add(transaction)
+            
+            if not success:
+                db.session.rollback()
+                return False, result
             
             # 更新公司当前股价
             company.current_price = price

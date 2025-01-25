@@ -1,10 +1,11 @@
-{% extends "base.html" %}
+{% extends "layouts/module.html" %}
 
 {% block title %}登录 - 股票交易游戏{% endblock %}
 
-{% block content %}
-<div class="auth-container">
-    <h2>用户登录</h2>
+{% block module_title %}用户登录{% endblock %}
+
+{% block module_content %}
+<div class="auth-form-container">
     <form id="loginForm" class="auth-form">
         <div class="form-group">
             <label for="username">用户名</label>
@@ -14,8 +15,8 @@
             <label for="password">密码</label>
             <input type="password" id="password" name="password" required>
         </div>
-        <button type="submit">登录</button>
-        <p>还没有账号？<a href="{{ url_for('auth.register_page') }}">立即注册</a></p>
+        <button type="submit" class="btn">登录</button>
+        <p class="form-link">还没有账号？<a href="{{ url_for('auth.register_page') }}">立即注册</a></p>
     </form>
 </div>
 {% endblock %}

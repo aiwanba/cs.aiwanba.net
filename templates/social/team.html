@@ -1,86 +1,88 @@
-{% extends "base.html" %}
+{% extends "layouts/module.html" %}
 
 {% block title %}{{ team.name }} - 股票交易游戏{% endblock %}
 
-{% block content %}
-<div class="team-container">
-    <div class="team-header">
-        <div class="team-info">
-            <h2>{{ team.name }}</h2>
-            <p class="team-desc">{{ team.description }}</p>
-            <div class="team-meta">
-                <span>创建时间: {{ team.created_at.strftime('%Y-%m-%d') }}</span>
-                <span>成员数: {{ team.members|length }}</span>
-                <span>讨论数: {{ team.discussions|length }}</span>
-            </div>
-        </div>
-        {% if not is_member %}
-        <button class="btn join-btn" data-team-id="{{ team.id }}">加入团队</button>
-        {% endif %}
-    </div>
+{% block module_title %}{{ team.name }}{% endblock %}
 
-    <div class="team-content">
-        <div class="members-section">
-            <h3>团队成员</h3>
-            <div class="members-list">
-                {% for member in team.members %}
-                <div class="member-card">
-                    <div class="member-info">
-                        <span class="member-name">{{ member.user.username }}</span>
-                        <span class="member-role">{{ member.role }}</span>
-                    </div>
-                    <span class="join-time">加入时间: {{ member.joined_at.strftime('%Y-%m-%d') }}</span>
-                    {% if is_leader and member.user_id != session.user_id %}
-                    <button class="btn remove-member" data-user-id="{{ member.user_id }}">移除</button>
-                    {% endif %}
+{% block module_subtitle %}
+<p class="team-desc">{{ team.description }}</p>
+<div class="team-meta">
+    <span>创建时间: {{ team.created_at.strftime('%Y-%m-%d') }}</span>
+    <span>成员数: {{ team.members|length }}</span>
+    <span>讨论数: {{ team.discussions|length }}</span>
+</div>
+{% endblock %}
+
+{% block module_actions %}
+{% if not is_member %}
+<button class="btn join-btn" data-team-id="{{ team.id }}">加入团队</button>
+{% endif %}
+{% endblock %}
+
+{% block module_content %}
+<div class="team-sections">
+    <!-- 成员列表 -->
+    <div class="members-section">
+        <h3>团队成员</h3>
+        <div class="members-list">
+            {% for member in team.members %}
+            <div class="member-card">
+                <div class="member-info">
+                    <span class="member-name">{{ member.user.username }}</span>
+                    <span class="member-role">{{ member.role }}</span>
                 </div>
-                {% endfor %}
-            </div>
-        </div>
-
-        <div class="discussions-section">
-            <div class="section-header">
-                <h3>团队讨论</h3>
-                {% if is_member %}
-                <button class="btn" id="newDiscussionBtn">发起讨论</button>
+                <span class="join-time">加入时间: {{ member.joined_at.strftime('%Y-%m-%d') }}</span>
+                {% if is_leader and member.user_id != session.user_id %}
+                <button class="btn remove-member" data-user-id="{{ member.user_id }}">移除</button>
                 {% endif %}
             </div>
+            {% endfor %}
+        </div>
+    </div>
 
-            <div class="discussions-list">
-                {% for discussion in team.discussions %}
-                <div class="discussion-card" id="discussion-{{ discussion.id }}">
-                    <div class="discussion-header">
-                        <div class="discussion-meta">
-                            <span class="author">{{ discussion.user.username }}</span>
-                            <span class="time">{{ discussion.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                        </div>
-                        <h4>{{ discussion.title }}</h4>
+    <!-- 讨论列表 -->
+    <div class="discussions-section">
+        <div class="section-header">
+            <h3>团队讨论</h3>
+            {% if is_member %}
+            <button class="btn" id="newDiscussionBtn">发起讨论</button>
+            {% endif %}
+        </div>
+
+        <div class="discussions-list">
+            {% for discussion in team.discussions %}
+            <div class="discussion-card" id="discussion-{{ discussion.id }}">
+                <div class="discussion-header">
+                    <div class="discussion-meta">
+                        <span class="author">{{ discussion.user.username }}</span>
+                        <span class="time">{{ discussion.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
                     </div>
-                    <div class="discussion-content">{{ discussion.content }}</div>
-                    
-                    <div class="comments-section">
-                        <h5>评论 ({{ discussion.comments|length }})</h5>
-                        <div class="comments-list">
-                            {% for comment in discussion.comments %}
-                            <div class="comment-item">
-                                <div class="comment-meta">
-                                    <span class="author">{{ comment.user.username }}</span>
-                                    <span class="time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
-                                </div>
-                                <div class="comment-content">{{ comment.content }}</div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        {% if is_member %}
-                        <form class="comment-form" data-discussion-id="{{ discussion.id }}">
-                            <textarea class="comment-input" placeholder="发表评论..." required></textarea>
-                            <button type="submit" class="btn">评论</button>
-                        </form>
-                        {% endif %}
-                    </div>
+                    <h4>{{ discussion.title }}</h4>
                 </div>
-                {% endfor %}
+                <div class="discussion-content">{{ discussion.content }}</div>
+                
+                <div class="comments-section">
+                    <h5>评论 ({{ discussion.comments|length }})</h5>
+                    <div class="comments-list">
+                        {% for comment in discussion.comments %}
+                        <div class="comment-item">
+                            <div class="comment-meta">
+                                <span class="author">{{ comment.user.username }}</span>
+                                <span class="time">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                            </div>
+                            <div class="comment-content">{{ comment.content }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if is_member %}
+                    <form class="comment-form" data-discussion-id="{{ discussion.id }}">
+                        <textarea class="comment-input" placeholder="发表评论..." required></textarea>
+                        <button type="submit" class="btn">评论</button>
+                    </form>
+                    {% endif %}
+                </div>
             </div>
+            {% endfor %}
         </div>
     </div>
 </div>

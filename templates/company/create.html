@@ -1,10 +1,11 @@
-{% extends "base.html" %}
+{% extends "layouts/module.html" %}
 
 {% block title %}创建公司 - 股票交易游戏{% endblock %}
 
-{% block content %}
-<div class="create-company">
-    <h2>创建新公司</h2>
+{% block module_title %}创建新公司{% endblock %}
+
+{% block module_content %}
+<div class="company-form-container">
     <form id="createCompanyForm" class="company-form">
         <div class="form-group">
             <label for="name">公司名称</label>

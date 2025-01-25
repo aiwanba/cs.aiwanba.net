@@ -39,9 +39,9 @@ def create_company():
         })
     return jsonify({"success": False, "message": result})
 
-@company_bp.route('/info/<int:company_id>')
-def company_info(company_id):
-    """获取公司信息接口"""
+@company_bp.route('/api/info/<int:company_id>')
+def company_info_api(company_id):
+    """获取公司信息API"""
     info = CompanyService.get_company_info(company_id)
     if info:
         return jsonify({"success": True, "data": info})

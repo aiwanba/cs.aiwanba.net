@@ -75,12 +75,15 @@ CREATE TABLE transactions (
 -- 银行账户表
 CREATE TABLE bank_accounts (
     id INT PRIMARY KEY AUTO_INCREMENT,
-    user_id INT NOT NULL,
+    user_id INT,
+    ai_player_id INT,
+    account_type VARCHAR(20) NOT NULL,
     balance DECIMAL(15,2) DEFAULT 0,
     interest_rate DECIMAL(5,2) DEFAULT 3.00,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (ai_player_id) REFERENCES ai_players(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 银行贷款表
