@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, render_template, abort
 from services.company import CompanyService
 
 company_bp = Blueprint('company', __name__)
@@ -45,4 +45,24 @@ def company_info(company_id):
     info = CompanyService.get_company_info(company_id)
     if info:
         return jsonify({"success": True, "data": info})
-    return jsonify({"success": False, "message": "公司不存在"}) 
+    return jsonify({"success": False, "message": "公司不存在"})
+
+@company_bp.route('/list')
+def company_list():
+    """获取公司列表"""
+    companies = CompanyService.get_company_list()
+    return jsonify({"success": True, "data": companies})
+
+@company_bp.route('/info/<int:company_id>')
+def company_info_page(company_id):
+    """公司详情页面"""
+    info = CompanyService.get_company_info(company_id)
+    if not info:
+        abort(404)
+    return render_template('company/info.html', company=info)
+
+@company_bp.route('/<int:company_id>/transactions')
+def company_transactions(company_id):
+    """获取公司交易历史"""
+    transactions = CompanyService.get_company_transactions(company_id)
+    return jsonify({"success": True, "data": transactions}) 

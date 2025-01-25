@@ -1,7 +1,19 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, render_template, redirect, url_for
 from services.auth import AuthService
 
 auth_bp = Blueprint('auth', __name__)
+
+# 添加登录页面路由
+@auth_bp.route('/login')
+def login_page():
+    """登录页面"""
+    return render_template('auth/login.html')
+
+# 添加注册页面路由
+@auth_bp.route('/register')
+def register_page():
+    """注册页面"""
+    return render_template('auth/register.html')
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -39,4 +51,10 @@ def login():
                 "balance": float(result.balance)
             }
         })
-    return jsonify({"success": False, "message": result}) 
+    return jsonify({"success": False, "message": result})
+
+@auth_bp.route('/logout')
+def logout():
+    """退出登录"""
+    session.pop('user_id', None)
+    return redirect(url_for('index')) 

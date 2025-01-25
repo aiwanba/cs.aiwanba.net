@@ -15,10 +15,11 @@ class AuthService:
         if User.query.filter_by(email=email).first():
             return False, "邮箱已被注册"
             
-        # 创建新用户
+        # 创建新用户，使用werkzeug的密码哈希
+        hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
         user = User(
             username=username,
-            password=generate_password_hash(password),
+            password=hashed_password,  # 存储哈希后的密码
             email=email
         )
         
@@ -38,6 +39,11 @@ class AuthService:
         if not user:
             return False, "用户不存在"
             
+        # 添加调试信息
+        print("存储的密码哈希:", user.password)
+        print("输入的密码:", password)
+        print("验证结果:", check_password_hash(user.password, password))
+        
         if not check_password_hash(user.password, password):
             return False, "密码错误"
             

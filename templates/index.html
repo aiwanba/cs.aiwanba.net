@@ -5,19 +5,90 @@
 {% block content %}
 <div class="welcome">
     <h1>欢迎来到股票交易游戏</h1>
-    <p>在这里，你可以：</p>
-    <ul>
-        <li>创建和管理自己的公司</li>
-        <li>在交易所买卖股票</li>
-        <li>与AI玩家进行交易</li>
-        <li>体验真实的市场环境</li>
-    </ul>
+    {% if not session.get('user_id') %}
+    <div class="auth-buttons">
+        <a href="{{ url_for('auth.login_page') }}" class="btn">登录</a>
+        <a href="{{ url_for('auth.register_page') }}" class="btn">注册</a>
+    </div>
+    {% endif %}
 </div>
 
 <div class="market-overview">
     <h2>市场概览</h2>
+    <div class="market-actions">
+        {% if session.get('user_id') %}
+        <a href="{{ url_for('company.create_page') }}" class="btn">创建公司</a>
+        {% endif %}
+    </div>
     <div class="market-data">
-        <!-- 这里将来会显示实时市场数据 -->
+        <div class="companies-list">
+            <h3>上市公司</h3>
+            <div id="companiesList">
+                <!-- 公司列表将通过JavaScript动态加载 -->
+            </div>
+        </div>
+        {% if session.get('user_id') %}
+        <div class="my-holdings">
+            <h3>我的持股</h3>
+            <div id="holdingsList">
+                <!-- 持股信息将通过JavaScript动态加载 -->
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 加载公司列表
+async function loadCompanies() {
+    try {
+        const response = await fetch('/company/list');
+        const result = await response.json();
+        if (result.success) {
+            const companiesList = document.getElementById('companiesList');
+            companiesList.innerHTML = result.data.map(company => `
+                <div class="company-item">
+                    <h4>${company.name}</h4>
+                    <p>当前股价：¥${company.current_price}</p>
+                    <p>可用股份：${company.available_shares}</p>
+                    <a href="/company/info/${company.id}" class="btn">查看详情</a>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('加载公司列表失败:', error);
+    }
+}
+
+// 加载持股信息
+async function loadHoldings() {
+    const holdingsList = document.getElementById('holdingsList');
+    if (!holdingsList) return;
+
+    try {
+        const response = await fetch('/trading/holdings');
+        const result = await response.json();
+        if (result.success) {
+            holdingsList.innerHTML = result.data.map(holding => `
+                <div class="holding-item">
+                    <h4>${holding.company_name}</h4>
+                    <p>持有股数：${holding.shares}</p>
+                    <p>当前价值：¥${holding.total_value}</p>
+                    <a href="/company/info/${holding.company_id}" class="btn">交易</a>
+                </div>
+            `).join('');
+        }
+    } catch (error) {
+        console.error('加载持股信息失败:', error);
+    }
+}
+
+// 页面加载完成后执行
+document.addEventListener('DOMContentLoaded', () => {
+    loadCompanies();
+    loadHoldings();
+});
+</script>
 {% endblock %} 

@@ -72,16 +72,29 @@
 | 17 | templates/company/create.html | 创建公司页面 |
 | 18 | services/trading.py | 交易相关服务 |
 | 19 | routes/trading.py | 交易相关路由 |
+| 20 | static/css/style.css | 网站样式文件 |
+| 21 | templates/auth/register.html | 注册页面模板 |
+| 22 | static/js/main.js | 全局JavaScript工具函数 |
+| 23 | templates/company/info.html | 公司详情页面 |
 
 ### 修改文件
 | 序号 | 文件名称 | 修改内容 |
 |------|----------|----------|
 | 1 | models/__init__.py | 添加数据库初始化功能 |
 | 2 | app.py | 添加数据库初始化代码 |
-| 3 | models/user.py | 修复数据库实例循环引用问题 |
+| 3 | models/user.py | 修复密码字段长度问题 |
 | 4 | app.py | 添加认证路由蓝图 |
 | 5 | app.py | 添加公司路由蓝图 |
 | 6 | app.py | 添加交易路由蓝图 |
+| 7 | templates/index.html | 更新首页显示市场概览 |
+| 8 | routes/auth.py | 添加登录和注册页面路由 |
+| 9 | services/auth.py | 修复密码验证逻辑 |
+| 10 | routes/company.py | 添加获取公司列表接口 |
+| 11 | services/company.py | 添加获取公司列表服务 |
+| 12 | templates/base.html | 添加导航栏和静态文件 |
+| 13 | routes/auth.py | 添加退出登录功能 |
+| 14 | routes/company.py | 添加公司详情页面路由 |
+| 15 | services/company.py | 添加获取交易历史功能 |
 
 ### 版本变更
 | 版本号 | 变更说明 |
@@ -91,3 +104,5 @@
 | 0.1.2 | 添加用户认证功能 |
 | 0.1.3 | 添加公司创建功能 |
 | 0.1.4 | 添加股票交易功能 |
+| 0.1.5 | 更新首页和样式 |
+| 0.1.6 | 添加公司详情页面 |

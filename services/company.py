@@ -1,4 +1,4 @@
-from models import db, Company
+from models import db, Company, Transaction
 from decimal import Decimal
 
 class CompanyService:
@@ -45,4 +45,32 @@ class CompanyService:
             'current_price': float(company.current_price),
             'owner_id': company.owner_id,
             'created_at': company.created_at.strftime('%Y-%m-%d %H:%M:%S')
-        } 
+        }
+    
+    @staticmethod
+    def get_company_list():
+        """获取所有公司列表"""
+        companies = Company.query.all()
+        return [{
+            'id': company.id,
+            'name': company.name,
+            'current_price': float(company.current_price),
+            'available_shares': company.available_shares
+        } for company in companies]
+    
+    @staticmethod
+    def get_company_transactions(company_id, limit=10):
+        """获取公司最近交易历史"""
+        transactions = Transaction.query.filter_by(company_id=company_id)\
+            .order_by(Transaction.created_at.desc())\
+            .limit(limit)\
+            .all()
+        
+        return [{
+            'id': tx.id,
+            'type': '买入' if tx.buyer_id != tx.company.owner_id else '卖出',
+            'shares': tx.shares,
+            'price': float(tx.price),
+            'total_amount': float(tx.total_amount),
+            'created_at': tx.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } for tx in transactions] 
