@@ -198,4 +198,38 @@ CREATE TABLE `system_configs` (
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `idx_key` (`key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表'; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统配置表';
+
+-- 存款账户表
+CREATE TABLE `deposit_accounts` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '账户ID',
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+    `type` VARCHAR(20) NOT NULL COMMENT '存款类型(活期/定期)',
+    `amount` DECIMAL(20,2) DEFAULT 0.00 COMMENT '存款金额',
+    `interest_rate` DECIMAL(5,2) NOT NULL COMMENT '年利率(%)',
+    `start_date` DATE NOT NULL COMMENT '起始日期',
+    `end_date` DATE DEFAULT NULL COMMENT '到期日期',
+    `status` TINYINT DEFAULT 1 COMMENT '状态(1:正常,2:已提前支取)',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='存款账户表';
+
+-- 贷款账户表
+CREATE TABLE `loan_accounts` (
+    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '账户ID',
+    `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
+    `amount` DECIMAL(20,2) NOT NULL COMMENT '贷款金额',
+    `interest_rate` DECIMAL(5,2) NOT NULL COMMENT '年利率(%)',
+    `term` INT NOT NULL COMMENT '贷款期限(月)',
+    `monthly_payment` DECIMAL(20,2) NOT NULL COMMENT '月供',
+    `remaining_amount` DECIMAL(20,2) NOT NULL COMMENT '剩余本金',
+    `start_date` DATE NOT NULL COMMENT '起始日期',
+    `end_date` DATE NOT NULL COMMENT '到期日期',
+    `status` TINYINT DEFAULT 1 COMMENT '状态(1:审核中,2:已放款,3:已还清,4:已拒绝)',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='贷款账户表'; 
