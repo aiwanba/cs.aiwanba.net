@@ -53,7 +53,7 @@
                 <div class="alert alert-success">{{ success }}</div>
                 {% endif %}
 
-                <form method="POST" action="{{ url_for('trade_stock', code=company.code) }}">
+                <form id="tradeForm" method="POST" action="{{ url_for('trade_stock', code=company.code) }}">
                     <div class="mb-3">
                         <label class="form-label">交易类型</label>
                         <div class="btn-group w-100" role="group">
@@ -202,6 +202,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // 自动调整大小
     window.addEventListener('resize', function() {
         myChart.resize();
+    });
+
+    // 处理交易表单提交
+    $('#tradeForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: $(this).attr('action'),
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    alert('交易成功');
+                    window.location.href = '{{ url_for("portfolio") }}';  // 交易成功后跳转到资产页面
+                } else {
+                    alert(response.message || '交易失败');
+                }
+            },
+            error: function() {
+                alert('交易失败，请稍后重试');
+            }
+        });
     });
 });
 </script>
