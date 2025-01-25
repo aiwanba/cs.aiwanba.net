@@ -1,4 +1,4 @@
-from models import db, MarketAnalysis, CompanyAnalysis, TechnicalIndicator
+from models import db, MarketAnalysis, CompanyAnalysis, TechnicalIndicator, Company
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
