@@ -811,7 +811,8 @@ def create_ai_order(ai_player, company, action, reason):
         db.session.rollback()
         print(f"AI交易失败: {str(e)}")
 
-# 定时任务：AI交易
+# 使用装饰器包装定时任务
+@with_app_context
 def ai_trading_task():
     """AI交易定时任务"""
     ai_players = AIStrategy.query.filter_by(status=1).all()
@@ -1158,40 +1159,42 @@ def process_loan_payment():
 # 添加定时任务
 def init_scheduler():
     """初始化定时任务"""
-    # AI交易（每5分钟执行一次）
-    scheduler.add_job(
-        ai_trading_task,
-        trigger=CronTrigger(minute='*/5'),
-        id='ai_trading',
-        replace_existing=True
-    )
-    
-    # 新闻生成（每小时执行一次）
-    scheduler.add_job(
-        generate_news,
-        trigger=CronTrigger(minute='0'),
-        id='generate_news',
-        replace_existing=True
-    )
-    
-    # 计算存款利息（每天0点执行）
-    scheduler.add_job(
-        calculate_deposit_interest,
-        trigger=CronTrigger(hour='0'),
-        id='calculate_interest',
-        replace_existing=True
-    )
-    
-    # 处理贷款还款（每月1号0点执行）
-    scheduler.add_job(
-        process_loan_payment,
-        trigger=CronTrigger(day='1', hour='0'),
-        id='loan_payment',
-        replace_existing=True
-    )
-    
-    # 启动调度器
-    scheduler.start()
+    # 确保在应用上下文中运行
+    with app.app_context():
+        # AI交易（每5分钟执行一次）
+        scheduler.add_job(
+            ai_trading_task,
+            trigger=CronTrigger(minute='*/5'),
+            id='ai_trading',
+            replace_existing=True
+        )
+        
+        # 新闻生成（每小时执行一次）
+        scheduler.add_job(
+            generate_news,
+            trigger=CronTrigger(minute='0'),
+            id='generate_news',
+            replace_existing=True
+        )
+        
+        # 计算存款利息（每天0点执行）
+        scheduler.add_job(
+            calculate_deposit_interest,
+            trigger=CronTrigger(hour='0'),
+            id='calculate_interest',
+            replace_existing=True
+        )
+        
+        # 处理贷款还款（每月1号0点执行）
+        scheduler.add_job(
+            process_loan_payment,
+            trigger=CronTrigger(day='1', hour='0'),
+            id='loan_payment',
+            replace_existing=True
+        )
+        
+        # 启动调度器
+        scheduler.start()
 
 # 在应用启动时初始化定时任务
 if __name__ == '__main__':
