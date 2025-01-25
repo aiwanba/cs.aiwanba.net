@@ -76,6 +76,8 @@
 | 21 | templates/auth/register.html | 注册页面模板 |
 | 22 | static/js/main.js | 全局JavaScript工具函数 |
 | 23 | templates/company/info.html | 公司详情页面 |
+| 24 | models/ai_player.py | AI玩家数据模型 |
+| 25 | services/ai_trading.py | AI交易服务 |
 
 ### 修改文件
 | 序号 | 文件名称 | 修改内容 |
@@ -98,6 +100,7 @@
 | 16 | routes/company.py | 添加创建公司页面路由 |
 | 17 | templates/company/create.html | 更新创建公司页面 |
 | 18 | static/css/style.css | 添加创建公司页面样式 |
+| 19 | models/stock.py | 添加AI相关字段 |
 
 ### 版本变更
 | 版本号 | 变更说明 |
@@ -110,3 +113,4 @@
 | 0.1.5 | 更新首页和样式 |
 | 0.1.6 | 添加公司详情页面 |
 | 0.1.7 | 完善公司创建功能 |
+| 0.1.8 | 添加AI交易功能 |
