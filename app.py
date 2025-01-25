@@ -396,6 +396,7 @@ def create_company():
                 creator_id=current_user.id
             )
             db.session.add(company)
+            db.session.flush()  # 立即获取company.id
             
             # 扣除用户资金
             current_user.balance -= registered_capital
@@ -403,7 +404,7 @@ def create_company():
             # 创建创始人持股记录
             holding = StockHolding(
                 user_id=current_user.id,
-                company_id=company.id,
+                company_id=company.id,  # 现在company.id已经可用
                 shares=total_shares,
                 average_cost=registered_capital / total_shares
             )
