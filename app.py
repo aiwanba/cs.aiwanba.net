@@ -699,6 +699,13 @@ def get_stock_kline(code):
         'volume': price.volume
     } for price in prices])
 
+# 修复定时任务的应用上下文问题
+def with_app_context(func):
+    def wrapper(*args, **kwargs):
+        with app.app_context():
+            return func(*args, **kwargs)
+    return wrapper
+
 # AI交易策略
 def ai_trading_strategy(ai_player):
     """AI交易策略"""
@@ -1038,13 +1045,6 @@ def add_comment(news_id):
     db.session.commit()
     
     return jsonify({'success': True})
-
-# 修复定时任务的应用上下文问题
-def with_app_context(func):
-    def wrapper(*args, **kwargs):
-        with app.app_context():
-            return func(*args, **kwargs)
-    return wrapper
 
 # 使用装饰器包装定时任务
 @with_app_context
