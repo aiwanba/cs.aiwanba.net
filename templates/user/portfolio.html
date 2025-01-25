@@ -67,6 +67,7 @@
                         </thead>
                         <tbody>
                             {% for holding in holdings %}
+                            {% if holding.shares > 0 %}
                             <tr>
                                 <td>{{ holding.company.code }}</td>
                                 <td>{{ holding.company.name }}</td>
@@ -85,7 +86,13 @@
                                        class="btn btn-sm btn-primary">交易</a>
                                 </td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
+                            {% if not holdings %}
+                            <tr>
+                                <td colspan="9" class="text-center">暂无持仓</td>
+                            </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>

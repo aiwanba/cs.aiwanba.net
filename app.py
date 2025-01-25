@@ -453,7 +453,7 @@ def trade_stock(code):
         # 获取交易参数
         action = 'buy' if request.form.get('type') == '1' else 'sell'  # 根据type判断买卖
         price = Decimal(request.form.get('price', '0'))
-        quantity = int(request.form.get('shares', '0'))  # 修改为shares
+        quantity = int(request.form.get('shares', '0'))
         
         logging.debug(f"交易参数 - 操作:{action}, 价格:{price}, 数量:{quantity}")
         
@@ -514,6 +514,9 @@ def trade_stock(code):
                 )
                 db.session.add(holding)
                 logging.debug("创建新持仓记录")
+            
+            # 确保提交事务
+            db.session.commit()
         
         elif action == 'sell':
             # 检查持仓
@@ -538,9 +541,9 @@ def trade_stock(code):
             holding.shares -= quantity
             if holding.shares == 0:
                 db.session.delete(holding)
-                logging.debug("清空持仓，删除记录")
-            else:
-                logging.debug(f"更新持仓数量: {holding.shares}")
+            
+            # 确保提交事务
+            db.session.commit()
         
         # 创建交易记录
         order = TradeOrder(
@@ -704,12 +707,14 @@ def get_market_stocks():
 @app.route('/portfolio')
 @login_required
 def portfolio():
+    logging.debug(f"查询用户{current_user.id}的持仓信息")
     # 获取用户的持仓列表
     holdings = StockHolding.query.filter_by(user_id=current_user.id).all()
+    logging.debug(f"找到{len(holdings)}条持仓记录")
     
     # 获取每个持仓的公司信息
     for holding in holdings:
-        holding.company = db.session.get(Company, holding.company_id)
+        holding.company = Company.query.get(holding.company_id)
         
         # 计算持仓市值和盈亏
         holding.market_value = holding.shares * holding.company.current_price
@@ -724,12 +729,14 @@ def portfolio():
     
     # 为每个订单加载公司信息
     for order in orders:
-        order.company = db.session.get(Company, order.company_id)
+        order.company = Company.query.get(order.company_id)
     
     # 计算总资产
     stock_value = sum(h.market_value for h in holdings)
     total_assets = current_user.balance + stock_value
     total_profit = sum(h.profit for h in holdings)
+    
+    logging.debug(f"用户资产统计 - 总资产:{total_assets}, 股票市值:{stock_value}, 总盈亏:{total_profit}")
     
     return render_template('user/portfolio.html',
                          holdings=holdings,
