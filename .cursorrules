@@ -32,19 +32,57 @@
    - 按计划编写代码
    - 及时处理问题
 
-## 4. 错误处理
+## 4. 环境配置
+### 4.1 基本信息
+- 项目名称: cs_aiwanba_net
+- 项目端口: 5010
+- Python版本: 3.11.9
+- 域名: localhost
+
+### 4.2 启动配置
+- 启动方式: gunicorn -c gunicorn_conf.py app:app
+- 项目路径: /www/wwwroot/cs.aiwanba.net
+- 当前框架: flask
+- 入口文件: /www/wwwroot/cs.aiwanba.net/app.py
+- 通讯协议: gunicorn
+- 应用名称: app
+
+### 4.3 数据库配置
+- 数据库: MySQL 5.7.40
+- 数据库名: cs_aiwanba_net
+- 用户名: cs_aiwanba_net
+- 密码: sQz9HSnF5ZcXj9SX
+- 主机: localhost
+- 端口: 3306
+
+### 4.4 依赖管理
+- 依赖文件: requirements.txt
+- 镜像源: https://pypi.tuna.tsinghua.edu.cn/simple
+- 安装命令: pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+### 4.5 Gunicorn配置
+配置文件路径: /www/wwwroot/cs.aiwanba.net/gunicorn_conf.py
+主要配置:
+- workers: 4
+- threads: 2
+- user: 'www'
+- worker_class: 'uvicorn.workers.UvicornWorker'
+- bind: '0.0.0.0:5010'
+- 日志级别: info
+
+## 5. 错误处理
 - 做好异常捕获
 - 记录关键日志
 - 提供错误提示
 
-## 5. 变更记录格式
+## 6. 变更记录格式
 日期：[变更内容]
 - 新增：新添加的功能
 - 修改：修改的功能
 - 修复：修复的问题
 - 删除：删除的内容
 
-## 6. 待办事项
+## 7. 待办事项
 ### 已完成功能
 [在这里记录已经完成的功能]
 
