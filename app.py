@@ -66,6 +66,24 @@ class StockHolding(db.Model):
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
+# 股票历史价格模型
+class StockPrice(db.Model):
+    __tablename__ = 'stock_prices'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
+    date = db.Column(db.Date, nullable=False)
+    open = db.Column(db.DECIMAL(10,2), nullable=False)
+    high = db.Column(db.DECIMAL(10,2), nullable=False)
+    low = db.Column(db.DECIMAL(10,2), nullable=False)
+    close = db.Column(db.DECIMAL(10,2), nullable=False)
+    volume = db.Column(db.BigInteger, nullable=False)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.Index('idx_company_date', 'company_id', 'date'),
+    )
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -452,6 +470,26 @@ def portfolio():
                          total_assets=total_assets,
                          stock_value=stock_value,
                          total_profit=total_profit)
+
+# API：获取股票K线数据
+@app.route('/api/stock/<code>/kline')
+def get_stock_kline(code):
+    company = Company.query.filter_by(code=code).first_or_404()
+    
+    # 获取最近30天的K线数据
+    prices = StockPrice.query.filter_by(company_id=company.id)\
+        .order_by(StockPrice.date.desc())\
+        .limit(30)\
+        .all()
+    
+    return jsonify([{
+        'date': price.date.strftime('%Y-%m-%d'),
+        'open': float(price.open),
+        'high': float(price.high),
+        'low': float(price.low),
+        'close': float(price.close),
+        'volume': price.volume
+    } for price in prices])
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 

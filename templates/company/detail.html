@@ -84,9 +84,21 @@
         </div>
     </div>
 </div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h4 class="mb-0">{{ company.name }} <small class="text-muted">({{ company.code }})</small></h4>
+    </div>
+    <!-- 添加K线图 -->
+    <div class="card-body">
+        <div id="kline_chart" style="height: 400px;"></div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const priceInput = document.getElementById('price');
@@ -102,6 +114,95 @@ document.addEventListener('DOMContentLoaded', function() {
     
     priceInput.addEventListener('input', calculateTotal);
     sharesInput.addEventListener('input', calculateTotal);
+
+    // 初始化K线图
+    const chartDom = document.getElementById('kline_chart');
+    const myChart = echarts.init(chartDom);
+    
+    // 获取K线数据
+    fetch(`/api/stock/{{ company.code }}/kline`)
+        .then(response => response.json())
+        .then(data => {
+            const option = {
+                title: { text: '{{ company.name }}股票走势' },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' }
+                },
+                legend: { data: ['K线', '成交量'] },
+                grid: [
+                    { left: '10%', right: '10%', height: '60%' },
+                    { left: '10%', right: '10%', top: '75%', height: '20%' }
+                ],
+                xAxis: [
+                    {
+                        type: 'category',
+                        data: data.map(item => item.date),
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        splitNumber: 20
+                    },
+                    {
+                        type: 'category',
+                        gridIndex: 1,
+                        data: data.map(item => item.date),
+                        scale: true,
+                        boundaryGap: false,
+                        axisLine: { onZero: false },
+                        splitLine: { show: false },
+                        splitNumber: 20
+                    }
+                ],
+                yAxis: [
+                    {
+                        scale: true,
+                        splitArea: { show: true }
+                    },
+                    {
+                        scale: true,
+                        gridIndex: 1,
+                        splitNumber: 2,
+                        axisLabel: { show: false },
+                        axisLine: { show: false },
+                        axisTick: { show: false },
+                        splitLine: { show: false }
+                    }
+                ],
+                dataZoom: [
+                    { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
+                    { show: true, xAxisIndex: [0, 1], type: 'slider', bottom: '0%', start: 0, end: 100 }
+                ],
+                series: [
+                    {
+                        name: 'K线',
+                        type: 'candlestick',
+                        data: data.map(item => [item.open, item.close, item.low, item.high]),
+                        itemStyle: {
+                            color: '#ef232a',
+                            color0: '#14b143',
+                            borderColor: '#ef232a',
+                            borderColor0: '#14b143'
+                        }
+                    },
+                    {
+                        name: '成交量',
+                        type: 'bar',
+                        xAxisIndex: 1,
+                        yAxisIndex: 1,
+                        data: data.map(item => item.volume)
+                    }
+                ]
+            };
+            
+            myChart.setOption(option);
+        });
+    
+    // 自动调整大小
+    window.addEventListener('resize', function() {
+        myChart.resize();
+    });
 });
 </script>
 {% endblock %} 
