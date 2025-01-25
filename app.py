@@ -163,6 +163,7 @@ class News(db.Model):
     type = db.Column(db.Integer, nullable=False)  # 1:系统新闻, 2:公司公告, 3:市场动态
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'))
     impact_score = db.Column(db.Integer, default=0)  # 影响力评分
+    status = db.Column(db.Integer, default=1)  # 0:隐藏, 1:显示
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
 
     __table_args__ = (
@@ -1055,7 +1056,8 @@ def generate_news():
                     content=content,
                     type=3,  # 市场动态
                     company_id=company.id,
-                    impact_score=min(5, int(abs(price_change) / 2))
+                    impact_score=min(5, int(abs(price_change) / 2)),
+                    status=1
                 )
                 db.session.add(news)
         

@@ -128,6 +128,7 @@ CREATE TABLE `news` (
     `type` TINYINT NOT NULL COMMENT '类型(1:系统新闻,2:公司公告,3:市场动态)',
     `company_id` BIGINT UNSIGNED DEFAULT NULL COMMENT '相关公司ID',
     `impact_score` INT DEFAULT 0 COMMENT '影响力评分',
+    `status` TINYINT DEFAULT 1 COMMENT '状态(0:隐藏,1:显示)',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     KEY `idx_company` (`company_id`)
