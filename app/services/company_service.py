@@ -1,4 +1,4 @@
-from app import db
+from app import db, websocket_service
 from app.models.company import Company
 from app.utils.exceptions import CompanyError
 from sqlalchemy.exc import IntegrityError
@@ -73,14 +73,18 @@ class CompanyService:
         if new_price <= 0:
             raise CompanyError("Stock price must be positive")
         
+        old_price = company.current_price
         company.current_price = new_price
         company.update_market_cap()
         
-        # 发送WebSocket通知
-        emit('stock_price_updated', {
-            'company_id': company_id,
-            'new_price': new_price,
-            'market_cap': company.market_cap
-        }, broadcast=True)
+        # 使用WebSocket服务广播价格更新
+        websocket_service.broadcast_stock_update(
+            company_id=company_id,
+            price=new_price,
+            volume=0,
+            price_change=new_price - old_price,
+            price_change_percent=((new_price - old_price) / old_price) * 100 if old_price > 0 else 0,
+            market_cap=company.market_cap
+        )
         
         return company 
