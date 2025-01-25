@@ -186,6 +186,40 @@ class NewsComment(db.Model):
     status = db.Column(db.Integer, default=1)
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
 
+# 交易订单模型
+class TradeOrder(db.Model):
+    __tablename__ = 'trade_orders'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
+    type = db.Column(db.String(10), nullable=False)  # 买入/卖出
+    price = db.Column(db.DECIMAL(10,2), nullable=False)
+    shares = db.Column(db.BigInteger, nullable=False)
+    status = db.Column(db.Integer, default=1)  # 1:待成交, 2:已成交, 3:已取消
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+# 交易记录模型
+class TradeRecord(db.Model):
+    __tablename__ = 'trade_records'
+    
+    id = db.Column(db.BigInteger, primary_key=True)
+    order_id = db.Column(db.BigInteger, db.ForeignKey('trade_orders.id'), nullable=False)
+    buyer_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    seller_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
+    company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
+    price = db.Column(db.DECIMAL(10,2), nullable=False)
+    shares = db.Column(db.BigInteger, nullable=False)
+    total_amount = db.Column(db.DECIMAL(20,2), nullable=False)
+    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.Index('idx_buyer', 'buyer_id'),
+        db.Index('idx_seller', 'seller_id'),
+        db.Index('idx_company', 'company_id'),
+    )
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
