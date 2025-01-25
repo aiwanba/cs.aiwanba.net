@@ -904,6 +904,16 @@ def ai_trading_task():
             companies = Company.query.filter_by(status=1).all()
             
             for company in companies:
+                # 根据策略类型计算风险系数
+                risk_factor = {
+                    1: 0.3,  # 保守型
+                    2: 0.6,  # 稳健型
+                    3: 1.0   # 激进型
+                }.get(ai.strategy_type, 0.6)
+                
+                # 根据风险等级调整交易量
+                trade_volume = int(100 * (ai.risk_level / 5) * risk_factor)
+                
                 # 检查价格是否在AI的交易范围内
                 if (ai.min_price and company.current_price < ai.min_price) or \
                    (ai.max_price and company.current_price > ai.max_price):
@@ -919,11 +929,27 @@ def ai_trading_task():
                 if holding:
                     current_position = (holding.shares * company.current_price) / ai_user.balance * 100
                 
+                # 获取最近的价格历史
+                recent_prices = StockPrice.query.filter_by(company_id=company.id)\
+                    .order_by(StockPrice.date.desc())\
+                    .limit(5).all()
+                
+                # 计算价格趋势
+                price_trend = 0
+                if len(recent_prices) >= 5:
+                    trend = sum(1 if recent_prices[i].close > recent_prices[i+1].close else -1 
+                               for i in range(len(recent_prices)-1))
+                    price_trend = trend / (len(recent_prices)-1)  # 归一化到[-1,1]
+                
                 # 根据策略类型和风险等级决定操作
                 if current_position < ai.min_position:  # 持仓不足，考虑买入
+                    # 根据趋势调整买入意愿
+                    if price_trend < -0.5 and ai.strategy_type == 1:  # 保守型在下跌趋势时不买入
+                        continue
+                    
                     amount = min(
-                        ai_user.balance,
-                        company.current_price * 100  # 每次买入100股
+                        ai_user.balance * risk_factor,  # 根据风险系数限制单次交易金额
+                        company.current_price * trade_volume
                     )
                     
                     if amount >= company.current_price:
@@ -932,24 +958,63 @@ def ai_trading_task():
                             ai_id=ai.id,
                             company_id=company.id,
                             action='buy',
-                            reason=f'当前持仓{current_position:.2f}%低于最小持仓{ai.min_position}%'
+                            reason=f'当前持仓{current_position:.2f}%低于最小持仓{ai.min_position}%，'
+                                   f'价格趋势{"上涨" if price_trend > 0 else "下跌"}，'
+                                   f'风险系数{risk_factor}'
                         )
                         db.session.add(log)
                         
-                        # TODO: 执行买入操作
+                        # 执行买入操作
+                        shares_to_buy = int(amount / company.current_price)
+                        if not holding:
+                            holding = StockHolding(
+                                user_id=ai_user.id,
+                                company_id=company.id,
+                                shares=0,
+                                average_cost=0
+                            )
+                            db.session.add(holding)
+                        
+                        # 更新持仓
+                        total_cost = holding.shares * holding.average_cost + shares_to_buy * company.current_price
+                        holding.shares += shares_to_buy
+                        holding.average_cost = total_cost / holding.shares
+                        
+                        # 扣除资金
+                        ai_user.balance -= Decimal(shares_to_buy * float(company.current_price))
                         
                 elif current_position > ai.max_position:  # 持仓过高，考虑卖出
                     if holding and holding.shares > 0:
+                        # 根据趋势调整卖出意愿
+                        if price_trend > 0.5 and ai.strategy_type == 1:  # 保守型在上涨趋势时不卖出
+                            continue
+                        
+                        # 计算卖出数量
+                        shares_to_sell = min(
+                            holding.shares,
+                            int(trade_volume * (1 + abs(price_trend)))  # 跌得越多卖得越多
+                        )
+                        
                         # 记录交易日志
                         log = AITradeLog(
                             ai_id=ai.id,
                             company_id=company.id,
                             action='sell',
-                            reason=f'当前持仓{current_position:.2f}%超过最大持仓{ai.max_position}%'
+                            reason=f'当前持仓{current_position:.2f}%超过最大持仓{ai.max_position}%，'
+                                   f'价格趋势{"上涨" if price_trend > 0 else "下跌"}，'
+                                   f'风险系数{risk_factor}'
                         )
                         db.session.add(log)
                         
-                        # TODO: 执行卖出操作
+                        # 执行卖出操作
+                        holding.shares -= shares_to_sell
+                        
+                        # 增加资金
+                        ai_user.balance += Decimal(shares_to_sell * float(company.current_price))
+                        
+                        # 如果全部卖出，删除持仓记录
+                        if holding.shares == 0:
+                            db.session.delete(holding)
         
         db.session.commit()
         
