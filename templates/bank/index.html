@@ -8,7 +8,7 @@
 <div class="account-info">
     <div class="balance">
         <label>账户余额</label>
-        <span class="amount">{{ formatMoney(account.balance) }}</span>
+        <span class="amount">{{ account.balance|money }}</span>
     </div>
     <div class="interest-rate">
         <label>年利率</label>
@@ -68,10 +68,10 @@
         {% for loan in loans %}
         <div class="loan-item">
             <div class="loan-info">
-                <span class="loan-amount">贷款金额：{{ formatMoney(loan.amount) }}</span>
+                <span class="loan-amount">贷款金额：{{ loan.amount|money }}</span>
                 <span class="loan-rate">年利率：{{ "%.2f"|format(loan.interest_rate) }}%</span>
                 <span class="loan-term">期限：{{ loan.term_months }}个月</span>
-                <span class="loan-remaining">剩余待还：{{ formatMoney(loan.remaining_amount) }}</span>
+                <span class="loan-remaining">剩余待还：{{ loan.remaining_amount|money }}</span>
             </div>
             {% if loan.status == 'active' %}
             <form class="repay-form" data-loan-id="{{ loan.id }}">
@@ -93,8 +93,8 @@
         <div class="transaction-item">
             <span class="tx-time">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
             <span class="tx-type">{{ tx.type }}</span>
-            <span class="tx-amount">{{ formatMoney(tx.amount) }}</span>
-            <span class="tx-balance">余额：{{ formatMoney(tx.balance_after) }}</span>
+            <span class="tx-amount">{{ tx.amount|money }}</span>
+            <span class="tx-balance">余额：{{ tx.balance_after|money }}</span>
             {% if tx.description %}
             <span class="tx-desc">{{ tx.description }}</span>
             {% endif %}

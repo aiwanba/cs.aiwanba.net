@@ -9,6 +9,7 @@ from routes.news import news_bp
 from routes.social import social_bp
 from routes.analysis import analysis_bp
 from routes.trading import trading_bp
+from decimal import Decimal
 
 # 配置日志
 logging.basicConfig(level=logging.DEBUG)
@@ -22,6 +23,15 @@ app.config.from_object(Config)
 
 # 初始化数据库连接
 db.init_app(app)
+
+# 注册金额格式化过滤器
+@app.template_filter('money')
+def money_filter(amount):
+    if amount is None:
+        return '¥0.00'
+    if isinstance(amount, str):
+        amount = Decimal(amount)
+    return f'¥{amount:,.2f}'
 
 # 注册蓝图
 app.register_blueprint(auth_bp, url_prefix='/auth')
