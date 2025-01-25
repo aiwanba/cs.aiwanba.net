@@ -42,7 +42,3 @@ logs/
 
 # Database
 *.sqlite3
-
-# 数据库相关
-*.sql
-!db/cs_aiwanba_net.sql  # 保留主要的SQL文件
