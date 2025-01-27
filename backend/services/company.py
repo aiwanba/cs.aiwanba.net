@@ -1,5 +1,5 @@
 from models import Company, Stock
-from app import db
+from extensions import db
 from decimal import Decimal
 
 class CompanyService:

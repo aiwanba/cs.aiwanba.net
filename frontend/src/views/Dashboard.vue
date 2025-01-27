@@ -96,102 +96,101 @@
   </div>
 </template>
 
-<script>
-import { ref, onMounted, reactive } from 'vue'
+<script setup>
+import { ref, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import * as echarts from 'echarts'
+import { ElMessage } from 'element-plus'
+import http from '../services/http'
 
-export default {
-  name: 'Dashboard',
-  setup() {
-    const store = useStore()
-    const chartRef = ref(null)
-    const chartTimeRange = ref('day')
-    let chart = null
+const store = useStore()
+const chartRef = ref(null)
+const chartTimeRange = ref('day')
+let chart = null
 
-    // 模拟数据，实际应从API获取
-    const userAssets = reactive({
-      cash: 100000,
-      stockValue: 250000,
-      total: 350000
-    })
+const userAssets = ref({
+  cash: 0,
+  stockValue: 0,
+  total: 0
+})
 
-    const stockSummary = reactive({
-      companyCount: 5,
-      totalShares: 25000,
-      profit: 15000
-    })
+const stockSummary = ref({
+  companyCount: 0,
+  totalShares: 0,
+  profit: 0
+})
 
-    const bankSummary = reactive({
-      savings: 200000,
-      loans: 50000,
-      netAssets: 150000
-    })
+const bankSummary = ref({
+  savings: 0,
+  loans: 0,
+  netAssets: 0
+})
 
-    const initChart = () => {
-      if (!chartRef.value) return
-      
-      chart = echarts.init(chartRef.value)
-      const option = {
-        tooltip: {
-          trigger: 'axis'
-        },
-        legend: {
-          data: ['市场指数', '交易量']
-        },
-        xAxis: {
-          type: 'category',
-          data: ['9:30', '10:30', '11:30', '13:30', '14:30', '15:00']
-        },
-        yAxis: [
-          {
-            type: 'value',
-            name: '指数'
-          },
-          {
-            type: 'value',
-            name: '成交量'
-          }
-        ],
-        series: [
-          {
-            name: '市场指数',
-            type: 'line',
-            data: [1000, 1050, 1030, 1080, 1100, 1090]
-          },
-          {
-            name: '交易量',
-            type: 'bar',
-            yAxisIndex: 1,
-            data: [2000, 2500, 1800, 3000, 2800, 2600]
-          }
-        ]
-      }
-      
-      chart.setOption(option)
-    }
-
-    const formatNumber = (num) => {
-      return num.toLocaleString('zh-CN')
-    }
-
-    onMounted(() => {
-      initChart()
-      window.addEventListener('resize', () => {
-        chart && chart.resize()
-      })
-    })
-
-    return {
-      userAssets,
-      stockSummary,
-      bankSummary,
-      chartRef,
-      chartTimeRange,
-      formatNumber
-    }
+const fetchDashboardData = async () => {
+  try {
+    const data = await http.get('/api/dashboard/summary')
+    userAssets.value = data.userAssets
+    stockSummary.value = data.stockSummary
+    bankSummary.value = data.bankSummary
+  } catch (error) {
+    ElMessage.error('获取数据失败')
   }
 }
+
+const initChart = () => {
+  if (!chartRef.value) return
+  
+  chart = echarts.init(chartRef.value)
+  const option = {
+    tooltip: {
+      trigger: 'axis'
+    },
+    legend: {
+      data: ['市场指数', '交易量']
+    },
+    xAxis: {
+      type: 'category',
+      data: ['9:30', '10:30', '11:30', '13:30', '14:30', '15:00']
+    },
+    yAxis: [
+      {
+        type: 'value',
+        name: '指数'
+      },
+      {
+        type: 'value',
+        name: '成交量'
+      }
+    ],
+    series: [
+      {
+        name: '市场指数',
+        type: 'line',
+        data: [1000, 1050, 1030, 1080, 1100, 1090]
+      },
+      {
+        name: '交易量',
+        type: 'bar',
+        yAxisIndex: 1,
+        data: [2000, 2500, 1800, 3000, 2800, 2600]
+      }
+    ]
+  }
+  
+  chart.setOption(option)
+}
+
+const formatNumber = (num) => {
+  return num.toLocaleString('zh-CN')
+}
+
+onMounted(() => {
+  fetchDashboardData()
+  initChart()
+  window.addEventListener('resize', () => {
+    chart && chart.resize()
+  })
+})
 </script>
 
 <style scoped>
