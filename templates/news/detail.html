@@ -8,15 +8,13 @@
         <h2 class="card-title">{{ news.title }}</h2>
         <div class="text-muted mb-3">
             <small>
-                发布时间：{{ news.created_at.strftime('%Y-%m-%d %H:%M') }} |
-                类型：{{ news.type }} |
+                <span>发布时间：{{ news.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                <span class="mx-2">|</span>
+                <span>浏览次数：{{ news.views }}</span>
                 {% if news.company_id %}
-                相关公司：<a href="{{ url_for('company_detail', code=Company.query.get(news.company_id).code) }}">
-                    {{ Company.query.get(news.company_id).name }}
-                </a> |
+                <span class="mx-2">|</span>
+                <span>相关公司：{{ Company.query.get(news.company_id).name }}</span>
                 {% endif %}
-                影响力：{{ '★' * news.impact_level }} |
-                浏览量：{{ news.views }}
             </small>
         </div>
         <div class="news-content">

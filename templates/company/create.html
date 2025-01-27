@@ -64,27 +64,38 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 自动计算和验证
+    const form = document.querySelector('form');
     const capitalInput = document.getElementById('registered_capital');
     const sharesInput = document.getElementById('total_shares');
     const priceInput = document.getElementById('price');
-    
+
     function validateInputs() {
         const capital = parseFloat(capitalInput.value) || 0;
         const shares = parseInt(sharesInput.value) || 0;
         const price = parseFloat(priceInput.value) || 0;
-        
+
         // 计算总市值
         const marketValue = shares * price;
-        
+        // 验证最小注册资本
+        if (capital < 1000000) {
+            capitalInput.setCustomValidity('注册资本不能小于100万');
+            return;
+        }
+        // 验证最小股份数
+        if (shares < 100000) {
+            sharesInput.setCustomValidity('总股本不能小于10万股');
+            return;
+        }
         // 验证总市值是否等于注册资本
         if (marketValue !== capital) {
             priceInput.setCustomValidity('发行总市值必须等于注册资本');
         } else {
             priceInput.setCustomValidity('');
+            capitalInput.setCustomValidity('');
+            sharesInput.setCustomValidity('');
         }
     }
-    
+
     capitalInput.addEventListener('input', validateInputs);
     sharesInput.addEventListener('input', validateInputs);
     priceInput.addEventListener('input', validateInputs);
