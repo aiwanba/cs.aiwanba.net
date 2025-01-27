@@ -2,6 +2,7 @@ from flask import jsonify, request
 from . import bank_bp
 from services.bank import BankService
 from app import db
+from services.interest import InterestService
 
 @bank_bp.route('/create', methods=['POST'])
 def create_bank():
@@ -183,4 +184,30 @@ def repay_loan():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': '还款失败'}), 500 
+        return jsonify({'error': '还款失败'}), 500
+
+@bank_bp.route('/interest/rate', methods=['POST'])
+def adjust_interest_rate():
+    """调整利率"""
+    data = request.get_json()
+    
+    required_fields = ['bank_id', 'account_type', 'new_rate']
+    if not all(k in data for k in required_fields):
+        return jsonify({'error': '缺少必要字段'}), 400
+        
+    try:
+        InterestService.adjust_interest_rate(
+            bank_id=data['bank_id'],
+            account_type=data['account_type'],
+            new_rate=data['new_rate']
+        )
+        
+        return jsonify({
+            'message': '利率调整成功',
+            'new_rate': data['new_rate']
+        })
+        
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': '利率调整失败'}), 500 
