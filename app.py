@@ -742,10 +742,56 @@ def process_loan_payment():
         db.session.rollback()
         print(f"处理贷款还款失败: {str(e)}")
 
+@with_app_context
+def update_stock_prices():
+    """更新所有股票的每日价格"""
+    try:
+        companies = Company.query.all()
+        today = datetime.now().date()
+        
+        for company in companies:
+            # 获取今日交易记录
+            trades = TradeRecord.query.filter(
+                TradeRecord.company_id == company.id,
+                func.date(TradeRecord.created_at) == today
+            ).all()
+            
+            if trades:
+                # 计算开盘价、收盘价、最高价、最低价和成交量
+                prices = [trade.price for trade in trades]
+                volumes = [trade.shares for trade in trades]
+                
+                price = StockPrice(
+                    company_id=company.id,
+                    date=today,
+                    open=trades[0].price,
+                    close=trades[-1].price,
+                    high=max(prices),
+                    low=min(prices),
+                    volume=sum(volumes)
+                )
+                db.session.add(price)
+        
+        db.session.commit()
+        logging.info(f"更新股票价格成功 - 日期:{today}")
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"更新股票价格失败: {str(e)}", exc_info=True)
+
 # 初始化定时任务
 def init_scheduler():
     """初始化定时任务"""
-    with app.app_context():
+    try:
+        # 添加定时任务
+        # 每天收盘后更新股票价格
+        scheduler.add_job(
+            update_stock_prices,
+            CronTrigger(hour=15, minute=0),  # 每天15:00执行
+            id='update_stock_prices',
+            replace_existing=True
+        )
+        
         # AI交易（每5分钟执行一次）
         scheduler.add_job(
             ai_trading_task,
@@ -788,6 +834,10 @@ def init_scheduler():
         
         # 启动调度器
         scheduler.start()
+        logging.info("定时任务初始化成功")
+        
+    except Exception as e:
+        logging.error(f"定时任务初始化失败: {str(e)}", exc_info=True)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -1205,30 +1255,27 @@ def portfolio():
 # API：获取股票K线数据
 @app.route('/api/stock/<code>/kline')
 def get_stock_kline(code):
-    """获取K线图数据"""
     try:
         company = Company.query.filter_by(code=code).first_or_404()
         
-        # 获取最近30天的价格数据
+        # 获取最近30天的K线数据
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=30)
         
-        prices = StockPrice.query.filter(
+        kline_data = StockPrice.query.filter(
             StockPrice.company_id == company.id,
             StockPrice.date >= start_date,
             StockPrice.date <= end_date
         ).order_by(StockPrice.date.asc()).all()
         
-        data = [{
+        return jsonify([{
             'time': price.date.strftime('%Y-%m-%d'),
             'open': float(price.open),
             'high': float(price.high),
             'low': float(price.low),
             'close': float(price.close),
             'volume': price.volume
-        } for price in prices]
-        
-        return jsonify(data)
+        } for price in kline_data])
         
     except Exception as e:
         logging.error(f"获取K线数据失败: {str(e)}", exc_info=True)
