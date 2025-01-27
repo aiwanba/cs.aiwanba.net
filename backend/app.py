@@ -1,7 +1,7 @@
 import pymysql
 pymysql.install_as_MySQLdb()
 
-from flask import Flask
+from flask import Flask, jsonify
 from config import config
 from extensions import db, cache, cors, socketio
 
@@ -16,6 +16,14 @@ def create_app(config_name='default'):
     cache.init_app(app)
     cors.init_app(app)
     socketio.init_app(app, cors_allowed_origins=["http://localhost:3000"])
+    
+    # 添加根路由
+    @app.route('/')
+    def index():
+        return jsonify({
+            'status': 'ok',
+            'message': 'Stock Trading Game API Server'
+        })
     
     # 注册蓝图
     from routes import auth_bp, company_bp, stock_bp, bank_bp
