@@ -78,6 +78,11 @@ const routes = [
         path: 'accounts',
         name: 'BankAccounts',
         component: () => import('../views/bank/BankAccounts.vue')
+      },
+      {
+        path: 'loan',
+        name: 'BankLoan',
+        component: () => import('../views/bank/BankLoan.vue')
       }
     ]
   }

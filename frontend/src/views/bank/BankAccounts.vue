@@ -145,7 +145,252 @@
 </template>
 
 <script>
-// ... 脚本部分太长，将在下一条消息中继续
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, Minus, Money } from '@element-plus/icons-vue'
+
+export default {
+  name: 'BankAccounts',
+  components: {
+    Plus,
+    Minus,
+    Money
+  },
+  setup() {
+    const router = useRouter()
+    const loading = ref(false)
+    const account = ref({})
+    const recentTransactions = ref([])
+    const depositVisible = ref(false)
+    const withdrawVisible = ref(false)
+    const depositFormRef = ref(null)
+    const withdrawFormRef = ref(null)
+
+    const depositForm = ref({
+      amount: 100
+    })
+
+    const withdrawForm = ref({
+      amount: 100
+    })
+
+    const depositRules = {
+      amount: [
+        { required: true, message: '请输入存款金额', trigger: 'blur' },
+        { type: 'number', min: 100, message: '最小存款金额为100', trigger: 'blur' }
+      ]
+    }
+
+    const withdrawRules = {
+      amount: [
+        { required: true, message: '请输入取款金额', trigger: 'blur' },
+        { type: 'number', min: 100, message: '最小取款金额为100', trigger: 'blur' }
+      ]
+    }
+
+    const hasAccount = computed(() => {
+      return Object.keys(account.value).length > 0
+    })
+
+    const fetchAccountInfo = async () => {
+      try {
+        loading.value = true
+        const response = await fetch('/api/bank/account')
+        const data = await response.json()
+        
+        if (response.ok) {
+          account.value = data.account
+        } else {
+          ElMessage.error(data.error || '获取账户信息失败')
+        }
+      } catch (error) {
+        ElMessage.error('获取账户信息失败')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const fetchRecentTransactions = async () => {
+      try {
+        const response = await fetch('/api/bank/transactions/recent')
+        const data = await response.json()
+        
+        if (response.ok) {
+          recentTransactions.value = data.transactions
+        } else {
+          ElMessage.error(data.error || '获取交易记录失败')
+        }
+      } catch (error) {
+        ElMessage.error('获取交易记录失败')
+      }
+    }
+
+    const openAccount = async () => {
+      try {
+        await ElMessageBox.confirm('确定要开立银行账户吗？', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'info'
+        })
+
+        loading.value = true
+        const response = await fetch('/api/bank/account/open', {
+          method: 'POST'
+        })
+        const data = await response.json()
+        
+        if (response.ok) {
+          ElMessage.success('账户开立成功')
+          fetchAccountInfo()
+        } else {
+          ElMessage.error(data.error || '开立账户失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('开立账户失败')
+        }
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const showDepositDialog = () => {
+      if (!hasAccount.value) {
+        ElMessage.warning('请先开立账户')
+        return
+      }
+      depositVisible.value = true
+    }
+
+    const showWithdrawDialog = () => {
+      if (!hasAccount.value) {
+        ElMessage.warning('请先开立账户')
+        return
+      }
+      withdrawVisible.value = true
+    }
+
+    const handleDeposit = async () => {
+      try {
+        await depositFormRef.value.validate()
+        loading.value = true
+        
+        const response = await fetch('/api/bank/account/deposit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(depositForm.value)
+        })
+        const data = await response.json()
+        
+        if (response.ok) {
+          ElMessage.success('存款成功')
+          depositVisible.value = false
+          fetchAccountInfo()
+          fetchRecentTransactions()
+        } else {
+          ElMessage.error(data.error || '存款失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('存款失败')
+        }
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const handleWithdraw = async () => {
+      try {
+        await withdrawFormRef.value.validate()
+        loading.value = true
+        
+        const response = await fetch('/api/bank/account/withdraw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(withdrawForm.value)
+        })
+        const data = await response.json()
+        
+        if (response.ok) {
+          ElMessage.success('取款成功')
+          withdrawVisible.value = false
+          fetchAccountInfo()
+          fetchRecentTransactions()
+        } else {
+          ElMessage.error(data.error || '取款失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          ElMessage.error('取款失败')
+        }
+      } finally {
+        loading.value = false
+      }
+    }
+
+    const formatNumber = (num) => {
+      return num.toLocaleString('zh-CN')
+    }
+
+    const formatDate = (date) => {
+      return new Date(date).toLocaleString('zh-CN')
+    }
+
+    const getTransactionType = (type) => {
+      const types = {
+        deposit: 'success',
+        withdraw: 'warning',
+        loan: 'primary',
+        repayment: 'info'
+      }
+      return types[type] || 'info'
+    }
+
+    const getTransactionText = (type) => {
+      const texts = {
+        deposit: '存款',
+        withdraw: '取款',
+        loan: '贷款',
+        repayment: '还款'
+      }
+      return texts[type] || type
+    }
+
+    onMounted(() => {
+      fetchAccountInfo()
+      fetchRecentTransactions()
+    })
+
+    return {
+      account,
+      loading,
+      hasAccount,
+      recentTransactions,
+      depositVisible,
+      withdrawVisible,
+      depositForm,
+      withdrawForm,
+      depositFormRef,
+      withdrawFormRef,
+      depositRules,
+      withdrawRules,
+      openAccount,
+      showDepositDialog,
+      showWithdrawDialog,
+      handleDeposit,
+      handleWithdraw,
+      formatNumber,
+      formatDate,
+      getTransactionType,
+      getTransactionText
+    }
+  }
+}
 </script>
 
 <style scoped>
