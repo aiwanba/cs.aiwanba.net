@@ -6,21 +6,21 @@ from extensions import db
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """用户注册"""
-    data = request.get_json()
-    
-    # 验证必要字段
-    if not all(k in data for k in ('username', 'email', 'password')):
-        return jsonify({'error': '缺少必要字段'}), 400
-        
-    # 检查用户名是否已存在
-    if User.query.filter_by(username=data['username']).first():
-        return jsonify({'error': '用户名已存在'}), 400
-        
-    # 检查邮箱是否已存在
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'error': '邮箱已被注册'}), 400
-    
     try:
+        data = request.get_json()
+        
+        # 验证必要字段
+        if not all(k in data for k in ('username', 'email', 'password')):
+            return jsonify({'error': '缺少必要字段'}), 400
+            
+        # 检查用户名是否已存在
+        if User.query.filter_by(username=data['username']).first():
+            return jsonify({'error': '用户名已存在'}), 400
+            
+        # 检查邮箱是否已存在
+        if User.query.filter_by(email=data['email']).first():
+            return jsonify({'error': '邮箱已被注册'}), 400
+        
         user = User(
             username=data['username'],
             email=data['email'],
@@ -37,9 +37,10 @@ def register():
                 'email': user.email
             }
         }), 201
-        
+            
     except Exception as e:
         db.session.rollback()
+        print(f"注册失败: {str(e)}")  # 添加错误日志
         return jsonify({'error': '注册失败'}), 500
 
 @auth_bp.route('/login', methods=['POST'])

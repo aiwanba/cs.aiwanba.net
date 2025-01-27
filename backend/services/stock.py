@@ -1,5 +1,5 @@
-from models import Stock, StockTransaction, Company
-from app import db
+from models import Stock, StockTransaction, Company, User
+from extensions import db
 from decimal import Decimal
 from sqlalchemy import and_
 from services.websocket import WebSocketService
@@ -116,6 +116,38 @@ class StockService:
             WebSocketService.broadcast_transaction(transaction_data)
             
             db.session.commit()
+            return transaction
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
+
+    @staticmethod
+    def create_transaction(seller_id, buyer_id, company_id, amount, price):
+        """创建交易记录"""
+        try:
+            # 验证卖家
+            seller = User.query.get(seller_id)
+            if not seller:
+                raise ValueError('卖家不存在')
+                
+            # 验证买家
+            buyer = User.query.get(buyer_id)
+            if not buyer:
+                raise ValueError('买家不存在')
+            
+            # 创建交易记录
+            transaction = StockTransaction(
+                company_id=company_id,
+                seller_id=seller_id,
+                buyer_id=buyer_id,
+                amount=amount,
+                price=price
+            )
+            
+            db.session.add(transaction)
+            db.session.commit()
+            
             return transaction
             
         except Exception as e:

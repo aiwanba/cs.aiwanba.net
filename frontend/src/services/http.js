@@ -1,8 +1,8 @@
 import axios from 'axios'
-import { handleApiError } from './errorHandler'
+import { ElMessage } from 'element-plus'
 
 const http = axios.create({
-  baseURL: '/api',
+  baseURL: '/',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -29,7 +29,8 @@ http.interceptors.response.use(
     return response.data
   },
   error => {
-    handleApiError(error)
+    const message = error.response?.data?.error || '请求失败'
+    ElMessage.error(message)
     return Promise.reject(error)
   }
 )

@@ -1,5 +1,5 @@
-from models import Order, Stock, StockTransaction
-from app import db
+from models import Order, Stock, StockTransaction, User, Company
+from extensions import db
 from decimal import Decimal
 from services.websocket import WebSocketService
 
@@ -7,48 +7,62 @@ class MatchingEngine:
     @staticmethod
     def create_order(company_id, user_id, order_type, amount, price):
         """创建订单"""
-        # 验证用户资格
-        if order_type == 'sell':
-            stock = Stock.query.filter_by(
-                company_id=company_id,
-                holder_id=user_id,
-                is_frozen=False
-            ).first()
-            if not stock or stock.amount < amount:
-                raise ValueError("持仓不足")
-        else:  # buy
+        try:
+            # 验证用户
             user = User.query.get(user_id)
-            if user.balance < Decimal(str(price)) * Decimal(str(amount)):
-                raise ValueError("余额不足")
+            if not user:
+                raise ValueError('用户不存在')
                 
-        # 创建订单
-        order = Order(
-            company_id=company_id,
-            user_id=user_id,
-            order_type=order_type,
-            amount=amount,
-            price=price,
-            status='pending'
-        )
-        
-        # 如果是卖单，冻结股票
-        if order_type == 'sell':
-            stock.amount -= amount
-            frozen_stock = Stock(
+            # 验证公司
+            company = Company.query.get(company_id)
+            if not company:
+                raise ValueError('公司不存在')
+                
+            # 验证用户资格
+            if order_type == 'sell':
+                stock = Stock.query.filter_by(
+                    company_id=company_id,
+                    holder_id=user_id,
+                    is_frozen=False
+                ).first()
+                if not stock or stock.amount < amount:
+                    raise ValueError("持仓不足")
+            else:  # buy
+                if user.balance < Decimal(str(price)) * Decimal(str(amount)):
+                    raise ValueError("余额不足")
+                
+            # 创建订单
+            order = Order(
                 company_id=company_id,
-                holder_id=user_id,
+                user_id=user_id,
+                order_type=order_type,
                 amount=amount,
-                is_frozen=True
+                price=price,
+                status='pending'
             )
-            db.session.add(frozen_stock)
             
-        db.session.add(order)
-        db.session.commit()
-        
-        # 尝试撮合
-        MatchingEngine.try_match(company_id)
-        
-        return order
+            # 如果是卖单，冻结股票
+            if order_type == 'sell':
+                stock.amount -= amount
+                frozen_stock = Stock(
+                    company_id=company_id,
+                    holder_id=user_id,
+                    amount=amount,
+                    is_frozen=True
+                )
+                db.session.add(frozen_stock)
+                
+            db.session.add(order)
+            db.session.commit()
+            
+            # 尝试撮合
+            MatchingEngine.try_match(company_id)
+            
+            return order
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
         
     @staticmethod
     def try_match(company_id):
