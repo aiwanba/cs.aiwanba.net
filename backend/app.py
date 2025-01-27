@@ -4,9 +4,16 @@ pymysql.install_as_MySQLdb()
 from flask import Flask, jsonify
 from config import config
 from extensions import db, cache, cors, socketio
+import logging
 
 def create_app(config_name='default'):
     app = Flask(__name__)
+    
+    # 配置日志
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     
     # 加载配置
     app.config.from_object(config[config_name])
@@ -16,6 +23,10 @@ def create_app(config_name='default'):
     cache.init_app(app)
     cors.init_app(app)
     socketio.init_app(app, cors_allowed_origins=["http://localhost:3000"])
+    
+    # 初始化数据库
+    from models import init_db
+    init_db(app)
     
     # 添加根路由
     @app.route('/')
