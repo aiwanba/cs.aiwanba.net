@@ -40,6 +40,156 @@ login_manager.login_view = 'login'
 # 初始化定时任务调度器
 scheduler = BackgroundScheduler()
 
+# ============ 工具函数定义 ============
+
+def update_holdings(buyer_id, seller_id, company_id, shares, price):
+    """更新买卖双方的持仓记录"""
+    try:
+        # 更新买方持仓
+        buyer_holding = StockHolding.query.filter_by(
+            user_id=buyer_id,
+            company_id=company_id
+        ).first()
+        
+        if buyer_holding:
+            # 更新现有持仓
+            total_cost = buyer_holding.shares * buyer_holding.average_cost + price * shares
+            buyer_holding.shares += shares
+            buyer_holding.average_cost = total_cost / buyer_holding.shares
+        else:
+            # 创建新持仓
+            buyer_holding = StockHolding(
+                user_id=buyer_id,
+                company_id=company_id,
+                shares=shares,
+                average_cost=price
+            )
+            db.session.add(buyer_holding)
+        
+        # 更新卖方持仓
+        seller_holding = StockHolding.query.filter_by(
+            user_id=seller_id,
+            company_id=company_id
+        ).first()
+        
+        if seller_holding:
+            seller_holding.shares -= shares
+            if seller_holding.shares == 0:
+                db.session.delete(seller_holding)
+        
+        db.session.commit()
+        logging.info(f"更新持仓成功 - 买方:{buyer_id}, 卖方:{seller_id}, 数量:{shares}")
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"更新持仓失败: {str(e)}", exc_info=True)
+        raise
+
+def match_orders(company_id):
+    """撮合交易"""
+    try:
+        # 获取所有未完全成交的买单（按价格降序，时间优先）
+        buy_orders = TradeOrder.query.filter(
+            TradeOrder.company_id == company_id,
+            TradeOrder.type == 1,  # 买单
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
+            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+        ).order_by(
+            TradeOrder.price.desc(),
+            TradeOrder.created_at.asc()
+        ).all()
+        
+        # 获取所有未完全成交的卖单（按价格升序，时间优先）
+        sell_orders = TradeOrder.query.filter(
+            TradeOrder.company_id == company_id,
+            TradeOrder.type == 2,  # 卖单
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
+            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+        ).order_by(
+            TradeOrder.price.asc(),
+            TradeOrder.created_at.asc()
+        ).all()
+        
+        company = db.session.get(Company, company_id)
+        today = datetime.now().date()
+        
+        for buy_order in buy_orders:
+            for sell_order in sell_orders:
+                # 如果买入价大于等于卖出价，可以成交
+                if buy_order.price >= sell_order.price:
+                    # 计算本次成交数量
+                    available_buy = buy_order.shares - buy_order.dealt_shares
+                    available_sell = sell_order.shares - sell_order.dealt_shares
+                    deal_shares = min(available_buy, available_sell)
+                    
+                    if deal_shares > 0:
+                        # 以卖方价格成交
+                        deal_price = sell_order.price
+                        deal_amount = deal_price * deal_shares
+                        
+                        # 创建成交记录
+                        record = TradeRecord(
+                            buyer_order_id=buy_order.id,
+                            seller_order_id=sell_order.id,
+                            company_id=company_id,
+                            price=deal_price,
+                            shares=deal_shares,
+                            amount=deal_amount
+                        )
+                        db.session.add(record)
+                        
+                        # 更新订单状态
+                        buy_order.dealt_shares += deal_shares
+                        buy_order.dealt_amount += deal_amount
+                        sell_order.dealt_shares += deal_shares
+                        sell_order.dealt_amount += deal_amount
+                        
+                        # 更新订单状态
+                        for order in [buy_order, sell_order]:
+                            if order.dealt_shares == order.shares:
+                                order.status = 2  # 完全成交
+                            else:
+                                order.status = 1  # 部分成交
+                        
+                        # 更新持仓
+                        update_holdings(buy_order.user_id, sell_order.user_id, 
+                                     company_id, deal_shares, deal_price)
+                        
+                        # 更新公司当前价格
+                        company.current_price = deal_price
+                        company.market_value = company.current_price * company.total_shares
+                        
+                        # 更新今日成交量
+                        stock_price = StockPrice.query.filter_by(
+                            company_id=company_id,
+                            date=today
+                        ).first()
+                        
+                        if stock_price:
+                            stock_price.volume += deal_shares
+                            stock_price.close = deal_price
+                            if deal_price > stock_price.high:
+                                stock_price.high = deal_price
+                            if deal_price < stock_price.low:
+                                stock_price.low = deal_price
+                        
+                        db.session.commit()
+                        logging.info(f"撮合成功 - 买方:{buy_order.id}, 卖方:{sell_order.id}, "
+                                   f"价格:{deal_price}, 数量:{deal_shares}")
+                        
+                        # 如果买单已完全成交，跳出内层循环
+                        if buy_order.status == 2:
+                            break
+                else:
+                    # 如果买入价小于卖出价，无法成交，跳出内层循环
+                    break
+                    
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"撮合交易失败: {str(e)}", exc_info=True)
+
+# ============ 数据库模型定义 ============
+
 # 用户模型
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
@@ -873,108 +1023,6 @@ def trade_stock(code):
         logging.error(f"交易失败: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': f'交易失败: {str(e)}'})
 
-# 撮合交易函数
-def match_orders(company_id):
-    """撮合交易"""
-    try:
-        # 获取所有未完全成交的买单（按价格降序，时间优先）
-        buy_orders = TradeOrder.query.filter(
-            TradeOrder.company_id == company_id,
-            TradeOrder.type == 1,  # 买单
-            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
-            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
-        ).order_by(
-            TradeOrder.price.desc(),
-            TradeOrder.created_at.asc()
-        ).all()
-        
-        # 获取所有未完全成交的卖单（按价格升序，时间优先）
-        sell_orders = TradeOrder.query.filter(
-            TradeOrder.company_id == company_id,
-            TradeOrder.type == 2,  # 卖单
-            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
-            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
-        ).order_by(
-            TradeOrder.price.asc(),
-            TradeOrder.created_at.asc()
-        ).all()
-        
-        company = Company.query.get(company_id)
-        today = datetime.now().date()
-        
-        for buy_order in buy_orders:
-            for sell_order in sell_orders:
-                # 如果买入价大于等于卖出价，可以成交
-                if buy_order.price >= sell_order.price:
-                    # 计算本次成交数量
-                    available_buy = buy_order.shares - buy_order.dealt_shares
-                    available_sell = sell_order.shares - sell_order.dealt_shares
-                    deal_shares = min(available_buy, available_sell)
-                    
-                    if deal_shares > 0:
-                        # 以卖方价格成交
-                        deal_price = sell_order.price
-                        deal_amount = deal_price * deal_shares
-                        
-                        # 创建成交记录
-                        record = TradeRecord(
-                            buyer_order_id=buy_order.id,
-                            seller_order_id=sell_order.id,
-                            company_id=company_id,
-                            price=deal_price,
-                            shares=deal_shares,
-                            amount=deal_amount
-                        )
-                        db.session.add(record)
-                        
-                        # 更新订单状态
-                        buy_order.dealt_shares += deal_shares
-                        buy_order.dealt_amount += deal_amount
-                        sell_order.dealt_shares += deal_shares
-                        sell_order.dealt_amount += deal_amount
-                        
-                        # 更新订单状态
-                        for order in [buy_order, sell_order]:
-                            if order.dealt_shares == order.shares:
-                                order.status = 2  # 完全成交
-                            else:
-                                order.status = 1  # 部分成交
-                        
-                        # 更新持仓
-                        update_holdings(buy_order.user_id, sell_order.user_id, 
-                                     company_id, deal_shares, deal_price)
-                        
-                        # 更新公司当前价格
-                        company.current_price = deal_price
-                        company.market_value = company.current_price * company.total_shares
-                        
-                        # 更新今日成交量
-                        stock_price = StockPrice.query.filter_by(
-                            company_id=company_id,
-                            date=today
-                        ).first()
-                        
-                        if stock_price:
-                            stock_price.volume += deal_shares
-                            stock_price.close = deal_price
-                            if deal_price > stock_price.high:
-                                stock_price.high = deal_price
-                            if deal_price < stock_price.low:
-                                stock_price.low = deal_price
-                        
-                        db.session.commit()
-                        
-                        # 如果买单已完全成交，跳出内层循环
-                        if buy_order.status == 2:
-                            break
-                else:
-                    # 如果买入价小于卖出价，无法成交，跳出内层循环
-                    break
-                    
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"撮合交易失败: {str(e)}", exc_info=True)
-
 # 添加撤单功能
 @app.route('/trade/cancel/<int:order_id>', methods=['POST'])
 @login_required
@@ -1463,46 +1511,3 @@ def get_stock_trades(code):
 if __name__ == '__main__':
     init_scheduler()
     app.run(host='0.0.0.0', port=5010, debug=True) 
-
-def update_holdings(buyer_id, seller_id, company_id, shares, price):
-    """更新买卖双方的持仓记录"""
-    try:
-        # 更新买方持仓
-        buyer_holding = StockHolding.query.filter_by(
-            user_id=buyer_id,
-            company_id=company_id
-        ).first()
-        
-        if buyer_holding:
-            # 更新现有持仓
-            total_cost = buyer_holding.shares * buyer_holding.average_cost + price * shares
-            buyer_holding.shares += shares
-            buyer_holding.average_cost = total_cost / buyer_holding.shares
-        else:
-            # 创建新持仓
-            buyer_holding = StockHolding(
-                user_id=buyer_id,
-                company_id=company_id,
-                shares=shares,
-                average_cost=price
-            )
-            db.session.add(buyer_holding)
-        
-        # 更新卖方持仓
-        seller_holding = StockHolding.query.filter_by(
-            user_id=seller_id,
-            company_id=company_id
-        ).first()
-        
-        if seller_holding:
-            seller_holding.shares -= shares
-            if seller_holding.shares == 0:
-                db.session.delete(seller_holding)
-        
-        db.session.commit()
-        logging.info(f"更新持仓成功 - 买方:{buyer_id}, 卖方:{seller_id}, 数量:{shares}")
-        
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"更新持仓失败: {str(e)}", exc_info=True)
-        raise 
