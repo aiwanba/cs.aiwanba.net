@@ -76,17 +76,19 @@ CREATE TABLE `trade_orders` (
     `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '订单ID',
     `user_id` BIGINT UNSIGNED NOT NULL COMMENT '用户ID',
     `company_id` BIGINT UNSIGNED NOT NULL COMMENT '公司ID',
-    `type` TINYINT NOT NULL COMMENT '订单类型(1:买入,2:卖出)',
-    `price` DECIMAL(10,2) NOT NULL COMMENT '委托价格',
-    `shares` BIGINT NOT NULL COMMENT '委托股数',
-    `status` TINYINT DEFAULT 0 COMMENT '状态(0:待成交,1:部分成交,2:全部成交,3:已取消)',
-    `dealt_shares` BIGINT DEFAULT 0 COMMENT '已成交股数',
-    `dealt_amount` DECIMAL(20,2) DEFAULT 0.00 COMMENT '已成交金额',
+    `type` TINYINT NOT NULL COMMENT '类型(1:买入,2:卖出)',
+    `price` DECIMAL(20,2) NOT NULL COMMENT '委托价格',
+    `shares` INT NOT NULL COMMENT '委托数量',
+    `status` TINYINT DEFAULT 0 COMMENT '状态(0:未成交,1:部分成交,2:已成交,3:已撤单)',
+    `dealt_shares` INT DEFAULT 0 COMMENT '已成交数量',
+    `dealt_amount` DECIMAL(20,2) DEFAULT 0 COMMENT '已成交金额',
+    `cancel_time` TIMESTAMP NULL COMMENT '撤单时间',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_user` (`user_id`),
-    KEY `idx_company` (`company_id`)
+    KEY `idx_company` (`company_id`),
+    KEY `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易订单表';
 
 -- 交易记录表
@@ -95,15 +97,16 @@ CREATE TABLE `trade_records` (
     `buyer_order_id` BIGINT UNSIGNED NOT NULL COMMENT '买方订单ID',
     `seller_order_id` BIGINT UNSIGNED NOT NULL COMMENT '卖方订单ID',
     `company_id` BIGINT UNSIGNED NOT NULL COMMENT '公司ID',
-    `price` DECIMAL(10,2) NOT NULL COMMENT '成交价格',
-    `shares` BIGINT NOT NULL COMMENT '成交股数',
+    `price` DECIMAL(20,2) NOT NULL COMMENT '成交价格',
+    `shares` INT NOT NULL COMMENT '成交数量',
     `amount` DECIMAL(20,2) NOT NULL COMMENT '成交金额',
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '成交时间',
     PRIMARY KEY (`id`),
-    KEY `idx_buyer_order` (`buyer_order_id`),
-    KEY `idx_seller_order` (`seller_order_id`),
-    KEY `idx_company` (`company_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易记录表';
+    KEY `idx_company` (`company_id`),
+    KEY `idx_buyer` (`buyer_order_id`),
+    KEY `idx_seller` (`seller_order_id`),
+    KEY `idx_time` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='交易成交记录表';
 
 -- 银行账户表
 CREATE TABLE `bank_accounts` (

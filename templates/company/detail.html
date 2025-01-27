@@ -94,6 +94,77 @@
         <div id="kline_chart" style="height: 400px;"></div>
     </div>
 </div>
+
+<div class="row">
+    <!-- 左侧：K线图 -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div id="kline-chart" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 右侧：盘口和分时成交 -->
+    <div class="col-md-4">
+        <!-- 买卖盘口 -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">买卖盘口</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>卖⑤</th>
+                            <th class="text-end">价格</th>
+                            <th class="text-end">数量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sell-orders">
+                        <!-- 卖盘数据将通过JS动态更新 -->
+                    </tbody>
+                </table>
+                <div class="text-center py-2 bg-light">
+                    <span class="h4" id="current-price">{{ company.current_price }}</span>
+                </div>
+                <table class="table table-sm mb-0">
+                    <tbody id="buy-orders">
+                        <!-- 买盘数据将通过JS动态更新 -->
+                    </tbody>
+                    <thead>
+                        <tr>
+                            <th>买⑤</th>
+                            <th class="text-end">价格</th>
+                            <th class="text-end">数量</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 分时成交 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">分时成交</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th class="text-end">价格</th>
+                            <th class="text-end">数量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trade-records">
+                        <!-- 成交记录将通过JS动态更新 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -224,6 +295,65 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('交易失败，请稍后重试');
             }
         });
+    });
+
+    // 更新盘口数据
+    function updateOrderbook() {
+        $.get(`/api/stock/{{ company.code }}/orderbook`, function(data) {
+            // 更新卖盘
+            let sellHtml = '';
+            data.sell.forEach((order, index) => {
+                sellHtml += `
+                    <tr>
+                        <td>卖${5-index}</td>
+                        <td class="text-end">${order.price.toFixed(2)}</td>
+                        <td class="text-end">${order.volume}</td>
+                    </tr>
+                `;
+            });
+            $('#sell-orders').html(sellHtml);
+            
+            // 更新买盘
+            let buyHtml = '';
+            data.buy.forEach((order, index) => {
+                buyHtml += `
+                    <tr>
+                        <td>买${index+1}</td>
+                        <td class="text-end">${order.price.toFixed(2)}</td>
+                        <td class="text-end">${order.volume}</td>
+                    </tr>
+                `;
+            });
+            $('#buy-orders').html(buyHtml);
+        });
+    }
+    
+    // 更新分时成交
+    function updateTrades() {
+        $.get(`/api/stock/{{ company.code }}/trades`, function(data) {
+            let html = '';
+            data.forEach(trade => {
+                html += `
+                    <tr>
+                        <td>${trade.time}</td>
+                        <td class="text-end">${trade.price.toFixed(2)}</td>
+                        <td class="text-end">${trade.volume}</td>
+                    </tr>
+                `;
+            });
+            $('#trade-records').html(html);
+        });
+    }
+    
+    // 页面加载完成后执行
+    $(document).ready(function() {
+        // 初始加载
+        updateOrderbook();
+        updateTrades();
+        
+        // 定时刷新
+        setInterval(updateOrderbook, 3000);  // 每3秒更新一次盘口
+        setInterval(updateTrades, 5000);     // 每5秒更新一次成交记录
     });
 });
 </script>

@@ -9,6 +9,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from decimal import Decimal
 import logging
+from sqlalchemy import func
 
 # 配置日志
 logging.basicConfig(
@@ -208,9 +209,10 @@ class TradeOrder(db.Model):
     type = db.Column(db.Integer, nullable=False)  # 1:买入, 2:卖出
     price = db.Column(db.DECIMAL(10,2), nullable=False)
     shares = db.Column(db.BigInteger, nullable=False)
-    status = db.Column(db.Integer, default=0)  # 0:待成交, 1:部分成交, 2:全部成交, 3:已取消
+    status = db.Column(db.Integer, default=0)  # 0:未成交, 1:部分成交, 2:已成交, 3:已撤单
     dealt_shares = db.Column(db.BigInteger, default=0)  # 已成交股数
     dealt_amount = db.Column(db.DECIMAL(20,2), default=0.00)  # 已成交金额
+    cancel_time = db.Column(db.TIMESTAMP, nullable=True)  # 撤单时间
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
@@ -804,262 +806,211 @@ def company_detail(code):
     return render_template('company/detail.html', company=company)
 
 # 路由：股票交易
-@app.route('/company/<code>/trade', methods=['POST'])
+@app.route('/trade/<code>', methods=['POST'])
 @login_required
 def trade_stock(code):
     try:
         logging.info(f"开始处理交易请求 - 用户:{current_user.username}, 股票代码:{code}")
         # 获取交易参数
-        action = 'buy' if request.form.get('type') == '1' else 'sell'  # 根据type判断买卖
+        action = 'buy' if request.form.get('type') == '1' else 'sell'
         price = Decimal(request.form.get('price', '0'))
         quantity = int(request.form.get('shares', '0'))
         
-        logging.debug(f"交易参数 - 操作:{action}, 价格:{price}, 数量:{quantity}")
-        
-        # 验证输入
-        if not all([action, price, quantity]):
-            logging.warning("交易参数不完整")
-            return jsonify({'success': False, 'message': '请填写所有交易信息'})
-        
-        if price <= 0:
-            logging.warning(f"无效的交易价格: {price}")
-            return jsonify({'success': False, 'message': '交易价格必须大于0'})
-        
-        if quantity <= 0:
-            logging.warning(f"无效的交易数量: {quantity}")
-            return jsonify({'success': False, 'message': '交易数量必须大于0'})
-        
-        if quantity % 100 != 0:
-            logging.warning(f"交易数量不是100的整数倍: {quantity}")
-            return jsonify({'success': False, 'message': '交易数量必须是100的整数倍'})
-        
         # 获取公司信息
-        company = Company.query.filter_by(code=code).first_or_404()
-        logging.debug(f"获取到公司信息 - 名称:{company.name}, 当前价格:{company.current_price}")
+        company = Company.query.filter_by(code=code).first()
+        if not company:
+            return jsonify({'success': False, 'message': '股票不存在'})
         
-        # 计算交易金额
+        # 基本验证
+        if quantity <= 0:
+            return jsonify({'success': False, 'message': '交易数量必须大于0'})
+        if quantity % 100 != 0:
+            return jsonify({'success': False, 'message': '交易数量必须是100的整数倍'})
+        if price <= 0:
+            return jsonify({'success': False, 'message': '交易价格必须大于0'})
+            
         amount = price * quantity
-        logging.debug(f"计算交易金额: {amount}")
         
         if action == 'buy':
             # 检查余额
             if current_user.balance < amount:
-                logging.warning(f"余额不足 - 需要:{amount}, 当前余额:{current_user.balance}")
                 return jsonify({'success': False, 'message': f'余额不足，需要{amount}元，当前余额{current_user.balance}元'})
             
-            # 扣除资金
+            # 冻结资金
             current_user.balance -= amount
-            logging.debug(f"扣除资金后余额: {current_user.balance}")
             
-            # 更新或创建持仓记录
-            holding = StockHolding.query.filter_by(
-                user_id=current_user.id,
-                company_id=company.id
-            ).first()
-            
-            if holding:
-                # 更新现有持仓
-                total_cost = holding.shares * holding.average_cost + amount
-                holding.shares += quantity
-                holding.average_cost = total_cost / holding.shares
-                logging.debug(f"更新持仓 - 总股数:{holding.shares}, 平均成本:{holding.average_cost}")
-            else:
-                # 创建新持仓
-                holding = StockHolding(
-                    user_id=current_user.id,
-                    company_id=company.id,
-                    shares=quantity,
-                    average_cost=price
-                )
-                db.session.add(holding)
-                logging.debug("创建新持仓记录")
-            
-            # 更新公司信息
-            company.current_price = price
-            company.market_value = company.current_price * company.total_shares
-            
-            # 记录今日成交量
-            today = datetime.now().date()
-            stock_price = StockPrice.query.filter_by(
-                company_id=company.id,
-                date=today
-            ).first()
-            
-            if stock_price:
-                stock_price.volume += quantity
-                stock_price.close = price
-                if price > stock_price.high:
-                    stock_price.high = price
-                if price < stock_price.low:
-                    stock_price.low = price
-            else:
-                stock_price = StockPrice(
-                    company_id=company.id,
-                    date=today,
-                    open=price,
-                    high=price,
-                    low=price,
-                    close=price,
-                    volume=quantity
-                )
-                db.session.add(stock_price)
-            
-            # 确保提交事务
-            db.session.commit()
-        
-        elif action == 'sell':
+        else:  # sell
             # 检查持仓
             holding = StockHolding.query.filter_by(
                 user_id=current_user.id,
                 company_id=company.id
             ).first()
             
-            if not holding:
-                logging.warning("没有该股票的持仓")
-                return jsonify({'success': False, 'message': '没有该股票的持仓'})
-            
-            if holding.shares < quantity:
-                logging.warning(f"持仓不足 - 需要:{quantity}, 当前持仓:{holding.shares}")
-                return jsonify({'success': False, 'message': f'持仓不足，当前持仓{holding.shares}股'})
-            
-            # 增加资金
-            current_user.balance += amount
-            logging.debug(f"增加资金后余额: {current_user.balance}")
-            
-            # 更新持仓
-            holding.shares -= quantity
-            if holding.shares == 0:
-                db.session.delete(holding)
-            
-            # 确保提交事务
-            db.session.commit()
+            if not holding or holding.shares < quantity:
+                return jsonify({'success': False, 'message': '持仓不足'})
         
-        # 创建交易记录
+        # 创建委托订单
         order = TradeOrder(
             user_id=current_user.id,
             company_id=company.id,
             type=1 if action == 'buy' else 2,
             price=price,
             shares=quantity,
-            status=2 if action == 'buy' else 3,
-            dealt_amount=amount
+            dealt_shares=0,
+            dealt_amount=0,
+            status=0  # 未成交
         )
         db.session.add(order)
-        logging.debug(f"创建交易记录 - 订单ID:{order.id}")
-        
-        # 更新公司股价
-        company.current_price = price
-        company.market_value = company.current_price * company.total_shares
-        logging.debug(f"更新公司信息 - 最新价格:{company.current_price}, 市值:{company.market_value}")
-        
         db.session.commit()
-        logging.info(f"交易成功 - 用户:{current_user.username}, 操作:{action}, 金额:{amount}")
         
-        return jsonify({'success': True, 'message': '交易成功'})
+        # 立即尝试撮合
+        match_orders(company.id)
+        
+        return jsonify({'success': True, 'message': '委托已提交'})
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"交易失败: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': f'交易失败: {str(e)}'})
 
+# 撮合交易函数
 def match_orders(company_id):
     """撮合交易"""
-    # 获取所有未成交的买单（按价格降序）
-    buy_orders = TradeOrder.query.filter_by(
-        company_id=company_id,
-        type=1,
-        status=0
-    ).order_by(TradeOrder.price.desc()).all()
-    
-    # 获取所有未成交的卖单（按价格升序）
-    sell_orders = TradeOrder.query.filter_by(
-        company_id=company_id,
-        type=2,
-        status=0
-    ).order_by(TradeOrder.price.asc()).all()
-    
-    for buy_order in buy_orders:
-        for sell_order in sell_orders:
-            # 如果买入价大于等于卖出价，可以成交
-            if buy_order.price >= sell_order.price:
-                # 确定成交数量
-                deal_shares = min(
-                    buy_order.shares - buy_order.dealt_shares,
-                    sell_order.shares - sell_order.dealt_shares
-                )
-                
-                if deal_shares > 0:
-                    # 创建成交记录
-                    record = TradeRecord(
-                        buyer_order_id=buy_order.id,
-                        seller_order_id=sell_order.id,
-                        company_id=company_id,
-                        price=sell_order.price,  # 以卖方价格成交
-                        shares=deal_shares,
-                        amount=sell_order.price * deal_shares
-                    )
-                    db.session.add(record)
+    try:
+        # 获取所有未完全成交的买单（按价格降序，时间优先）
+        buy_orders = TradeOrder.query.filter(
+            TradeOrder.company_id == company_id,
+            TradeOrder.type == 1,  # 买单
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
+            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+        ).order_by(
+            TradeOrder.price.desc(),
+            TradeOrder.created_at.asc()
+        ).all()
+        
+        # 获取所有未完全成交的卖单（按价格升序，时间优先）
+        sell_orders = TradeOrder.query.filter(
+            TradeOrder.company_id == company_id,
+            TradeOrder.type == 2,  # 卖单
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
+            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+        ).order_by(
+            TradeOrder.price.asc(),
+            TradeOrder.created_at.asc()
+        ).all()
+        
+        company = Company.query.get(company_id)
+        today = datetime.now().date()
+        
+        for buy_order in buy_orders:
+            for sell_order in sell_orders:
+                # 如果买入价大于等于卖出价，可以成交
+                if buy_order.price >= sell_order.price:
+                    # 计算本次成交数量
+                    available_buy = buy_order.shares - buy_order.dealt_shares
+                    available_sell = sell_order.shares - sell_order.dealt_shares
+                    deal_shares = min(available_buy, available_sell)
                     
-                    # 更新订单状态
-                    buy_order.dealt_shares += deal_shares
-                    buy_order.dealt_amount += record.amount
-                    sell_order.dealt_shares += deal_shares
-                    sell_order.dealt_amount += record.amount
-                    
-                    # 更新订单状态
-                    if buy_order.dealt_shares == buy_order.shares:
-                        buy_order.status = 2  # 全部成交
-                    else:
-                        buy_order.status = 1  # 部分成交
+                    if deal_shares > 0:
+                        # 以卖方价格成交
+                        deal_price = sell_order.price
+                        deal_amount = deal_price * deal_shares
                         
-                    if sell_order.dealt_shares == sell_order.shares:
-                        sell_order.status = 2  # 全部成交
-                    else:
-                        sell_order.status = 1  # 部分成交
+                        # 创建成交记录
+                        record = TradeRecord(
+                            buyer_order_id=buy_order.id,
+                            seller_order_id=sell_order.id,
+                            company_id=company_id,
+                            price=deal_price,
+                            shares=deal_shares,
+                            amount=deal_amount
+                        )
+                        db.session.add(record)
+                        
+                        # 更新订单状态
+                        buy_order.dealt_shares += deal_shares
+                        buy_order.dealt_amount += deal_amount
+                        sell_order.dealt_shares += deal_shares
+                        sell_order.dealt_amount += deal_amount
+                        
+                        # 更新订单状态
+                        for order in [buy_order, sell_order]:
+                            if order.dealt_shares == order.shares:
+                                order.status = 2  # 完全成交
+                            else:
+                                order.status = 1  # 部分成交
+                        
+                        # 更新持仓
+                        update_holdings(buy_order.user_id, sell_order.user_id, 
+                                     company_id, deal_shares, deal_price)
+                        
+                        # 更新公司当前价格
+                        company.current_price = deal_price
+                        company.market_value = company.current_price * company.total_shares
+                        
+                        # 更新今日成交量
+                        stock_price = StockPrice.query.filter_by(
+                            company_id=company_id,
+                            date=today
+                        ).first()
+                        
+                        if stock_price:
+                            stock_price.volume += deal_shares
+                            stock_price.close = deal_price
+                            if deal_price > stock_price.high:
+                                stock_price.high = deal_price
+                            if deal_price < stock_price.low:
+                                stock_price.low = deal_price
+                        
+                        db.session.commit()
+                        
+                        # 如果买单已完全成交，跳出内层循环
+                        if buy_order.status == 2:
+                            break
+                else:
+                    # 如果买入价小于卖出价，无法成交，跳出内层循环
+                    break
                     
-                    # 更新持仓
-                    update_holdings(buy_order.user_id, sell_order.user_id, 
-                                  company_id, deal_shares, sell_order.price)
-                    
-                    # 更新公司当前股价
-                    company = Company.query.get(company_id)
-                    company.current_price = sell_order.price
-                    company.market_value = company.current_price * company.total_shares
-                    
-                    db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"撮合交易失败: {str(e)}", exc_info=True)
 
-def update_holdings(buyer_id, seller_id, company_id, shares, price):
-    """更新持仓记录"""
-    # 更新买方持仓
-    buyer_holding = StockHolding.query.filter_by(
-        user_id=buyer_id,
-        company_id=company_id
-    ).first()
-    
-    if buyer_holding:
-        # 计算新的平均成本
-        total_cost = (buyer_holding.average_cost * buyer_holding.shares + 
-                     price * shares)
-        buyer_holding.shares += shares
-        buyer_holding.average_cost = total_cost / buyer_holding.shares
-    else:
-        buyer_holding = StockHolding(
-            user_id=buyer_id,
-            company_id=company_id,
-            shares=shares,
-            average_cost=price
-        )
-        db.session.add(buyer_holding)
-    
-    # 更新卖方持仓
-    seller_holding = StockHolding.query.filter_by(
-        user_id=seller_id,
-        company_id=company_id
-    ).first()
-    
-    seller_holding.shares -= shares
-    if seller_holding.shares == 0:
-        db.session.delete(seller_holding)
+# 添加撤单功能
+@app.route('/trade/cancel/<int:order_id>', methods=['POST'])
+@login_required
+def cancel_order(order_id):
+    try:
+        order = TradeOrder.query.get_or_404(order_id)
+        
+        # 验证订单所有者
+        if order.user_id != current_user.id:
+            return jsonify({'success': False, 'message': '无权操作此订单'})
+        
+        # 检查订单状态
+        if order.status == 2:
+            return jsonify({'success': False, 'message': '订单已完全成交，无法撤单'})
+        if order.status == 3:
+            return jsonify({'success': False, 'message': '订单已撤单'})
+            
+        # 计算未成交金额
+        remaining_shares = order.shares - order.dealt_shares
+        remaining_amount = order.price * remaining_shares
+        
+        # 买单退还冻结资金
+        if order.type == 1:
+            current_user.balance += remaining_amount
+        
+        # 更新订单状态
+        order.status = 3  # 已撤单
+        order.cancel_time = datetime.now()
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': '撤单成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"撤单失败: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': '撤单失败'})
 
 # 路由：交易大厅
 @app.route('/market')
@@ -1436,7 +1387,122 @@ def add_comment(news_id):
     
     return jsonify({'success': True})
 
+# API：获取买卖盘口数据
+@app.route('/api/stock/<code>/orderbook')
+def get_stock_orderbook(code):
+    try:
+        company = Company.query.filter_by(code=code).first_or_404()
+        
+        # 获取买盘(价格降序)
+        buy_orders = TradeOrder.query.filter(
+            TradeOrder.company_id == company.id,
+            TradeOrder.type == 1,  # 买单
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
+            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+        ).order_by(
+            TradeOrder.price.desc()
+        ).limit(5).all()
+        
+        # 获取卖盘(价格升序)
+        sell_orders = TradeOrder.query.filter(
+            TradeOrder.company_id == company.id,
+            TradeOrder.type == 2,  # 卖单
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
+            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+        ).order_by(
+            TradeOrder.price.asc()
+        ).limit(5).all()
+        
+        # 格式化数据
+        buy_list = [{
+            'price': float(order.price),
+            'volume': order.shares - order.dealt_shares
+        } for order in buy_orders]
+        
+        sell_list = [{
+            'price': float(order.price),
+            'volume': order.shares - order.dealt_shares
+        } for order in sell_orders]
+        
+        return jsonify({
+            'buy': buy_list,
+            'sell': sell_list
+        })
+        
+    except Exception as e:
+        logging.error(f"获取盘口数据失败: {str(e)}", exc_info=True)
+        return jsonify({'error': '获取盘口数据失败'})
+
+# API：获取分时成交数据
+@app.route('/api/stock/<code>/trades')
+def get_stock_trades(code):
+    try:
+        company = Company.query.filter_by(code=code).first_or_404()
+        today = datetime.now().date()
+        
+        # 获取今日成交记录
+        trades = TradeRecord.query.filter(
+            TradeRecord.company_id == company.id,
+            func.date(TradeRecord.created_at) == today
+        ).order_by(
+            TradeRecord.created_at.desc()
+        ).limit(20).all()
+        
+        return jsonify([{
+            'time': trade.created_at.strftime('%H:%M:%S'),
+            'price': float(trade.price),
+            'volume': trade.shares,
+            'amount': float(trade.amount)
+        } for trade in trades])
+        
+    except Exception as e:
+        logging.error(f"获取分时成交数据失败: {str(e)}", exc_info=True)
+        return jsonify({'error': '获取分时成交数据失败'})
+
 # 在应用启动时初始化定时任务
 if __name__ == '__main__':
     init_scheduler()
     app.run(host='0.0.0.0', port=5010, debug=True) 
+
+def update_holdings(buyer_id, seller_id, company_id, shares, price):
+    """更新买卖双方的持仓记录"""
+    try:
+        # 更新买方持仓
+        buyer_holding = StockHolding.query.filter_by(
+            user_id=buyer_id,
+            company_id=company_id
+        ).first()
+        
+        if buyer_holding:
+            # 更新现有持仓
+            total_cost = buyer_holding.shares * buyer_holding.average_cost + price * shares
+            buyer_holding.shares += shares
+            buyer_holding.average_cost = total_cost / buyer_holding.shares
+        else:
+            # 创建新持仓
+            buyer_holding = StockHolding(
+                user_id=buyer_id,
+                company_id=company_id,
+                shares=shares,
+                average_cost=price
+            )
+            db.session.add(buyer_holding)
+        
+        # 更新卖方持仓
+        seller_holding = StockHolding.query.filter_by(
+            user_id=seller_id,
+            company_id=company_id
+        ).first()
+        
+        if seller_holding:
+            seller_holding.shares -= shares
+            if seller_holding.shares == 0:
+                db.session.delete(seller_holding)
+        
+        db.session.commit()
+        logging.info(f"更新持仓成功 - 买方:{buyer_id}, 卖方:{seller_id}, 数量:{shares}")
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"更新持仓失败: {str(e)}", exc_info=True)
+        raise 
