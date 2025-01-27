@@ -1027,29 +1027,29 @@ def cancel_order(order_id):
             return jsonify({'success': False, 'message': '订单不存在'})
         
         # 检查订单状态
-        if order.status == 2:  # 已完全成交
-            return jsonify({'success': False, 'message': '订单已完全成交，无法撤销'})
-        elif order.status == 3:  # 已撤单
-            return jsonify({'success': False, 'message': '订单已撤单'})
+        if order.status not in [0, 1]:  # 只能撤销未成交或部分成交的订单
+            return jsonify({'success': False, 'message': '订单状态不允许撤单'})
         
-        # 更新订单状态为已撤销
-        order.status = 3
+        # 计算未成交金额
+        unfilled_shares = order.shares - order.dealt_shares
+        unfilled_amount = unfilled_shares * order.price
+        
+        # 更新订单状态
+        order.status = 3  # 已撤单
         order.cancel_time = datetime.now()
         
-        # 如果是买单，退还未成交部分的冻结资金
-        unfilled_amount = 0
+        # 买单需要退还冻结资金
         if order.type == 1:  # 买单
-            unfilled_amount = (order.shares - order.dealt_shares) * order.price
             current_user.balance += unfilled_amount
+            current_user.frozen_balance -= unfilled_amount
         
         db.session.commit()
-        logging.info(f"撤单成功 - 订单ID:{order_id}, 用户:{current_user.id}")
         
         return jsonify({
             'success': True,
             'message': '撤单成功',
             'data': {
-                'unfilled_shares': order.shares - order.dealt_shares,
+                'unfilled_shares': unfilled_shares,
                 'unfilled_amount': float(unfilled_amount)
             }
         })

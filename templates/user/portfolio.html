@@ -162,6 +162,7 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}  {# 确保加载父模板的scripts #}
 <script>
     // 处理撤单
     function cancelOrder(orderIdStr) {
@@ -172,12 +173,19 @@
         
         $.post(`/trade/cancel/${orderId}`, function(response) {
             if (response.success) {
-                alert('撤单成功');
-                // 刷新页面以更新订单状态和资金
+                // 使用更友好的提示
+                const amount = response.data.unfilled_amount.toLocaleString('zh-CN', {
+                    style: 'currency',
+                    currency: 'CNY'
+                });
+                alert(`撤单成功，退还金额：${amount}`);
                 location.reload();
             } else {
                 alert(response.message || '撤单失败');
             }
+        }).fail(function(xhr, status, error) {
+            alert('网络错误，请重试');
+            console.error('撤单请求失败:', error);
         });
     }
 </script>
