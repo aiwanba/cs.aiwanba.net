@@ -1,0 +1,24 @@
+/www/wwwroot/cs.aiwanba.net/
+├── backend/
+│   ├── app.py                 # Flask应用入口
+│   ├── config.py             # 配置文件
+│   ├── gunicorn_conf.py      # Gunicorn配置
+│   ├── requirements.txt      # 依赖包列表
+│   ├── models/              # 数据模型
+│   │   ├── __init__.py
+│   │   ├── user.py         # 用户模型
+│   │   ├── company.py      # 公司模型
+│   │   ├── stock.py        # 股票模型
+│   │   └── bank.py         # 银行模型
+│   ├── routes/             # 路由
+│   │   ├── __init__.py
+│   │   ├── auth.py        # 认证相关
+│   │   ├── company.py     # 公司相关
+│   │   ├── stock.py       # 股票相关
+│   │   └── bank.py        # 银行相关
+│   └── services/          # 业务逻辑
+│       ├── __init__.py
+│       ├── company.py     # 公司服务
+│       ├── stock.py       # 股票服务
+│       └── bank.py        # 银行服务
+└── frontend/              # 前端项目先不急着建 
