@@ -90,6 +90,11 @@ const routes = [
         component: () => import('../views/bank/BankTransfer.vue')
       }
     ]
+  },
+  {
+    path: '/settings',
+    component: () => import('../views/settings/SystemSettings.vue'),
+    meta: { requiresAuth: true }
   }
 ]
 
