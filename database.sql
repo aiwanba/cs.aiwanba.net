@@ -13,6 +13,7 @@ CREATE TABLE `users` (
     `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
     `phone` VARCHAR(20) DEFAULT NULL COMMENT '手机号',
     `balance` DECIMAL(20,2) DEFAULT 0.00 COMMENT '现金余额',
+    `frozen_balance` DECIMAL(20,2) DEFAULT 0.00 COMMENT '冻结资金',
     `status` TINYINT DEFAULT 1 COMMENT '状态(0:禁用,1:正常)',
     `is_ai` TINYINT DEFAULT 0 COMMENT '是否是AI用户(0:否,1:是)',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

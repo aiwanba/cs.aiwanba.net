@@ -127,6 +127,20 @@ def match_orders(company_id):
                         deal_price = sell_order.price
                         deal_amount = deal_price * deal_shares
                         
+                        # 获取买卖双方用户
+                        buyer = db.session.get(User, buy_order.user_id)
+                        seller = db.session.get(User, sell_order.user_id)
+                        
+                        # 更新买方资金（退还多余的冻结资金）
+                        price_diff = buy_order.price - deal_price
+                        if price_diff > 0:
+                            refund = price_diff * deal_shares
+                            buyer.balance += refund
+                            buyer.frozen_balance -= refund
+                        
+                        # 更新卖方资金（增加卖出所得）
+                        seller.balance += deal_amount
+                        
                         # 创建成交记录
                         record = TradeRecord(
                             buyer_order_id=buy_order.id,
@@ -202,6 +216,7 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     phone = db.Column(db.String(20))
     balance = db.Column(db.DECIMAL(20,2), default=0.00)
+    frozen_balance = db.Column(db.DECIMAL(20,2), default=0.00)  # 冻结资金
     status = db.Column(db.Integer, default=1)
     is_ai = db.Column(db.Integer, default=0)
 
@@ -976,7 +991,8 @@ def trade_stock(code):
             
             # 冻结资金
             current_user.balance -= amount
-            
+            current_user.frozen_balance = (current_user.frozen_balance or 0) + amount
+        
         else:  # sell
             # 检查持仓
             holding = StockHolding.query.filter_by(
