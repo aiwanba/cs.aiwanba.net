@@ -9,7 +9,8 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:5010',
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/socket.io': {
         target: 'http://localhost:5010',
@@ -22,5 +23,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src')
     }
+  },
+  define: {
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'true'
   }
 }) 
