@@ -946,8 +946,7 @@ def create_company():
             return render_template('company/create.html', error='您的资金不足，无法创建公司')
         
         try:
-            # 创建公司
-            price = Decimal(str(registered_capital / total_shares))
+            # 创建公司记录
             company = Company(
                 name=name,
                 code=code,
@@ -955,48 +954,46 @@ def create_company():
                 industry=industry,
                 registered_capital=registered_capital,
                 total_shares=total_shares,
-                current_price=price,
-                market_value=price * total_shares,
-                creator_id=current_user.id,
-                status=1
+                current_price=registered_capital / total_shares,
+                market_value=registered_capital / total_shares * total_shares,
+                creator_id=current_user.id
             )
             db.session.add(company)
-            db.session.commit()
+            db.session.flush()  # 获取company.id
             
-            # 初始化股票价格记录
+            # 初始化30天的历史价格数据
             today = datetime.now().date()
-            price = StockPrice(
-                company_id=company.id,
-                date=today,
-                open=company.current_price,
-                high=company.current_price,
-                low=company.current_price,
-                close=company.current_price,
-                volume=0
-            )
-            db.session.add(price)
-            db.session.commit()
-            
-            # 扣除用户资金
-            current_user.balance -= registered_capital
+            for i in range(30):
+                date = today - timedelta(days=i)
+                price = StockPrice(
+                    company_id=company.id,
+                    date=date,
+                    open=company.current_price,
+                    high=company.current_price,
+                    low=company.current_price,
+                    close=company.current_price,
+                    volume=0
+                )
+                db.session.add(price)
             
             # 创建创始人持股记录
             holding = StockHolding(
                 user_id=current_user.id,
-                company_id=company.id,  # 现在company.id已经可用
+                company_id=company.id,
                 shares=total_shares,
                 average_cost=registered_capital / total_shares
             )
             db.session.add(holding)
             
             db.session.commit()
-            flash('公司创建成功', 'success')
-            return redirect(url_for('company_detail', code=code))
+            flash('公司创建成功！', 'success')
+            return redirect(url_for('company_detail', code=company.code))
             
         except Exception as e:
-            print(f"创建公司失败: {str(e)}")  # 添加错误日志
             db.session.rollback()
-            return render_template('company/create.html', error='创建失败，请稍后重试')
+            logging.error(f"创建公司失败: {str(e)}", exc_info=True)
+            flash('创建公司失败，请重试', 'danger')
+            return redirect(url_for('company_create'))
     
     except Exception as e:
         print(f"创建公司参数验证失败: {str(e)}")  # 添加错误日志
@@ -1268,13 +1265,32 @@ def get_stock_kline(code):
             StockPrice.date <= end_date
         ).order_by(StockPrice.date.asc()).all()
         
+        # 如果没有数据，返回默认数据
+        if not kline_data:
+            default_data = []
+            for i in range(30):
+                date = start_date + timedelta(days=i)
+                default_data.append({
+                    'categoryData': date.strftime('%Y-%m-%d'),
+                    'values': [
+                        float(company.current_price),  # 开盘价
+                        float(company.current_price),  # 收盘价
+                        float(company.current_price),  # 最低价
+                        float(company.current_price)   # 最高价
+                    ],
+                    'volumeData': 0
+                })
+            return jsonify(default_data)
+        
         return jsonify([{
-            'time': price.date.strftime('%Y-%m-%d'),
-            'open': float(price.open),
-            'high': float(price.high),
-            'low': float(price.low),
-            'close': float(price.close),
-            'volume': price.volume
+            'categoryData': price.date.strftime('%Y-%m-%d'),
+            'values': [
+                float(price.open),   # 开盘价
+                float(price.close),  # 收盘价
+                float(price.low),    # 最低价
+                float(price.high)    # 最高价
+            ],
+            'volumeData': price.volume
         } for price in kline_data])
         
     except Exception as e:

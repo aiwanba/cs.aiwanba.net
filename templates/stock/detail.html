@@ -147,6 +147,8 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <script>
+    var klineChart = null;  // 保存K线图实例
+
     // 初始化K线图
     function initKline() {
         $.get('/api/stock/{{ company.code }}/kline', function(data) {
@@ -155,7 +157,10 @@
                 return;
             }
             
-            var myChart = echarts.init(document.getElementById('kline'));
+            if (!klineChart) {
+                klineChart = echarts.init(document.getElementById('kline'));
+            }
+            
             var option = {
                 title: { text: '{{ company.name }} - K线图' },
                 tooltip: {
@@ -169,7 +174,7 @@
                 },
                 xAxis: {
                     type: 'category',
-                    data: data.map(item => item.time),
+                    data: data.map(item => item.categoryData),
                     scale: true
                 },
                 yAxis: {
@@ -195,22 +200,19 @@
                 ],
                 series: [{
                     type: 'candlestick',
-                    data: data.map(item => [
-                        item.open,
-                        item.close,
-                        item.low,
-                        item.high
-                    ])
+                    data: data.map(item => item.values)
                 }]
             };
-            myChart.setOption(option);
-           
-            // 自适应容器大小
-            window.addEventListener('resize', function() {
-                myChart.resize();
-            });
+            klineChart.setOption(option);
         });
     }
+    
+    // 自适应容器大小
+    window.addEventListener('resize', function() {
+        if (klineChart) {
+            klineChart.resize();
+        }
+    });
     
     // 更新盘口数据
     function updateOrderbook() {
@@ -265,6 +267,7 @@
         setInterval(function() {
             updateOrderbook();
             updateTrades();
+            initKline();  // 同时更新K线图
         }, 5000);  // 每5秒更新一次
     });
 </script>
