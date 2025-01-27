@@ -292,6 +292,336 @@ class SystemConfig(db.Model):
     created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
     updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
+# 定时任务装饰器
+def with_app_context(func):
+    """确保定时任务在应用上下文中运行的装饰器"""
+    def wrapper(*args, **kwargs):
+        with app.app_context():
+            return func(*args, **kwargs)
+    return wrapper
+
+# 定时任务函数定义
+@with_app_context
+def init_daily_prices():
+    """每天开盘时初始化当日价格记录"""
+    try:
+        today = datetime.now().date()
+        companies = Company.query.filter_by(status=1).all()
+        
+        for company in companies:
+            # 检查是否已有今日记录
+            exists = StockPrice.query.filter_by(
+                company_id=company.id,
+                date=today
+            ).first()
+            
+            if not exists:
+                # 创建今日价格记录
+                price = StockPrice(
+                    company_id=company.id,
+                    date=today,
+                    open=company.current_price,
+                    high=company.current_price,
+                    low=company.current_price,
+                    close=company.current_price,
+                    volume=0
+                )
+                db.session.add(price)
+        
+        db.session.commit()
+        logging.info(f"初始化{len(companies)}个公司的每日价格记录")
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"初始化每日价格记录失败: {str(e)}", exc_info=True)
+
+@with_app_context
+def ai_trading_task():
+    """AI交易任务，每5分钟执行一次"""
+    try:
+        # 获取所有启用的AI策略
+        ai_strategies = AIStrategy.query.filter_by(status=1).all()
+        
+        for ai in ai_strategies:
+            # 获取AI用户
+            ai_user = User.query.get(ai.ai_user_id)
+            
+            # 获取所有公司
+            companies = Company.query.filter_by(status=1).all()
+            
+            for company in companies:
+                # 根据策略类型计算风险系数
+                risk_factor = {
+                    1: 0.3,  # 保守型
+                    2: 0.6,  # 稳健型
+                    3: 1.0   # 激进型
+                }.get(ai.strategy_type, 0.6)
+                
+                # 根据风险等级调整交易量
+                trade_volume = int(100 * (ai.risk_level / 5) * risk_factor)
+                
+                # 检查价格是否在AI的交易范围内
+                if (ai.min_price and company.current_price < ai.min_price) or \
+                   (ai.max_price and company.current_price > ai.max_price):
+                    continue
+                
+                # 获取当前持仓
+                holding = StockHolding.query.filter_by(
+                    user_id=ai_user.id,
+                    company_id=company.id
+                ).first()
+                
+                current_position = 0
+                if holding:
+                    current_position = (holding.shares * company.current_price) / ai_user.balance * 100
+                
+                # 获取最近的价格历史
+                recent_prices = StockPrice.query.filter_by(company_id=company.id)\
+                    .order_by(StockPrice.date.desc())\
+                    .limit(5).all()
+                
+                # 计算价格趋势
+                price_trend = 0
+                if len(recent_prices) >= 5:
+                    trend = sum(1 if recent_prices[i].close > recent_prices[i+1].close else -1 
+                               for i in range(len(recent_prices)-1))
+                price_trend = trend / (len(recent_prices)-1)  # 归一化到[-1,1]
+                
+                # 根据策略类型和风险等级决定操作
+                if current_position < ai.min_position:  # 持仓不足，考虑买入
+                    # 根据趋势调整买入意愿
+                    if price_trend < -0.5 and ai.strategy_type == 1:  # 保守型在下跌趋势时不买入
+                        continue
+                    
+                    amount = min(
+                        ai_user.balance * risk_factor,  # 根据风险系数限制单次交易金额
+                        company.current_price * trade_volume
+                    )
+                    
+                    if amount >= company.current_price:
+                        # 记录交易日志
+                        log = AITradeLog(
+                            ai_id=ai.id,
+                            company_id=company.id,
+                            action='buy',
+                            reason=f'当前持仓{current_position:.2f}%低于最小持仓{ai.min_position}%，'
+                                   f'价格趋势{"上涨" if price_trend > 0 else "下跌"}，'
+                                   f'风险系数{risk_factor}'
+                        )
+                        db.session.add(log)
+                        
+                        # 执行买入操作
+                        shares_to_buy = int(amount / company.current_price)
+                        if not holding:
+                            holding = StockHolding(
+                                user_id=ai_user.id,
+                                company_id=company.id,
+                                shares=0,
+                                average_cost=0
+                            )
+                            db.session.add(holding)
+                        
+                        # 更新持仓
+                        total_cost = holding.shares * holding.average_cost + shares_to_buy * company.current_price
+                        holding.shares += shares_to_buy
+                        holding.average_cost = total_cost / holding.shares
+                        
+                        # 扣除资金
+                        ai_user.balance -= Decimal(shares_to_buy * float(company.current_price))
+                        
+                elif current_position > ai.max_position:  # 持仓过高，考虑卖出
+                    if holding and holding.shares > 0:
+                        # 根据趋势调整卖出意愿
+                        if price_trend > 0.5 and ai.strategy_type == 1:  # 保守型在上涨趋势时不卖出
+                            continue
+                        
+                        # 计算卖出数量
+                        shares_to_sell = min(
+                            holding.shares,
+                            int(trade_volume * (1 + abs(price_trend)))  # 跌得越多卖得越多
+                        )
+                        
+                        # 记录交易日志
+                        log = AITradeLog(
+                            ai_id=ai.id,
+                            company_id=company.id,
+                            action='sell',
+                            reason=f'当前持仓{current_position:.2f}%超过最大持仓{ai.max_position}%，'
+                                   f'价格趋势{"上涨" if price_trend > 0 else "下跌"}，'
+                                   f'风险系数{risk_factor}'
+                        )
+                        db.session.add(log)
+                        
+                        # 执行卖出操作
+                        holding.shares -= shares_to_sell
+                        
+                        # 增加资金
+                        ai_user.balance += Decimal(shares_to_sell * float(company.current_price))
+                        
+                        # 如果全部卖出，删除持仓记录
+                        if holding.shares == 0:
+                            db.session.delete(holding)
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"AI交易失败: {str(e)}", exc_info=True)
+
+@with_app_context
+def generate_news():
+    """新闻生成任务，每小时执行一次"""
+    try:
+        # 获取所有活跃公司
+        companies = Company.query.filter_by(status=1).all()
+        
+        for company in companies:
+            # 获取公司最近的交易数据
+            recent_prices = StockPrice.query.filter_by(company_id=company.id)\
+                .order_by(StockPrice.date.desc())\
+                .limit(2)\
+                .all()
+            
+            if len(recent_prices) < 2:
+                continue
+            
+            # 计算涨跌幅
+            price_change = (float(recent_prices[0].close) - float(recent_prices[1].close)) / float(recent_prices[1].close) * 100
+            
+            # 根据涨跌幅生成新闻
+            if abs(price_change) >= 5:  # 涨跌幅超过5%
+                title = f"{company.name}股价大{('涨' if price_change > 0 else '跌')}，单日涨幅达{abs(price_change):.2f}%"
+                content = f"""
+                今日，{company.name}（{company.code}）股价出现大幅波动，
+                收盘价为{recent_prices[0].close}元，较前一交易日{('上涨' if price_change > 0 else '下跌')}{abs(price_change):.2f}%。
+                成交量为{recent_prices[0].volume}股，市值达到{company.market_value}元。
+                """
+                
+                news = News(
+                    title=title,
+                    content=content,
+                    type=3,  # 市场动态
+                    company_id=company.id,
+                    impact_score=min(5, int(abs(price_change) / 2)),
+                    status=1
+                )
+                db.session.add(news)
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"生成新闻失败: {str(e)}")
+
+@with_app_context
+def calculate_deposit_interest():
+    """计算存款利息，每天执行一次"""
+    try:
+        deposits = DepositAccount.query.filter_by(status=1).all()
+        
+        for deposit in deposits:
+            # 计算日利率
+            daily_rate = float(deposit.interest_rate) / 100 / 365
+            
+            # 计算利息
+            interest = float(deposit.amount) * daily_rate
+            
+            # 活期存款直接加入余额
+            if deposit.type == '活期':
+                user = db.session.get(User, deposit.user_id)
+                user.balance = float(user.balance) + interest
+                
+            # 定期存款到期处理
+            elif deposit.end_date and deposit.end_date <= datetime.now().date():
+                user = db.session.get(User, deposit.user_id)
+                total_interest = float(deposit.amount) * float(deposit.interest_rate) / 100 * \
+                    ((deposit.end_date - deposit.start_date).days / 365)
+                
+                user.balance = float(user.balance) + float(deposit.amount) + total_interest
+                deposit.status = 2  # 已提前支取
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"计算存款利息失败: {str(e)}")
+
+@with_app_context
+def process_loan_payment():
+    """处理贷款还款，每月执行一次"""
+    try:
+        loans = LoanAccount.query.filter_by(status=2).all()  # 已放款的贷款
+        
+        for loan in loans:
+            user = db.session.get(User, loan.user_id)
+            
+            # 如果余额足够还款
+            if float(user.balance) >= float(loan.monthly_payment):
+                user.balance = float(user.balance) - float(loan.monthly_payment)
+                loan.remaining_amount = float(loan.remaining_amount) - \
+                    (float(loan.monthly_payment) - float(loan.monthly_payment) * \
+                    float(loan.interest_rate) / 100 / 12)
+                
+                # 判断是否已还清
+                if float(loan.remaining_amount) <= 0:
+                    loan.status = 3  # 已还清
+            else:
+                # TODO: 处理逾期
+                pass
+        
+        db.session.commit()
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"处理贷款还款失败: {str(e)}")
+
+# 初始化定时任务
+def init_scheduler():
+    """初始化定时任务"""
+    with app.app_context():
+        # AI交易（每5分钟执行一次）
+        scheduler.add_job(
+            ai_trading_task,
+            trigger=CronTrigger(minute='*/5'),
+            id='ai_trading',
+            replace_existing=True
+        )
+        
+        # 新闻生成（每小时执行一次）
+        scheduler.add_job(
+            generate_news,
+            trigger=CronTrigger(minute='0'),
+            id='generate_news',
+            replace_existing=True
+        )
+        
+        # 计算存款利息（每天0点执行）
+        scheduler.add_job(
+            calculate_deposit_interest,
+            trigger=CronTrigger(hour='0'),
+            id='calculate_interest',
+            replace_existing=True
+        )
+        
+        # 处理贷款还款（每月1号0点执行）
+        scheduler.add_job(
+            process_loan_payment,
+            trigger=CronTrigger(day='1', hour='0'),
+            id='loan_payment',
+            replace_existing=True
+        )
+        
+        # 每天开盘时初始化当日价格记录
+        scheduler.add_job(
+            init_daily_prices,
+            trigger=CronTrigger(hour=9, minute=30),
+            id='init_daily_prices',
+            replace_existing=True
+        )
+        
+        # 启动调度器
+        scheduler.start()
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -400,6 +730,7 @@ def create_company():
         
         try:
             # 创建公司
+            price = Decimal(str(registered_capital / total_shares))
             company = Company(
                 name=name,
                 code=code,
@@ -407,12 +738,39 @@ def create_company():
                 industry=industry,
                 registered_capital=registered_capital,
                 total_shares=total_shares,
-                current_price=Decimal(str(registered_capital / total_shares)),
-                market_value=registered_capital,
-                creator_id=current_user.id
+                current_price=price,
+                market_value=price * total_shares,
+                creator_id=current_user.id,
+                status=1
             )
             db.session.add(company)
-            db.session.flush()  # 立即获取company.id
+            db.session.commit()
+            
+            # 创建第一天的价格记录
+            today = datetime.now().date()
+            initial_price = StockPrice(
+                company_id=company.id,
+                date=today,
+                open=price,
+                high=price,
+                low=price,
+                close=price,
+                volume=0
+            )
+            db.session.add(initial_price)
+            
+            # 创建昨日的价格记录，用于计算涨跌幅
+            yesterday = today - timedelta(days=1)
+            yesterday_price = StockPrice(
+                company_id=company.id,
+                date=yesterday,
+                open=price,
+                high=price,
+                low=price,
+                close=price,
+                volume=0
+            )
+            db.session.add(yesterday_price)
             
             # 扣除用户资金
             current_user.balance -= registered_capital
@@ -427,6 +785,7 @@ def create_company():
             db.session.add(holding)
             
             db.session.commit()
+            flash('公司创建成功', 'success')
             return redirect(url_for('company_detail', code=code))
             
         except Exception as e:
@@ -515,6 +874,36 @@ def trade_stock(code):
                 db.session.add(holding)
                 logging.debug("创建新持仓记录")
             
+            # 更新公司信息
+            company.current_price = price
+            company.market_value = company.current_price * company.total_shares
+            
+            # 记录今日成交量
+            today = datetime.now().date()
+            stock_price = StockPrice.query.filter_by(
+                company_id=company.id,
+                date=today
+            ).first()
+            
+            if stock_price:
+                stock_price.volume += quantity
+                stock_price.close = price
+                if price > stock_price.high:
+                    stock_price.high = price
+                if price < stock_price.low:
+                    stock_price.low = price
+            else:
+                stock_price = StockPrice(
+                    company_id=company.id,
+                    date=today,
+                    open=price,
+                    high=price,
+                    low=price,
+                    close=price,
+                    volume=quantity
+                )
+                db.session.add(stock_price)
+            
             # 确保提交事务
             db.session.commit()
         
@@ -571,7 +960,7 @@ def trade_stock(code):
     except Exception as e:
         db.session.rollback()
         logging.error(f"交易失败: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'message': '交易失败：' + str(e)})
+        return jsonify({'success': False, 'message': f'交易失败: {str(e)}'})
 
 def match_orders(company_id):
     """撮合交易"""
@@ -680,13 +1069,30 @@ def market():
     
     # 计算涨跌幅
     for stock in stocks:
-        # 获取昨日收盘价（这里简化处理，使用当前价格）
-        # TODO: 实现历史价格记录
-        yesterday_price = stock.current_price
+        today = datetime.now().date()
+        yesterday = today - timedelta(days=1)
         
-        stock.price_change = stock.current_price - yesterday_price
-        stock.price_change_percent = (stock.price_change / yesterday_price * 100) if yesterday_price > 0 else 0
-        stock.volume = 0  # TODO: 实现成交量统计
+        # 获取今日价格数据
+        today_price = StockPrice.query.filter_by(
+            company_id=stock.id,
+            date=today
+        ).first()
+        
+        # 获取昨日收盘价
+        yesterday_price = StockPrice.query.filter_by(
+            company_id=stock.id,
+            date=yesterday
+        ).first()
+        
+        if yesterday_price:
+            stock.price_change = stock.current_price - yesterday_price.close
+            stock.price_change_percent = (stock.price_change / yesterday_price.close * 100)
+        else:
+            stock.price_change = 0
+            stock.price_change_percent = 0
+            
+        # 获取今日成交量
+        stock.volume = today_price.volume if today_price else 0
     
     return render_template('market/index.html', stocks=stocks)
 
@@ -694,14 +1100,39 @@ def market():
 @app.route('/api/market/stocks')
 def get_market_stocks():
     stocks = Company.query.filter_by(status=1).all()
-    return jsonify([{
-        'code': stock.code,
-        'current_price': float(stock.current_price),
-        'price_change': 0,  # TODO: 实现价格变动计算
-        'price_change_percent': 0,
-        'volume': 0,
-        'market_value': float(stock.market_value)
-    } for stock in stocks])
+    today = datetime.now().date()
+    yesterday = today - timedelta(days=1)
+    
+    result = []
+    for stock in stocks:
+        # 获取今日价格数据
+        today_price = StockPrice.query.filter_by(
+            company_id=stock.id,
+            date=today
+        ).first()
+        
+        # 获取昨日收盘价
+        yesterday_price = StockPrice.query.filter_by(
+            company_id=stock.id,
+            date=yesterday
+        ).first()
+        
+        price_change = 0
+        price_change_percent = 0
+        if yesterday_price:
+            price_change = stock.current_price - yesterday_price.close
+            price_change_percent = (price_change / yesterday_price.close * 100)
+            
+        result.append({
+            'code': stock.code,
+            'current_price': float(stock.current_price),
+            'price_change': float(price_change),
+            'price_change_percent': float(price_change_percent),
+            'volume': today_price.volume if today_price else 0,
+            'market_value': float(stock.market_value)
+        })
+    
+    return jsonify(result)
 
 # 路由：个人资产
 @app.route('/portfolio')
@@ -775,259 +1206,6 @@ def get_stock_kline(code):
         'close': float(price.close),
         'volume': price.volume
     } for price in prices])
-
-# 修复定时任务的应用上下文问题
-def with_app_context(func):
-    def wrapper(*args, **kwargs):
-        with app.app_context():
-            return func(*args, **kwargs)
-    return wrapper
-
-# AI交易策略
-def ai_trading_strategy(ai_player):
-    """AI交易策略"""
-    # 获取所有上市公司
-    companies = Company.query.filter_by(status=1).all()
-    
-    for company in companies:
-        # 获取公司最近的K线数据
-        prices = StockPrice.query.filter_by(company_id=company.id)\
-            .order_by(StockPrice.date.desc())\
-            .limit(30)\
-            .all()
-        
-        if len(prices) < 30:
-            continue
-            
-        # 计算技术指标
-        closes = [float(price.close) for price in prices]
-        volumes = [price.volume for price in prices]
-        
-        # 5日均线
-        ma5 = sum(closes[:5]) / 5
-        # 10日均线
-        ma10 = sum(closes[:10]) / 10
-        # 当前价格
-        current_price = closes[0]
-        
-        # 获取AI当前持仓
-        holding = StockHolding.query.filter_by(
-            user_id=ai_player.ai_user_id,
-            company_id=company.id
-        ).first()
-        
-        # 交易信号判断
-        if ai_player.strategy_type == 1:
-            # 保守策略：金叉买入，死叉卖出
-            if ma5 > ma10 and not holding:  # 金叉
-                create_ai_order(ai_player, company, 'buy', '金叉买入信号')
-            elif ma5 < ma10 and holding:  # 死叉
-                create_ai_order(ai_player, company, 'sell', '死叉卖出信号')
-                
-        elif ai_player.strategy_type == 3:
-            # 激进策略：放量上涨买入，放量下跌卖出
-            volume_ratio = volumes[0] / sum(volumes[1:6]) * 5  # 当前成交量/5日平均成交量
-            price_change = (closes[0] - closes[1]) / closes[1] * 100  # 价格涨跌幅
-            
-            if volume_ratio > 2 and price_change > 5 and not holding:  # 放量上涨
-                create_ai_order(ai_player, company, 'buy', '放量上涨买入信号')
-            elif volume_ratio > 2 and price_change < -5 and holding:  # 放量下跌
-                create_ai_order(ai_player, company, 'sell', '放量下跌卖出信号')
-                
-        else:  # 均衡策略
-            # 均衡策略：结合均线和成交量
-            volume_ratio = volumes[0] / sum(volumes[1:6]) * 5
-            
-            if ma5 > ma10 and volume_ratio > 1.5 and not holding:
-                create_ai_order(ai_player, company, 'buy', '均线金叉+放量买入信号')
-            elif ma5 < ma10 and volume_ratio > 1.5 and holding:
-                create_ai_order(ai_player, company, 'sell', '均线死叉+放量卖出信号')
-
-def create_ai_order(ai_player, company, action, reason):
-    """创建AI交易订单"""
-    try:
-        # 记录交易日志
-        log = AITradeLog(
-            ai_id=ai_player.id,
-            company_id=company.id,
-            action=action,
-            reason=reason
-        )
-        db.session.add(log)
-        
-        # 获取用户信息
-        user = User.query.get(ai_player.ai_user_id)
-        
-        if action == 'buy':
-            # 计算可买数量
-            available_money = user.balance * (ai_player.position_limit / 100)
-            shares = int(available_money / company.current_price / 100) * 100
-            
-            if shares >= 100:  # 最小100股
-                order = TradeOrder(
-                    user_id=user.id,
-                    company_id=company.id,
-                    type=1,  # 买入
-                    price=company.current_price,
-                    shares=shares
-                )
-                db.session.add(order)
-                
-        else:  # sell
-            holding = StockHolding.query.filter_by(
-                user_id=user.id,
-                company_id=company.id
-            ).first()
-            
-            if holding:
-                order = TradeOrder(
-                    user_id=user.id,
-                    company_id=company.id,
-                    type=2,  # 卖出
-                    price=company.current_price,
-                    shares=holding.shares
-                )
-                db.session.add(order)
-        
-        db.session.commit()
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"AI交易失败: {str(e)}")
-
-# 使用装饰器包装定时任务
-@with_app_context
-def ai_trading_task():
-    """AI交易任务，每5分钟执行一次"""
-    try:
-        # 获取所有启用的AI策略
-        ai_strategies = AIStrategy.query.filter_by(status=1).all()
-        
-        for ai in ai_strategies:
-            # 获取AI用户
-            ai_user = User.query.get(ai.ai_user_id)
-            
-            # 获取所有公司
-            companies = Company.query.filter_by(status=1).all()
-            
-            for company in companies:
-                # 根据策略类型计算风险系数
-                risk_factor = {
-                    1: 0.3,  # 保守型
-                    2: 0.6,  # 稳健型
-                    3: 1.0   # 激进型
-                }.get(ai.strategy_type, 0.6)
-                
-                # 根据风险等级调整交易量
-                trade_volume = int(100 * (ai.risk_level / 5) * risk_factor)
-                
-                # 检查价格是否在AI的交易范围内
-                if (ai.min_price and company.current_price < ai.min_price) or \
-                   (ai.max_price and company.current_price > ai.max_price):
-                    continue
-                
-                # 获取当前持仓
-                holding = StockHolding.query.filter_by(
-                    user_id=ai_user.id,
-                    company_id=company.id
-                ).first()
-                
-                current_position = 0
-                if holding:
-                    current_position = (holding.shares * company.current_price) / ai_user.balance * 100
-                
-                # 获取最近的价格历史
-                recent_prices = StockPrice.query.filter_by(company_id=company.id)\
-                    .order_by(StockPrice.date.desc())\
-                    .limit(5).all()
-                
-                # 计算价格趋势
-                price_trend = 0
-                if len(recent_prices) >= 5:
-                    trend = sum(1 if recent_prices[i].close > recent_prices[i+1].close else -1 
-                               for i in range(len(recent_prices)-1))
-                    price_trend = trend / (len(recent_prices)-1)  # 归一化到[-1,1]
-                
-                # 根据策略类型和风险等级决定操作
-                if current_position < ai.min_position:  # 持仓不足，考虑买入
-                    # 根据趋势调整买入意愿
-                    if price_trend < -0.5 and ai.strategy_type == 1:  # 保守型在下跌趋势时不买入
-                        continue
-                    
-                    amount = min(
-                        ai_user.balance * risk_factor,  # 根据风险系数限制单次交易金额
-                        company.current_price * trade_volume
-                    )
-                    
-                    if amount >= company.current_price:
-                        # 记录交易日志
-                        log = AITradeLog(
-                            ai_id=ai.id,
-                            company_id=company.id,
-                            action='buy',
-                            reason=f'当前持仓{current_position:.2f}%低于最小持仓{ai.min_position}%，'
-                                   f'价格趋势{"上涨" if price_trend > 0 else "下跌"}，'
-                                   f'风险系数{risk_factor}'
-                        )
-                        db.session.add(log)
-                        
-                        # 执行买入操作
-                        shares_to_buy = int(amount / company.current_price)
-                        if not holding:
-                            holding = StockHolding(
-                                user_id=ai_user.id,
-                                company_id=company.id,
-                                shares=0,
-                                average_cost=0
-                            )
-                            db.session.add(holding)
-                        
-                        # 更新持仓
-                        total_cost = holding.shares * holding.average_cost + shares_to_buy * company.current_price
-                        holding.shares += shares_to_buy
-                        holding.average_cost = total_cost / holding.shares
-                        
-                        # 扣除资金
-                        ai_user.balance -= Decimal(shares_to_buy * float(company.current_price))
-                        
-                elif current_position > ai.max_position:  # 持仓过高，考虑卖出
-                    if holding and holding.shares > 0:
-                        # 根据趋势调整卖出意愿
-                        if price_trend > 0.5 and ai.strategy_type == 1:  # 保守型在上涨趋势时不卖出
-                            continue
-                        
-                        # 计算卖出数量
-                        shares_to_sell = min(
-                            holding.shares,
-                            int(trade_volume * (1 + abs(price_trend)))  # 跌得越多卖得越多
-                        )
-                        
-                        # 记录交易日志
-                        log = AITradeLog(
-                            ai_id=ai.id,
-                            company_id=company.id,
-                            action='sell',
-                            reason=f'当前持仓{current_position:.2f}%超过最大持仓{ai.max_position}%，'
-                                   f'价格趋势{"上涨" if price_trend > 0 else "下跌"}，'
-                                   f'风险系数{risk_factor}'
-                        )
-                        db.session.add(log)
-                        
-                        # 执行卖出操作
-                        holding.shares -= shares_to_sell
-                        
-                        # 增加资金
-                        ai_user.balance += Decimal(shares_to_sell * float(company.current_price))
-                        
-                        # 如果全部卖出，删除持仓记录
-                        if holding.shares == 0:
-                            db.session.delete(holding)
-        
-        db.session.commit()
-        
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"AI交易失败: {str(e)}", exc_info=True)
 
 # 路由：AI玩家管理
 @app.route('/ai')
@@ -1257,156 +1435,6 @@ def add_comment(news_id):
     db.session.commit()
     
     return jsonify({'success': True})
-
-# 使用装饰器包装定时任务
-@with_app_context
-def generate_news():
-    """定时生成新闻"""
-    try:
-        # 获取所有活跃公司
-        companies = Company.query.filter_by(status=1).all()
-        
-        for company in companies:
-            # 获取公司最近的交易数据
-            recent_prices = StockPrice.query.filter_by(company_id=company.id)\
-                .order_by(StockPrice.date.desc())\
-                .limit(2)\
-                .all()
-            
-            if len(recent_prices) < 2:
-                continue
-            
-            # 计算涨跌幅
-            price_change = (float(recent_prices[0].close) - float(recent_prices[1].close)) / float(recent_prices[1].close) * 100
-            
-            # 根据涨跌幅生成新闻
-            if abs(price_change) >= 5:  # 涨跌幅超过5%
-                title = f"{company.name}股价大{('涨' if price_change > 0 else '跌')}，单日涨幅达{abs(price_change):.2f}%"
-                content = f"""
-                今日，{company.name}（{company.code}）股价出现大幅波动，
-                收盘价为{recent_prices[0].close}元，较前一交易日{('上涨' if price_change > 0 else '下跌')}{abs(price_change):.2f}%。
-                成交量为{recent_prices[0].volume}股，市值达到{company.market_value}元。
-                """
-                
-                news = News(
-                    title=title,
-                    content=content,
-                    type=3,  # 市场动态
-                    company_id=company.id,
-                    impact_score=min(5, int(abs(price_change) / 2)),
-                    status=1
-                )
-                db.session.add(news)
-        
-        db.session.commit()
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"生成新闻失败: {str(e)}")
-
-# 计算存款利息
-@with_app_context
-def calculate_deposit_interest():
-    """计算存款利息（每天执行）"""
-    try:
-        deposits = DepositAccount.query.filter_by(status=1).all()
-        
-        for deposit in deposits:
-            # 计算日利率
-            daily_rate = float(deposit.interest_rate) / 100 / 365
-            
-            # 计算利息
-            interest = float(deposit.amount) * daily_rate
-            
-            # 活期存款直接加入余额
-            if deposit.type == '活期':
-                user = db.session.get(User, deposit.user_id)
-                user.balance = float(user.balance) + interest
-                
-            # 定期存款到期处理
-            elif deposit.end_date and deposit.end_date <= datetime.now().date():
-                user = db.session.get(User, deposit.user_id)
-                total_interest = float(deposit.amount) * float(deposit.interest_rate) / 100 * \
-                    ((deposit.end_date - deposit.start_date).days / 365)
-                
-                user.balance = float(user.balance) + float(deposit.amount) + total_interest
-                deposit.status = 2  # 已提前支取
-        
-        db.session.commit()
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"计算存款利息失败: {str(e)}")
-
-# 处理贷款还款
-@with_app_context
-def process_loan_payment():
-    """处理贷款还款（每月1号执行）"""
-    try:
-        loans = LoanAccount.query.filter_by(status=2).all()  # 已放款的贷款
-        
-        for loan in loans:
-            user = db.session.get(User, loan.user_id)
-            
-            # 如果余额足够还款
-            if float(user.balance) >= float(loan.monthly_payment):
-                user.balance = float(user.balance) - float(loan.monthly_payment)
-                loan.remaining_amount = float(loan.remaining_amount) - \
-                    (float(loan.monthly_payment) - float(loan.monthly_payment) * \
-                    float(loan.interest_rate) / 100 / 12)
-                
-                # 判断是否已还清
-                if float(loan.remaining_amount) <= 0:
-                    loan.status = 3  # 已还清
-            else:
-                # TODO: 处理逾期
-                pass
-        
-        db.session.commit()
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"处理贷款还款失败: {str(e)}")
-
-# 添加定时任务
-def init_scheduler():
-    """初始化定时任务"""
-    # 确保在应用上下文中运行
-    with app.app_context():
-        # AI交易（每5分钟执行一次）
-        scheduler.add_job(
-            ai_trading_task,
-            trigger=CronTrigger(minute='*/5'),
-            id='ai_trading',
-            replace_existing=True
-        )
-        
-        # 新闻生成（每小时执行一次）
-        scheduler.add_job(
-            generate_news,
-            trigger=CronTrigger(minute='0'),
-            id='generate_news',
-            replace_existing=True
-        )
-        
-        # 计算存款利息（每天0点执行）
-        scheduler.add_job(
-            calculate_deposit_interest,
-            trigger=CronTrigger(hour='0'),
-            id='calculate_interest',
-            replace_existing=True
-        )
-        
-        # 处理贷款还款（每月1号0点执行）
-        scheduler.add_job(
-            process_loan_payment,
-            trigger=CronTrigger(day='1', hour='0'),
-            id='loan_payment',
-            replace_existing=True
-        )
-        
-        # 启动调度器
-        scheduler.start()
 
 # 在应用启动时初始化定时任务
 if __name__ == '__main__':
