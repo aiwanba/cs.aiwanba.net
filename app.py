@@ -1028,37 +1028,42 @@ def trade_stock(code):
 @login_required
 def cancel_order(order_id):
     try:
-        order = TradeOrder.query.get_or_404(order_id)
+        order = TradeOrder.query.filter_by(
+            id=order_id,
+            user_id=current_user.id  # 确保是当前用户的订单
+        ).first()
         
-        # 验证订单所有者
-        if order.user_id != current_user.id:
-            return jsonify({'success': False, 'message': '无权操作此订单'})
+        if not order:
+            return jsonify({'success': False, 'message': '订单不存在'})
         
         # 检查订单状态
-        if order.status == 2:
-            return jsonify({'success': False, 'message': '订单已完全成交，无法撤单'})
-        if order.status == 3:
-            return jsonify({'success': False, 'message': '订单已撤单'})
-            
-        # 计算未成交金额
-        remaining_shares = order.shares - order.dealt_shares
-        remaining_amount = order.price * remaining_shares
+        if order.status == 2:  # 已完全成交
+            return jsonify({'success': False, 'message': '订单已完全成交，无法撤销'})
         
-        # 买单退还冻结资金
-        if order.type == 1:
-            current_user.balance += remaining_amount
+        # 更新订单状态为已撤销
+        order.status = 3  # 3表示已撤销
         
-        # 更新订单状态
-        order.status = 3  # 已撤单
-        order.cancel_time = datetime.now()
+        # 如果是买单，退还未成交部分的冻结资金
+        if order.type == 1:  # 买单
+            unfilled_amount = (order.shares - order.dealt_shares) * order.price
+            current_user.balance += unfilled_amount
         
         db.session.commit()
-        return jsonify({'success': True, 'message': '撤单成功'})
+        logging.info(f"撤单成功 - 订单ID:{order_id}, 用户:{current_user.id}")
+        
+        return jsonify({
+            'success': True,
+            'message': '撤单成功',
+            'data': {
+                'unfilled_shares': order.shares - order.dealt_shares,
+                'unfilled_amount': float(unfilled_amount) if order.type == 1 else 0
+            }
+        })
         
     except Exception as e:
         db.session.rollback()
         logging.error(f"撤单失败: {str(e)}", exc_info=True)
-        return jsonify({'success': False, 'message': '撤单失败'})
+        return jsonify({'success': False, 'message': f'撤单失败: {str(e)}'})
 
 # 路由：交易大厅
 @app.route('/market')
