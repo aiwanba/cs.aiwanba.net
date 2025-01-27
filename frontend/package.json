@@ -1,0 +1,23 @@
+{
+  "name": "stock-trading-game",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "serve": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.2.0",
+    "vue-router": "^4.0.0",
+    "vuex": "^4.0.0",
+    "element-plus": "^2.0.0",
+    "axios": "^0.21.1",
+    "echarts": "^5.0.0",
+    "socket.io-client": "^4.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^1.2.3",
+    "vite": "^2.3.7"
+  }
+} 
