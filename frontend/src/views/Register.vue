@@ -53,43 +53,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
-import { authService } from '../services/auth'
+import auth from '../services/auth'
 
 const router = useRouter()
+
 const formRef = ref(null)
 const loading = ref(false)
 
-const form = ref({
+const form = reactive({
   username: '',
   email: '',
   password: '',
   confirmPassword: ''
 })
-
-const validatePass = (rule, value, callback) => {
-  if (value === '') {
-    callback(new Error('请输入密码'))
-  } else {
-    if (form.value.confirmPassword !== '') {
-      formRef.value?.validateField('confirmPassword')
-    }
-    callback()
-  }
-}
-
-const validatePass2 = (rule, value, callback) => {
-  if (value === '') {
-    callback(new Error('请再次输入密码'))
-  } else if (value !== form.value.password) {
-    callback(new Error('两次输入密码不一致!'))
-  } else {
-    callback()
-  }
-}
 
 const rules = {
   username: [
@@ -101,11 +81,21 @@ const rules = {
     { type: 'email', message: '请输入正确的邮箱地址', trigger: 'blur' }
   ],
   password: [
-    { required: true, validator: validatePass, trigger: 'blur' },
-    { min: 6, message: '密码长度不能小于6位', trigger: 'blur' }
+    { required: true, message: '请输入密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能小于 6 个字符', trigger: 'blur' }
   ],
   confirmPassword: [
-    { required: true, validator: validatePass2, trigger: 'blur' }
+    { required: true, message: '请再次输入密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== form.password) {
+          callback(new Error('两次输入密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
   ]
 }
 
@@ -116,15 +106,18 @@ const handleRegister = async () => {
     await formRef.value.validate()
     loading.value = true
     
-    await authService.register({
-      username: form.value.username,
-      email: form.value.email,
-      password: form.value.password
+    await auth.register({
+      username: form.username,
+      email: form.email,
+      password: form.password
     })
+    
     ElMessage.success('注册成功')
     router.push('/login')
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '注册失败')
+    if (error.response?.data?.message) {
+      ElMessage.error(error.response.data.message)
+    }
   } finally {
     loading.value = false
   }

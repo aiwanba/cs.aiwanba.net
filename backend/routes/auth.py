@@ -1,4 +1,6 @@
 from flask import jsonify, request
+from werkzeug.security import generate_password_hash
+from decimal import Decimal
 from . import auth_bp
 from models import User
 from extensions import db
@@ -9,39 +11,53 @@ def register():
     try:
         data = request.get_json()
         
-        # 验证必要字段
-        if not all(k in data for k in ('username', 'email', 'password')):
-            return jsonify({'error': '缺少必要字段'}), 400
+        # 数据验证
+        if not all(key in data for key in ['username', 'email', 'password']):
+            return jsonify({'message': '缺少必要字段'}), 400
+            
+        username = data['username']
+        email = data['email']
+        password = data['password']
+        
+        # 验证用户名长度
+        if len(username) < 3 or len(username) > 20:
+            return jsonify({'message': '用户名长度必须在3-20个字符之间'}), 400
+            
+        # 验证密码长度
+        if len(password) < 6:
+            return jsonify({'message': '密码长度不能小于6个字符'}), 400
             
         # 检查用户名是否已存在
-        if User.query.filter_by(username=data['username']).first():
-            return jsonify({'error': '用户名已存在'}), 400
+        if User.query.filter_by(username=username).first():
+            return jsonify({'message': '用户名已存在'}), 400
             
         # 检查邮箱是否已存在
-        if User.query.filter_by(email=data['email']).first():
-            return jsonify({'error': '邮箱已被注册'}), 400
+        if User.query.filter_by(email=email).first():
+            return jsonify({'message': '邮箱已被注册'}), 400
         
+        # 创建新用户
         user = User(
-            username=data['username'],
-            email=data['email'],
-            password=data['password']
+            username=username,
+            email=email,
+            balance=Decimal('1000000')  # 初始资金 100 万
         )
+        user.set_password(password)
+        
         db.session.add(user)
         db.session.commit()
         
         return jsonify({
             'message': '注册成功',
-            'user': {
+            'data': {
                 'id': user.id,
                 'username': user.username,
                 'email': user.email
             }
-        }), 201
-            
+        })
+        
     except Exception as e:
         db.session.rollback()
-        print(f"注册失败: {str(e)}")  # 添加错误日志
-        return jsonify({'error': '注册失败'}), 500
+        return jsonify({'message': str(e)}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
