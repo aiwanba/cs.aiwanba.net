@@ -1,7 +1,7 @@
 from models import Bank, BankAccount, BankTransaction, User
-from app import db
+from extensions import db
 from decimal import Decimal
-from services import WebSocketService
+from services.websocket import WebSocketService
 
 class BankService:
     @staticmethod
