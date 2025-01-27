@@ -9,16 +9,4 @@ def init_db(app):
     
     with app.app_context():
         # 创建所有表
-        db.create_all()
-        
-        # 检查是否需要创建初始用户
-        if not User.query.first():
-            # 创建测试用户
-            test_user = User(
-                username='test',
-                email='test@example.com',
-                password='123456'
-            )
-            test_user.balance = 1000000  # 初始资金 100 万
-            db.session.add(test_user)
-            db.session.commit() 
+        db.create_all() 
