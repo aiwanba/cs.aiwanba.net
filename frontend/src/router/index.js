@@ -56,6 +56,28 @@ const routes = [
         path: 'market',
         name: 'StockMarket',
         component: () => import('../views/stock/StockMarket.vue')
+      },
+      {
+        path: 'positions',
+        name: 'StockPositions',
+        component: () => import('../views/stock/StockPositions.vue')
+      },
+      {
+        path: 'orders',
+        name: 'StockOrders',
+        component: () => import('../views/stock/StockOrders.vue')
+      }
+    ]
+  },
+  {
+    path: '/bank',
+    component: () => import('../views/bank/BankLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'accounts',
+        name: 'BankAccounts',
+        component: () => import('../views/bank/BankAccounts.vue')
       }
     ]
   }
