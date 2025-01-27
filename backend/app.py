@@ -2,17 +2,8 @@ import pymysql
 pymysql.install_as_MySQLdb()
 
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-from flask_caching import Cache
-from flask_cors import CORS
-from flask_socketio import SocketIO
 from config import config
-from services.scheduler import init_scheduler
-
-# 初始化扩展
-db = SQLAlchemy()
-cache = Cache()
-socketio = SocketIO()
+from extensions import db, cache, cors, socketio
 
 def create_app(config_name='default'):
     app = Flask(__name__)
@@ -23,7 +14,7 @@ def create_app(config_name='default'):
     # 初始化扩展
     db.init_app(app)
     cache.init_app(app)
-    CORS(app)
+    cors.init_app(app)
     socketio.init_app(app, cors_allowed_origins="*")
     
     # 注册蓝图
@@ -32,9 +23,6 @@ def create_app(config_name='default'):
     app.register_blueprint(company_bp, url_prefix='/api/company')
     app.register_blueprint(stock_bp, url_prefix='/api/stock')
     app.register_blueprint(bank_bp, url_prefix='/api/bank')
-    
-    # 初始化定时任务
-    init_scheduler()
     
     return app
 
