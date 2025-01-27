@@ -68,4 +68,47 @@
 - 日志级别: info
 
 
+## 3. 技术栈配置
+### 3.1 后端技术栈
+- **主框架**: Flask 2.0+ (提供RESTful API)
+- **ORM框架**: SQLAlchemy 2.0+
+- **数据库**: MySQL 5.7.40
+- **缓存系统**: Flask-Caching (使用 SimpleCache 后端)
+- **WebSocket**: Flask-SocketIO
+- **跨域处理**: Flask-CORS
+
+### 3.2 前端技术栈
+- **框架**: Vue.js 3.0+ (独立部署)
+- **UI组件库**: Element Plus
+- **图表库**: ECharts 5.0+
+- **构建工具**: Vite (用于前端打包)
+
+### 3.3 开发工具
+- **IDE**: VSCode
+- **版本控制**: Git
+- **数据库工具**: phpMyAdmin 5.2.1  
+- **代码规范**: 
+  - Python: PEP 8
+  - JavaScript: ESLint
+
+### 3.4 部署相关
+- **Web服务器**: Nginx (同时用于前端静态文件和后端反向代理)
+- **应用服务器**: Gunicorn
+- **进程管理**: Supervisor
+
+### 3.5 项目结构
+```
+project/
+├── backend/          # Flask后端项目
+│   ├── app.py
+│   ├── models/
+│   ├── routes/
+│   └── services/
+└── frontend/         # Vue前端项目
+    ├── src/
+    ├── public/
+    └── index.html
+```
+
+
 
