@@ -15,7 +15,7 @@ def create_app(config_name='default'):
     db.init_app(app)
     cache.init_app(app)
     cors.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
+    socketio.init_app(app, cors_allowed_origins=["http://localhost:3000"])
     
     # 注册蓝图
     from routes import auth_bp, company_bp, stock_bp, bank_bp

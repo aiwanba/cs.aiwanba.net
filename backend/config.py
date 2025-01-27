@@ -11,8 +11,8 @@ class Config:
     CACHE_TYPE = 'SimpleCache'
     CACHE_DEFAULT_TIMEOUT = 300
     
-    # CORS配置
-    CORS_ORIGINS = ['http://localhost:5010']
+    # CORS配置 - 需要修改允许的源
+    CORS_ORIGINS = ['http://localhost:3000']  # 修改这里，允许前端开发服务器的域名
 
 class DevelopmentConfig(Config):
     DEBUG = True
