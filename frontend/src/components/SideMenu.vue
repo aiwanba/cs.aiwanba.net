@@ -49,7 +49,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Odometer,
-  Office as OfficeBuilding,
+  OfficeBuilding,
   TrendCharts,
   Money,
   Setting
