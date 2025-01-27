@@ -4,7 +4,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 const routes = [
   {
     path: '/',
-    redirect: '/dashboard'
+    redirect: '/login'
   },
   {
     path: '/login',
@@ -109,8 +109,11 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
+  
   if (to.meta.requiresAuth && !token) {
     next('/login')
+  } else if (token && (to.path === '/login' || to.path === '/register')) {
+    next('/dashboard')
   } else {
     next()
   }
