@@ -10,7 +10,7 @@
     
     <el-sub-menu index="/company">
       <template #title>
-        <el-icon><Office /></el-icon>
+        <el-icon><OfficeBuilding /></el-icon>
         <span>公司管理</span>
       </template>
       <el-menu-item index="/company/list">公司列表</el-menu-item>
@@ -47,7 +47,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Odometer, Office, TrendCharts, Money, Setting } from '@element-plus/icons-vue'
+import {
+  Odometer,
+  Office as OfficeBuilding,
+  TrendCharts,
+  Money,
+  Setting
+} from '@element-plus/icons-vue'
 
 const route = useRoute()
 const activeMenu = computed(() => route.path)

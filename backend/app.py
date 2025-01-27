@@ -38,7 +38,7 @@ def create_app(config_name='default'):
     
     # 注册蓝图
     from routes import auth_bp, company_bp, stock_bp, bank_bp, dashboard_bp
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(company_bp, url_prefix='/api/company')
     app.register_blueprint(stock_bp, url_prefix='/api/stock')
     app.register_blueprint(bank_bp, url_prefix='/api/bank')
