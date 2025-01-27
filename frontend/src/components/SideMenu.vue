@@ -2,94 +2,55 @@
   <el-menu
     :default-active="activeMenu"
     class="side-menu"
-    @select="handleSelect"
-    background-color="#f8f9fa"
-    text-color="#2c3e50">
-    
-    <el-menu-item index="dashboard">
-      <el-icon><menu /></el-icon>
+    router>
+    <el-menu-item index="/dashboard">
+      <el-icon><Odometer /></el-icon>
       <span>仪表盘</span>
     </el-menu-item>
     
-    <el-sub-menu index="company">
+    <el-sub-menu index="/company">
       <template #title>
-        <el-icon><office-building /></el-icon>
+        <el-icon><Office /></el-icon>
         <span>公司管理</span>
       </template>
-      <el-menu-item index="company-list">公司列表</el-menu-item>
-      <el-menu-item index="company-create">创建公司</el-menu-item>
+      <el-menu-item index="/company/list">公司列表</el-menu-item>
+      <el-menu-item index="/company/create">创建公司</el-menu-item>
     </el-sub-menu>
     
-    <el-sub-menu index="stock">
+    <el-sub-menu index="/stock">
       <template #title>
-        <el-icon><trend-charts /></el-icon>
+        <el-icon><TrendCharts /></el-icon>
         <span>股票交易</span>
       </template>
-      <el-menu-item index="stock-market">交易市场</el-menu-item>
-      <el-menu-item index="stock-orders">我的订单</el-menu-item>
-      <el-menu-item index="stock-positions">持仓管理</el-menu-item>
+      <el-menu-item index="/stock/market">市场行情</el-menu-item>
+      <el-menu-item index="/stock/positions">我的持仓</el-menu-item>
+      <el-menu-item index="/stock/orders">交易订单</el-menu-item>
     </el-sub-menu>
     
-    <el-sub-menu index="bank">
+    <el-sub-menu index="/bank">
       <template #title>
-        <el-icon><money /></el-icon>
+        <el-icon><Money /></el-icon>
         <span>银行业务</span>
       </template>
-      <el-menu-item index="bank-accounts">账户管理</el-menu-item>
-      <el-menu-item index="bank-transfer">转账汇款</el-menu-item>
-      <el-menu-item index="bank-loan">贷款服务</el-menu-item>
+      <el-menu-item index="/bank/accounts">账户管理</el-menu-item>
+      <el-menu-item index="/bank/loan">贷款业务</el-menu-item>
+      <el-menu-item index="/bank/transfer">转账汇款</el-menu-item>
     </el-sub-menu>
+    
+    <el-menu-item index="/settings">
+      <el-icon><Setting /></el-icon>
+      <span>系统设置</span>
+    </el-menu-item>
   </el-menu>
 </template>
 
-<script>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+<script setup>
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { Odometer, Office, TrendCharts, Money, Setting } from '@element-plus/icons-vue'
 
-export default {
-  name: 'SideMenu',
-  setup() {
-    const router = useRouter()
-    const activeMenu = ref('dashboard')
-    
-    const handleSelect = (index) => {
-      switch (index) {
-        case 'dashboard':
-          router.push('/dashboard')
-          break
-        case 'company-list':
-          router.push('/company/list')
-          break
-        case 'company-create':
-          router.push('/company/create')
-          break
-        case 'stock-market':
-          router.push('/stock/market')
-          break
-        case 'stock-orders':
-          router.push('/stock/orders')
-          break
-        case 'stock-positions':
-          router.push('/stock/positions')
-          break
-        case 'bank-accounts':
-          router.push('/bank/accounts')
-          break
-        case 'bank-transfer':
-          router.push('/bank/transfer')
-          break
-        case 'bank-loan':
-          router.push('/bank/loan')
-          break
-      }
-    }
-    
-    return {
-      activeMenu,
-      handleSelect
-    }
-  }
-}
+const route = useRoute()
+const activeMenu = computed(() => route.path)
 </script>
 
 <style scoped>
