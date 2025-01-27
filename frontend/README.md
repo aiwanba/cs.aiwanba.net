@@ -37,6 +37,7 @@ frontend/
 
 ### 安装依赖
 ```bash
+cd frontend
 npm install
 ```
 
