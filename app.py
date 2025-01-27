@@ -92,8 +92,8 @@ def match_orders(company_id):
         buy_orders = TradeOrder.query.filter(
             TradeOrder.company_id == company_id,
             TradeOrder.type == 1,  # 买单
-            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
-            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交，排除已撤单(3)
+            TradeOrder.shares > TradeOrder.dealt_shares
         ).order_by(
             TradeOrder.price.desc(),
             TradeOrder.created_at.asc()
@@ -103,8 +103,8 @@ def match_orders(company_id):
         sell_orders = TradeOrder.query.filter(
             TradeOrder.company_id == company_id,
             TradeOrder.type == 2,  # 卖单
-            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交
-            TradeOrder.shares > TradeOrder.dealt_shares  # 还有未成交数量
+            TradeOrder.status.in_([0, 1]),  # 未成交或部分成交，排除已撤单(3)
+            TradeOrder.shares > TradeOrder.dealt_shares
         ).order_by(
             TradeOrder.price.asc(),
             TradeOrder.created_at.asc()
@@ -356,15 +356,15 @@ class TradeOrder(db.Model):
     id = db.Column(db.BigInteger, primary_key=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
-    type = db.Column(db.Integer, nullable=False)  # 1:买入, 2:卖出
+    type = db.Column(db.Integer, nullable=False)  # 1:买入 2:卖出
     price = db.Column(db.DECIMAL(10,2), nullable=False)
     shares = db.Column(db.BigInteger, nullable=False)
-    status = db.Column(db.Integer, default=0)  # 0:未成交, 1:部分成交, 2:已成交, 3:已撤单
-    dealt_shares = db.Column(db.BigInteger, default=0)  # 已成交股数
-    dealt_amount = db.Column(db.DECIMAL(20,2), default=0.00)  # 已成交金额
-    cancel_time = db.Column(db.TIMESTAMP, nullable=True)  # 撤单时间
-    created_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp())
-    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+    dealt_shares = db.Column(db.BigInteger, default=0)
+    dealt_amount = db.Column(db.DECIMAL(20,2), default=0)
+    status = db.Column(db.Integer, default=0)  # 0:未成交 1:部分成交 2:完全成交 3:已撤单
+    cancel_time = db.Column(db.DateTime)  # 撤单时间
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 # 交易记录模型
 class TradeRecord(db.Model):
@@ -1023,11 +1023,13 @@ def trade_stock(code):
         logging.error(f"交易失败: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': f'交易失败: {str(e)}'})
 
-# 添加撤单功能
+# 撤单功能
 @app.route('/trade/cancel/<int:order_id>', methods=['POST'])
 @login_required
 def cancel_order(order_id):
+    """撤销委托订单"""
     try:
+        # 获取订单
         order = TradeOrder.query.filter_by(
             id=order_id,
             user_id=current_user.id  # 确保是当前用户的订单
@@ -1039,11 +1041,15 @@ def cancel_order(order_id):
         # 检查订单状态
         if order.status == 2:  # 已完全成交
             return jsonify({'success': False, 'message': '订单已完全成交，无法撤销'})
+        elif order.status == 3:  # 已撤单
+            return jsonify({'success': False, 'message': '订单已撤单'})
         
         # 更新订单状态为已撤销
-        order.status = 3  # 3表示已撤销
+        order.status = 3
+        order.cancel_time = datetime.now()
         
         # 如果是买单，退还未成交部分的冻结资金
+        unfilled_amount = 0
         if order.type == 1:  # 买单
             unfilled_amount = (order.shares - order.dealt_shares) * order.price
             current_user.balance += unfilled_amount
@@ -1056,7 +1062,7 @@ def cancel_order(order_id):
             'message': '撤单成功',
             'data': {
                 'unfilled_shares': order.shares - order.dealt_shares,
-                'unfilled_amount': float(unfilled_amount) if order.type == 1 else 0
+                'unfilled_amount': float(unfilled_amount)
             }
         })
         
