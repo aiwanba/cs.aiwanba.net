@@ -1,0 +1,53 @@
+  <!-- 左侧：K线图 -->
+  <div class="col-md-8">
+      <div class="card">
+          <div class="card-body">
+              <h5 class="card-title">K线图</h5>
+              <div id="kline" style="height: 400px;"></div>
+          </div>
+      </div>
+  </div>
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+    // 初始化K线图
+    function initKline() {
+        $.get('/api/stock/{{ company.code }}/kline', function(data) {
+            if (data.error) {
+                console.error(data.error);
+                return;
+            }
+            
+            var myChart = echarts.init(document.getElementById('kline'));
+            var option = {
+                title: { text: '{{ company.name }} - K线图' },
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'cross' }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: data.map(item => item.time)
+                },
+                yAxis: { type: 'value' },
+                series: [{
+                    type: 'candlestick',
+                    data: data.map(item => [
+                        item.open,
+                        item.close,
+                        item.low,
+                        item.high
+                    ])
+                }]
+            };
+            myChart.setOption(option);
+        });
+    }
+    
+    // 页面加载完成后初始化K线图
+    $(document).ready(function() {
+        initKline();
+    });
+</script>
+{% endblock %} 

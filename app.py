@@ -898,31 +898,19 @@ def create_company():
             db.session.add(company)
             db.session.commit()
             
-            # 创建第一天的价格记录
+            # 初始化股票价格记录
             today = datetime.now().date()
-            initial_price = StockPrice(
+            price = StockPrice(
                 company_id=company.id,
                 date=today,
-                open=price,
-                high=price,
-                low=price,
-                close=price,
+                open=company.current_price,
+                high=company.current_price,
+                low=company.current_price,
+                close=company.current_price,
                 volume=0
             )
-            db.session.add(initial_price)
-            
-            # 创建昨日的价格记录，用于计算涨跌幅
-            yesterday = today - timedelta(days=1)
-            yesterday_price = StockPrice(
-                company_id=company.id,
-                date=yesterday,
-                open=price,
-                high=price,
-                low=price,
-                close=price,
-                volume=0
-            )
-            db.session.add(yesterday_price)
+            db.session.add(price)
+            db.session.commit()
             
             # 扣除用户资金
             current_user.balance -= registered_capital
@@ -1179,6 +1167,18 @@ def portfolio():
     
     logging.debug(f"用户资产统计 - 总资产:{total_assets}, 股票市值:{stock_value}, 总盈亏:{total_profit}")
     
+    # 格式化订单状态
+    status_map = {
+        0: '未成交',
+        1: '部分成交',
+        2: '完全成交',
+        3: '已撤单'
+    }
+    
+    for order in orders:
+        order.status_text = status_map.get(order.status, '未知')
+        order.can_cancel = order.status in [0, 1]  # 只有未成交和部分成交的订单可以撤单
+    
     return render_template('user/portfolio.html',
                          holdings=holdings,
                          orders=orders,
@@ -1189,33 +1189,34 @@ def portfolio():
 # API：获取股票K线数据
 @app.route('/api/stock/<code>/kline')
 def get_stock_kline(code):
-    company = Company.query.filter_by(code=code).first_or_404()
-    
-    # 获取最近30天的K线数据
-    prices = StockPrice.query.filter_by(company_id=company.id)\
-        .order_by(StockPrice.date.desc())\
-        .limit(30)\
-        .all()
-    
-    # 如果没有历史数据，返回默认数据
-    if not prices:
-        return jsonify([{
-            'date': (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d'),
-            'open': float(company.current_price),
-            'high': float(company.current_price),
-            'low': float(company.current_price),
-            'close': float(company.current_price),
-            'volume': 0
-        } for i in range(30)])
-    
-    return jsonify([{
-        'date': price.date.strftime('%Y-%m-%d'),
-        'open': float(price.open),
-        'high': float(price.high),
-        'low': float(price.low),
-        'close': float(price.close),
-        'volume': price.volume
-    } for price in prices])
+    """获取K线图数据"""
+    try:
+        company = Company.query.filter_by(code=code).first_or_404()
+        
+        # 获取最近30天的价格数据
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        
+        prices = StockPrice.query.filter(
+            StockPrice.company_id == company.id,
+            StockPrice.date >= start_date,
+            StockPrice.date <= end_date
+        ).order_by(StockPrice.date.asc()).all()
+        
+        data = [{
+            'time': price.date.strftime('%Y-%m-%d'),
+            'open': float(price.open),
+            'high': float(price.high),
+            'low': float(price.low),
+            'close': float(price.close),
+            'volume': price.volume
+        } for price in prices]
+        
+        return jsonify(data)
+        
+    except Exception as e:
+        logging.error(f"获取K线数据失败: {str(e)}", exc_info=True)
+        return jsonify({'error': '获取K线数据失败'})
 
 # 路由：AI玩家管理
 @app.route('/ai')

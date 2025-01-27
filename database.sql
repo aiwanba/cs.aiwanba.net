@@ -270,4 +270,21 @@ CREATE TABLE `loan_accounts` (
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
     KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='贷款账户表'; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='贷款账户表';
+
+-- 添加股票价格表
+CREATE TABLE IF NOT EXISTS stock_prices (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    company_id BIGINT NOT NULL,
+    date DATE NOT NULL,
+    open DECIMAL(10,2) NOT NULL,
+    high DECIMAL(10,2) NOT NULL,
+    low DECIMAL(10,2) NOT NULL,
+    close DECIMAL(10,2) NOT NULL,
+    volume BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id)
+);
+
+-- 添加索引
+CREATE INDEX idx_stock_prices_company_date ON stock_prices(company_id, date); 

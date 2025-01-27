@@ -118,6 +118,7 @@
                                 <th>数量</th>
                                 <th>金额</th>
                                 <th>状态</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -144,6 +145,11 @@
                                     <span class="badge bg-danger">已取消</span>
                                     {% endif %}
                                 </td>
+                                <td>
+                                    {% if order.can_cancel %}
+                                    <button class="btn btn-sm btn-danger" onclick="cancelOrder('{{ order.id }}')">撤单</button>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -153,4 +159,26 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 处理撤单
+    function cancelOrder(orderIdStr) {
+        const orderId = parseInt(orderIdStr, 10);
+        if (!confirm('确定要撤销此订单吗？')) {
+            return;
+        }
+        
+        $.post(`/trade/cancel/${orderId}`, function(response) {
+            if (response.success) {
+                alert('撤单成功');
+                // 刷新页面以更新订单状态和资金
+                location.reload();
+            } else {
+                alert(response.message || '撤单失败');
+            }
+        });
+    }
+</script>
 {% endblock %} 
