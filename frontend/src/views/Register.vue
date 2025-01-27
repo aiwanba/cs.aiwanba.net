@@ -57,6 +57,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Message } from '@element-plus/icons-vue'
+import { authService } from '../services/auth'
 
 const router = useRouter()
 const formRef = ref(null)
@@ -115,11 +116,15 @@ const handleRegister = async () => {
     await formRef.value.validate()
     loading.value = true
     
-    // TODO: 实现注册逻辑
+    await authService.register({
+      username: form.value.username,
+      email: form.value.email,
+      password: form.value.password
+    })
     ElMessage.success('注册成功')
     router.push('/login')
   } catch (error) {
-    ElMessage.error('注册失败')
+    ElMessage.error(error.response?.data?.error || '注册失败')
   } finally {
     loading.value = false
   }

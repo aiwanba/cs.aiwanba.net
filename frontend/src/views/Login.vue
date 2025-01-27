@@ -42,6 +42,7 @@ import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
+import { authService } from '../services/auth'
 
 const router = useRouter()
 const store = useStore()
@@ -65,11 +66,12 @@ const handleLogin = async () => {
     await formRef.value.validate()
     loading.value = true
     
-    // TODO: 实现登录逻辑
+    const { user, token } = await authService.login(form.value.username, form.value.password)
+    store.dispatch('login', { user, token })
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (error) {
-    ElMessage.error('登录失败')
+    ElMessage.error(error.response?.data?.error || '登录失败')
   } finally {
     loading.value = false
   }

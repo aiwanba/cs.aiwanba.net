@@ -1,6 +1,8 @@
 from extensions import db
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
+import jwt
+from flask import current_app
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -21,4 +23,12 @@ class User(db.Model):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password) 
+        return check_password_hash(self.password_hash, password)
+    
+    def generate_token(self):
+        """生成 JWT token"""
+        payload = {
+            'user_id': self.id,
+            'exp': datetime.utcnow() + timedelta(days=1)
+        }
+        return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256') 
