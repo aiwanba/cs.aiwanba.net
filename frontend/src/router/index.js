@@ -46,6 +46,18 @@ const routes = [
         component: () => import('../views/company/CompanyDetail.vue')
       }
     ]
+  },
+  {
+    path: '/stock',
+    component: () => import('../views/stock/StockLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'market',
+        name: 'StockMarket',
+        component: () => import('../views/stock/StockMarket.vue')
+      }
+    ]
   }
 ]
 
