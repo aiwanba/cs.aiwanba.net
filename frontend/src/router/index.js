@@ -24,6 +24,23 @@ const routes = [
     name: 'Dashboard',
     component: () => import('../views/Dashboard.vue'),
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/company',
+    component: () => import('../views/company/CompanyLayout.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'list',
+        name: 'CompanyList',
+        component: () => import('../views/company/CompanyList.vue')
+      },
+      {
+        path: 'create',
+        name: 'CompanyCreate',
+        component: () => import('../views/company/CompanyCreate.vue')
+      }
+    ]
   }
 ]
 
