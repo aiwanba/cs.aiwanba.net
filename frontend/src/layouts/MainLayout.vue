@@ -16,9 +16,9 @@
 </template>
 
 <script setup>
-import NavBar from '@/components/NavBar.vue'
-import SideMenu from '@/components/SideMenu.vue'
-import MessageCenter from '@/components/MessageCenter.vue'
+import NavBar from '../components/NavBar.vue'
+import SideMenu from '../components/SideMenu.vue'
+import MessageCenter from '../components/MessageCenter.vue'
 </script>
 
 <style scoped>
