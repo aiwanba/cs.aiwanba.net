@@ -1,44 +1,37 @@
 <template>
-  <el-container class="app-container">
-    <el-header>
-      <nav-bar></nav-bar>
-    </el-header>
-    <el-container>
-      <el-aside width="200px">
-        <side-menu></side-menu>
-      </el-aside>
-      <el-main>
-        <router-view></router-view>
-      </el-main>
-    </el-container>
-  </el-container>
+  <div id="app">
+    <GlobalLoading />
+    <router-view v-slot="{ Component }">
+      <transition name="fade" mode="out-in">
+        <component :is="Component" />
+      </transition>
+    </router-view>
+  </div>
 </template>
 
 <script>
-import NavBar from './components/NavBar.vue'
-import SideMenu from './components/SideMenu.vue'
+import { provideLoading } from './composables/useLoading'
+import GlobalLoading from './components/GlobalLoading.vue'
 
 export default {
   name: 'App',
   components: {
-    NavBar,
-    SideMenu
+    GlobalLoading
+  },
+  setup() {
+    provideLoading()
   }
 }
 </script>
 
 <style>
-.app-container {
-  height: 100vh;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
 }
 
-.el-header {
-  background-color: #409EFF;
-  color: white;
-  line-height: 60px;
-}
-
-.el-aside {
-  background-color: #f8f9fa;
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style> 
