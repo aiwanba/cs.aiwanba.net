@@ -10,11 +10,6 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5010',
         changeOrigin: true
-      },
-      '/socket.io': {
-        target: 'http://localhost:5010',
-        ws: true,
-        changeOrigin: true
       }
     }
   },

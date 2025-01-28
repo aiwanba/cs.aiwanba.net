@@ -4,7 +4,7 @@ import router from '../router'
 import store from '../store'
 
 const http = axios.create({
-  baseURL: '/api',
+  baseURL: '/',
   timeout: 5000
 })
 
@@ -24,12 +24,8 @@ http.interceptors.request.use(
 
 // 响应拦截器
 http.interceptors.response.use(
-  response => {
-    // 只返回响应数据部分
-    return response.data
-  },
+  response => response.data,
   error => {
-    // 统一错误处理
     const message = error.response?.data?.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)
