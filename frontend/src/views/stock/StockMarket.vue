@@ -139,16 +139,24 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { io } from 'socket.io-client'
+import { formatNumber, formatDate } from '@/utils/format'
 
 export default {
   name: 'StockMarket',
   setup() {
     const route = useRoute()
-    const socket = io('/stock')
+    const socket = io(import.meta.env.VITE_WS_URL || 'http://localhost:5010', {
+      path: '/socket.io',
+      transports: ['websocket'],
+      autoConnect: false,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    })
     const loading = ref(false)
     const tradeFormRef = ref(null)
     
@@ -172,7 +180,153 @@ export default {
       ]
     }
 
-    // ... 其他方法实现 ...
+    // 计算价格变化的样式类
+    const priceChangeClass = computed(() => {
+      if (!company.value.price_change) return ''
+      return company.value.price_change >= 0 ? 'price-up' : 'price-down'
+    })
+
+    // 格式化价格变化
+    const formatPriceChange = (change) => {
+      if (!change) return '0.00%'
+      const sign = change >= 0 ? '+' : ''
+      return `${sign}${(change * 100).toFixed(2)}%`
+    }
+
+    // 计算手续费
+    const calculateFee = () => {
+      const amount = tradeForm.price * tradeForm.quantity
+      return amount * 0.001 // 0.1% 手续费
+    }
+
+    // 计算总金额
+    const calculateTotal = () => {
+      const amount = tradeForm.price * tradeForm.quantity
+      const fee = calculateFee()
+      return tradeForm.type === 'buy' ? amount + fee : amount - fee
+    }
+
+    // 获取公司数据
+    const fetchCompanyData = async () => {
+      try {
+        // 从路由查询参数获取公司ID
+        const companyId = route.query.company
+        if (!companyId) {
+          ElMessage.error('未指定公司ID')
+          return
+        }
+
+        loading.value = true
+        const response = await fetch(`/api/company/${companyId}`)
+        const data = await response.json()
+        
+        if (response.ok) {
+          company.value = data.data // 注意这里要访问 data.data
+          tradeForm.price = company.value.current_price
+        } else {
+          ElMessage.error(data.message || '获取公司数据失败')
+        }
+      } catch (error) {
+        console.error('获取公司数据失败:', error)
+        ElMessage.error('获取公司数据失败')
+      } finally {
+        loading.value = false
+      }
+    }
+
+    // 修改 WebSocket 监听器初始化
+    const initSocketListeners = () => {
+      // 连接事件处理
+      socket.on('connect', () => {
+        console.log('WebSocket connected')
+        const companyId = route.query.company
+        if (companyId) {
+          socket.emit('subscribe', { company_id: companyId })
+        }
+      })
+
+      // 连接错误处理
+      socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error)
+        ElMessage.error('实时数据连接失败，正在重试...')
+      })
+
+      // 重连事件处理
+      socket.on('reconnect', (attemptNumber) => {
+        console.log('WebSocket reconnected after', attemptNumber, 'attempts')
+        const companyId = route.query.company
+        if (companyId) {
+          socket.emit('subscribe', { company_id: companyId })
+        }
+      })
+
+      // 价格更新
+      socket.on('price_update', (data) => {
+        console.log('Received price update:', data)
+        company.value.current_price = data.price
+        company.value.price_change = data.change
+      })
+
+      // 订单簿更新
+      socket.on('order_book_update', (data) => {
+        console.log('Received order book update:', data)
+        sellOrders.value = data.sell_orders
+        buyOrders.value = data.buy_orders
+      })
+
+      // 成交记录更新
+      socket.on('trade', (data) => {
+        console.log('Received trade:', data)
+        recentTrades.value.unshift(data)
+        if (recentTrades.value.length > 20) {
+          recentTrades.value.pop()
+        }
+      })
+
+      // 启动连接
+      socket.connect()
+    }
+
+    // 提交交易
+    const submitTrade = async () => {
+      try {
+        await tradeFormRef.value.validate()
+        const companyId = route.query.company
+        if (!companyId) {
+          ElMessage.error('未指定公司ID')
+          return
+        }
+
+        loading.value = true
+        const response = await fetch('/api/stock/trade', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            company_id: companyId,
+            type: tradeForm.type,
+            price: tradeForm.price,
+            quantity: tradeForm.quantity
+          })
+        })
+
+        const data = await response.json()
+        if (response.ok) {
+          ElMessage.success('交易提交成功')
+          tradeForm.quantity = 100 // 重置数量
+        } else {
+          ElMessage.error(data.message || '交易提交失败')
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          console.error('交易提交失败:', error)
+          ElMessage.error('交易提交失败')
+        }
+      } finally {
+        loading.value = false
+      }
+    }
 
     onMounted(() => {
       fetchCompanyData()
@@ -180,6 +334,14 @@ export default {
     })
 
     onUnmounted(() => {
+      // 清理所有监听器
+      socket.off('connect')
+      socket.off('connect_error')
+      socket.off('reconnect')
+      socket.off('price_update')
+      socket.off('order_book_update')
+      socket.off('trade')
+      // 断开连接
       socket.disconnect()
     })
 
@@ -192,7 +354,13 @@ export default {
       sellOrders,
       buyOrders,
       recentTrades,
-      // ... 其他返回值
+      formatNumber,
+      formatDate,
+      priceChangeClass,
+      formatPriceChange,
+      calculateFee,
+      calculateTotal,
+      submitTrade
     }
   }
 }
