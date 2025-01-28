@@ -7,11 +7,10 @@
       <el-dropdown v-if="user" @command="handleCommand">
         <span class="user-info">
           {{ user.username }}
-          <el-icon><arrow-down /></el-icon>
+          <el-icon><ArrowDown /></el-icon>
         </span>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="profile">个人信息</el-dropdown-item>
             <el-dropdown-item command="logout">退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -20,35 +19,20 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { computed } from 'vue'
 import { useStore } from 'vuex'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 
-export default {
-  name: 'NavBar',
-  setup() {
-    const store = useStore()
-    const router = useRouter()
-    
-    const user = computed(() => store.state.user)
-    
-    const handleCommand = (command) => {
-      if (command === 'logout') {
-        localStorage.removeItem('token')
-        store.commit('setUser', null)
-        router.push('/login')
-        ElMessage.success('已退出登录')
-      } else if (command === 'profile') {
-        router.push('/profile')
-      }
-    }
-    
-    return {
-      user,
-      handleCommand
-    }
+const store = useStore()
+const router = useRouter()
+const user = computed(() => store.state.user)
+
+const handleCommand = (command) => {
+  if (command === 'logout') {
+    store.dispatch('logout')
+    router.push('/login')
   }
 }
 </script>

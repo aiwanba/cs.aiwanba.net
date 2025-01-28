@@ -8,7 +8,11 @@
         <SideMenu />
       </aside>
       <main class="main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <keep-alive>
+            <component :is="Component" />
+          </keep-alive>
+        </router-view>
       </main>
     </div>
     <MessageCenter />
@@ -16,9 +20,14 @@
 </template>
 
 <script setup>
+import { onBeforeUnmount } from 'vue'
 import NavBar from '../components/NavBar.vue'
 import SideMenu from '../components/SideMenu.vue'
 import MessageCenter from '../components/MessageCenter.vue'
+
+onBeforeUnmount(() => {
+  // 清理可能的副作用
+})
 </script>
 
 <style scoped>
