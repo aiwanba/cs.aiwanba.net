@@ -2,13 +2,11 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from redis import Redis
 from .config import config
 
 # 初始化扩展
 db = SQLAlchemy()
 jwt = JWTManager()
-redis_client = None
 
 def create_app(config_name='default'):
     app = Flask(__name__)
@@ -20,10 +18,6 @@ def create_app(config_name='default'):
     db.init_app(app)
     jwt.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": app.config['CORS_ORIGINS']}})
-    
-    # 初始化Redis
-    global redis_client
-    redis_client = Redis.from_url(app.config['REDIS_URL'])
     
     # 注册蓝图
     from .api import auth_bp, company_bp, bank_bp, trade_bp, message_bp

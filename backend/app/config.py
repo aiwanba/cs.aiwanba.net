@@ -20,9 +20,6 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     
-    # Redis配置
-    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-    
     # CORS配置
     CORS_ORIGINS = ['http://localhost:3000']  # 前端域名
 

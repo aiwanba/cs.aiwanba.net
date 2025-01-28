@@ -1,2 +1,5 @@
 # 忽略venv目录
 .venv/
+
+# 忽略pycache目录
+__pycache__
