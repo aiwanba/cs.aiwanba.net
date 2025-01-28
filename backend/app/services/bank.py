@@ -48,15 +48,16 @@ class BankService:
             return False, "银行状态异常"
         
         try:
-            # 创建存款记录
+            start_date = datetime.utcnow()
+            end_date = start_date + timedelta(days=term)
             deposit = Deposit(
                 bank_id=bank_id,
                 user_id=user_id,
                 amount=amount,
                 interest_rate=bank.deposit_rate,
                 term=term,
-                start_date=datetime.utcnow(),
-                end_date=datetime.utcnow() + timedelta(days=term)
+                start_date=start_date,
+                end_date=end_date
             )
             db.session.add(deposit)
             

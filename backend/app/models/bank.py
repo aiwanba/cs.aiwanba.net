@@ -73,12 +73,14 @@ class Deposit(BaseModel):
     interest_rate = db.Column(db.DECIMAL(5, 2), nullable=False)
     term = db.Column(db.Integer, nullable=False)  # 期限(天)
     start_date = db.Column(db.TIMESTAMP, nullable=False)
-    end_date = db.Column(db.TIMESTAMP, nullable=False)
+    end_date = db.Column(db.TIMESTAMP, nullable=True)
     status = db.Column(db.Integer, default=1)  # 1-正常，2-已支取，0-违约
     
     def calculate_interest(self, current_date):
         """计算利息"""
-        if current_date > self.end_date:
+        if not self.end_date:
+            days = (current_date - self.start_date).days
+        elif current_date > self.end_date:
             days = (self.end_date - self.start_date).days
         else:
             days = (current_date - self.start_date).days
@@ -101,10 +103,10 @@ class Deposit(BaseModel):
             'amount': float(self.amount),
             'interest_rate': float(self.interest_rate),
             'term': self.term,
-            'start_date': self.start_date.isoformat(),
-            'end_date': self.end_date.isoformat(),
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
             'status': self.status,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 class Loan(BaseModel):
@@ -117,14 +119,16 @@ class Loan(BaseModel):
     interest_rate = db.Column(db.DECIMAL(5, 2), nullable=False)
     term = db.Column(db.Integer, nullable=False)  # 期限(天)
     start_date = db.Column(db.TIMESTAMP, nullable=False)
-    end_date = db.Column(db.TIMESTAMP, nullable=False)
+    end_date = db.Column(db.TIMESTAMP, nullable=True)
     collateral_type = db.Column(db.Integer)  # 1-股票，2-存单
     collateral_id = db.Column(db.BigInteger)
     status = db.Column(db.Integer, default=1)  # 1-正常，2-已还清，0-违约
     
     def calculate_interest(self, current_date):
         """计算利息"""
-        if current_date > self.end_date:
+        if not self.end_date:
+            days = (current_date - self.start_date).days
+        elif current_date > self.end_date:
             days = (self.end_date - self.start_date).days
         else:
             days = (current_date - self.start_date).days
@@ -147,10 +151,10 @@ class Loan(BaseModel):
             'amount': float(self.amount),
             'interest_rate': float(self.interest_rate),
             'term': self.term,
-            'start_date': self.start_date.isoformat(),
-            'end_date': self.end_date.isoformat(),
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
             'collateral_type': self.collateral_type,
             'collateral_id': self.collateral_id,
             'status': self.status,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         } 
