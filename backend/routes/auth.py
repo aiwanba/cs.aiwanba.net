@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from werkzeug.security import generate_password_hash
 from decimal import Decimal
 from . import auth_bp
@@ -36,15 +36,17 @@ def register():
             return jsonify({'message': '邮箱已被注册'}), 400
         
         # 创建新用户
-        user = User(
-            username=username,
-            email=email,
-            balance=Decimal('1000000')  # 初始资金 100 万
-        )
+        user = User(username=username, email=email)
         user.set_password(password)
+        user.balance = Decimal('1000000')  # 初始资金 100 万
         
-        db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"数据库错误: {str(e)}")
+            return jsonify({'message': '数据库错误'}), 500
         
         return jsonify({
             'message': '注册成功',
@@ -56,7 +58,7 @@ def register():
         })
         
     except Exception as e:
-        db.session.rollback()
+        current_app.logger.error(f"注册失败: {str(e)}")
         return jsonify({'message': str(e)}), 500
 
 @auth_bp.route('/login', methods=['POST'])

@@ -1,10 +1,12 @@
+import os
+
 class Config:
     # 基础配置
     DEBUG = False
-    SECRET_KEY = 'your-secret-key'  # 请更改为随机字符串
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev'
     
     # 数据库配置
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost:3306/cs_aiwanba_net"
+    SQLALCHEMY_DATABASE_URI = 'mysql+pymysql://cs_aiwanba_net:sQz9HSnF5ZcXj9SX@localhost/cs_aiwanba_net'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # 缓存配置

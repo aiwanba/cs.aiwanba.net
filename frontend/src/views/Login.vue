@@ -37,26 +37,28 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { useStore } from 'vuex'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
-import { authService } from '../services/auth'
+import auth from '../services/auth'
 
 const router = useRouter()
-const store = useStore()
 const formRef = ref(null)
 const loading = ref(false)
 
-const form = ref({
+const form = reactive({
   username: '',
   password: ''
 })
 
 const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+  username: [
+    { required: true, message: '请输入用户名', trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: '请输入密码', trigger: 'blur' }
+  ]
 }
 
 const handleLogin = async () => {
@@ -66,12 +68,18 @@ const handleLogin = async () => {
     await formRef.value.validate()
     loading.value = true
     
-    const { user, token } = await authService.login(form.value.username, form.value.password)
-    store.dispatch('login', { user, token })
+    const response = await auth.login({
+      username: form.username,
+      password: form.password
+    })
+    
+    localStorage.setItem('token', response.data.token)
     ElMessage.success('登录成功')
     router.push('/dashboard')
   } catch (error) {
-    ElMessage.error(error.response?.data?.error || '登录失败')
+    if (error.response?.data?.message) {
+      ElMessage.error(error.response.data.message)
+    }
   } finally {
     loading.value = false
   }
