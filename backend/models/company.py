@@ -15,4 +15,17 @@ class Company(db.Model):
     
     # 关系
     owner = db.relationship('User', backref='owned_companies')
-    stocks = db.relationship('Stock', backref='company', lazy='dynamic') 
+    stocks = db.relationship('Stock', backref='company', lazy='dynamic')
+    
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'industry': self.industry,
+            'total_shares': self.total_shares,
+            'current_price': float(self.current_price),  # 转换 Numeric 为 float
+            'cash_balance': float(self.cash_balance),  # 转换 Numeric 为 float
+            'owner_id': self.owner_id,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        } 
