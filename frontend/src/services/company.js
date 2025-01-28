@@ -17,5 +17,14 @@ export default {
     } catch (error) {
       throw error
     }
+  },
+  
+  async getCompanyDetail(id) {
+    try {
+      const response = await http.get(`/api/company/${id}`)
+      return response
+    } catch (error) {
+      throw error
+    }
   }
 } 

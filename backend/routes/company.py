@@ -44,10 +44,35 @@ def create_company():
 def get_company(company_id):
     """获取公司信息"""
     try:
-        company_info = CompanyService.get_company_info(company_id)
-        return jsonify(company_info)
+        company = Company.query.get_or_404(company_id)
+        
+        # 获取股东信息
+        shareholders = []
+        try:
+            for stock in company.stocks:
+                if stock.shares > 0:  # 只显示持有股份的股东
+                    percentage = (stock.shares / company.total_shares) * 100
+                    shareholders.append({
+                        'username': stock.owner.username,
+                        'shares': stock.shares,
+                        'percentage': percentage
+                    })
+        except Exception as e:
+            current_app.logger.error(f"获取股东信息失败: {str(e)}")
+            shareholders = []  # 如果获取股东信息失败，返回空列表
+        
+        # 构建返回数据
+        company_data = company.to_dict()
+        company_data['shareholders'] = shareholders
+        
+        return jsonify({
+            'message': '获取成功',
+            'data': company_data
+        })
     except Exception as e:
-        return jsonify({'error': '获取公司信息失败'}), 500
+        current_app.logger.error(f"获取公司信息失败: {str(e)}")
+        db.session.rollback()  # 回滚事务
+        return jsonify({'message': '获取公司信息失败'}), 500
 
 @company_bp.route('/list', methods=['GET'])
 def get_company_list():
