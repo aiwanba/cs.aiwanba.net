@@ -95,15 +95,20 @@ export default {
     const fetchOrders = async () => {
       try {
         loading.value = true
-        const response = await fetch('/api/stock/orders')
+        const response = await fetch('/api/stock/orders', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         const data = await response.json()
         
         if (response.ok) {
-          orders.value = data.orders
+          orders.value = data.data
         } else {
-          ElMessage.error(data.error || '获取订单数据失败')
+          ElMessage.error(data.message || '获取订单数据失败')
         }
       } catch (error) {
+        console.error('获取订单失败:', error)
         ElMessage.error('获取订单数据失败')
       } finally {
         loading.value = false

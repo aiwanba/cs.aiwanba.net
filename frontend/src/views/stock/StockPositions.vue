@@ -89,19 +89,20 @@ export default {
     const fetchPositions = async () => {
       try {
         loading.value = true
-        const response = await fetch('/api/stock/positions')
+        const response = await fetch('/api/stock/positions', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         const data = await response.json()
         
         if (response.ok) {
-          positions.value = data.positions.map(pos => ({
-            ...pos,
-            profit: (pos.current_price - pos.cost_price) * pos.shares,
-            profit_ratio: (pos.current_price - pos.cost_price) / pos.cost_price
-          }))
+          positions.value = data.data
         } else {
-          ElMessage.error(data.error || '获取持仓数据失败')
+          ElMessage.error(data.message || '获取持仓数据失败')
         }
       } catch (error) {
+        console.error('获取持仓失败:', error)
         ElMessage.error('获取持仓数据失败')
       } finally {
         loading.value = false
