@@ -3,6 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from .config import config
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 初始化扩展
 db = SQLAlchemy()
@@ -13,6 +18,13 @@ def create_app(config_name='default'):
     
     # 加载配置
     app.config.from_object(config[config_name])
+    
+    # 数据库配置
+    app.config['SQLALCHEMY_DATABASE_URI'] = (
+        f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+        f"@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}?charset=utf8mb4"
+    )
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # 初始化扩展
     db.init_app(app)
