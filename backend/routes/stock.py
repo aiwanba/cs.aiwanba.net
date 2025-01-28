@@ -195,6 +195,68 @@ def get_orders():
         current_app.logger.error(f"获取订单数据失败: {str(e)}")
         return jsonify({'message': '获取订单数据失败'}), 500
 
+@stock_bp.route('/orders/<int:order_id>/cancel', methods=['POST'])
+@login_required
+def cancel_order(order_id):
+    """撤销订单"""
+    try:
+        user_id = g.user_id
+        order = Order.query.get_or_404(order_id)
+        
+        # 验证订单所有者
+        if order.user_id != user_id:
+            return jsonify({'message': '无权操作此订单'}), 403
+            
+        # 验证订单状态
+        if order.status != 'pending':
+            return jsonify({'message': '只能撤销待处理的订单'}), 400
+            
+        # 更新订单状态
+        order.status = 'cancelled'
+        
+        # 如果是卖单，解冻股票
+        if order.order_type == 'sell':
+            frozen_stock = Stock.query.filter_by(
+                company_id=order.company_id,
+                holder_id=user_id,
+                is_frozen=True
+            ).first()
+            
+            if frozen_stock:
+                # 创建或更新可用持仓
+                available_stock = Stock.query.filter_by(
+                    company_id=order.company_id,
+                    holder_id=user_id,
+                    is_frozen=False
+                ).first()
+                
+                if not available_stock:
+                    available_stock = Stock(
+                        company_id=order.company_id,
+                        holder_id=user_id,
+                        amount=0,
+                        is_frozen=False
+                    )
+                    db.session.add(available_stock)
+                    
+                available_stock.amount += frozen_stock.amount
+                db.session.delete(frozen_stock)
+                
+        db.session.commit()
+        
+        return jsonify({
+            'message': '订单已撤销',
+            'data': {
+                'order_id': order.id,
+                'status': order.status
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"撤销订单失败: {str(e)}")
+        db.session.rollback()
+        return jsonify({'message': '撤销订单失败'}), 500
+
 # 缺少以下接口：
 # 1. 获取市场行情
 # 2. 获取个人持仓

@@ -169,6 +169,10 @@ export default {
     }
 
     const viewDetail = (companyId) => {
+      if (!companyId) {
+        ElMessage.warning('无效的公司ID')
+        return
+      }
       router.push(`/company/detail/${companyId}`)
     }
 
