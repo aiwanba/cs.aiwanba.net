@@ -13,7 +13,7 @@ class Bank(BaseModel):
     loan_rate = db.Column(db.DECIMAL(5, 2), nullable=False)  # 贷款利率
     total_deposit = db.Column(db.DECIMAL(20, 2), default=0)  # 存款总额
     total_loan = db.Column(db.DECIMAL(20, 2), default=0)  # 贷款总额
-    status = db.Column(db.TINYINT, default=1)  # 1-正常，0-破产
+    status = db.Column(db.Integer, default=1)  # 1-正常，0-破产
     
     # 关联关系
     deposits = db.relationship('Deposit', backref='bank', lazy=True)
@@ -74,7 +74,7 @@ class Deposit(BaseModel):
     term = db.Column(db.Integer, nullable=False)  # 期限(天)
     start_date = db.Column(db.TIMESTAMP, nullable=False)
     end_date = db.Column(db.TIMESTAMP, nullable=False)
-    status = db.Column(db.TINYINT, default=1)  # 1-正常，2-已支取，0-违约
+    status = db.Column(db.Integer, default=1)  # 1-正常，2-已支取，0-违约
     
     def calculate_interest(self, current_date):
         """计算利息"""
@@ -118,9 +118,9 @@ class Loan(BaseModel):
     term = db.Column(db.Integer, nullable=False)  # 期限(天)
     start_date = db.Column(db.TIMESTAMP, nullable=False)
     end_date = db.Column(db.TIMESTAMP, nullable=False)
-    collateral_type = db.Column(db.TINYINT)  # 1-股票，2-存单
+    collateral_type = db.Column(db.Integer)  # 1-股票，2-存单
     collateral_id = db.Column(db.BigInteger)
-    status = db.Column(db.TINYINT, default=1)  # 1-正常，2-已还清，0-违约
+    status = db.Column(db.Integer, default=1)  # 1-正常，2-已还清，0-违约
     
     def calculate_interest(self, current_date):
         """计算利息"""

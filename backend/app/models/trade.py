@@ -52,12 +52,12 @@ class Order(BaseModel):
     
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
-    order_type = db.Column(db.TINYINT, nullable=False)  # 1-买入，2-卖出
-    price_type = db.Column(db.TINYINT, nullable=False)  # 1-市价，2-限价
+    order_type = db.Column(db.Integer, nullable=False)  # 1-买入，2-卖出
+    price_type = db.Column(db.Integer, nullable=False)  # 1-市价，2-限价
     price = db.Column(db.DECIMAL(10, 2))  # 委托价格
     quantity = db.Column(db.BigInteger, nullable=False)  # 委托数量
     filled_quantity = db.Column(db.BigInteger, default=0)  # 已成交数量
-    status = db.Column(db.TINYINT, default=1)  # 1-未成交，2-部分成交，3-全部成交，4-已撤销
+    status = db.Column(db.Integer, default=1)  # 1-未成交，2-部分成交，3-全部成交，4-已撤销
     
     # 关联关系
     buy_trades = db.relationship('Trade', foreign_keys='Trade.buy_order_id', backref='buy_order', lazy=True)

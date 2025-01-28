@@ -9,8 +9,8 @@ class User(BaseModel):
     password_hash = db.Column(db.String(255), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     cash = db.Column(db.DECIMAL(20, 2), default=10000000.00)
-    is_admin = db.Column(db.TINYINT, default=0)
-    status = db.Column(db.TINYINT, default=1)  # 1-正常，0-禁用
+    is_admin = db.Column(db.Integer, default=0)
+    status = db.Column(db.Integer, default=1)  # 1-正常，0-禁用
     
     # 关联关系
     companies = db.relationship('Company', backref='founder', lazy=True)

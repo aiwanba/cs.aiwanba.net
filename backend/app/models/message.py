@@ -5,13 +5,13 @@ class Message(BaseModel):
     """消息模型"""
     __tablename__ = 'messages'
     
-    type = db.Column(db.TINYINT, nullable=False)  # 1-系统公告，2-公司公告，3-交易提醒，4-风险预警
+    type = db.Column(db.Integer, nullable=False)  # 1-系统公告，2-公司公告，3-交易提醒，4-风险预警
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text, nullable=False)
     related_id = db.Column(db.BigInteger)  # 关联ID（如公司ID、交易ID等）
-    priority = db.Column(db.TINYINT, default=3)  # 1-高，2-中，3-低
+    priority = db.Column(db.Integer, default=3)  # 1-高，2-中，3-低
     expire_at = db.Column(db.TIMESTAMP)  # 过期时间
-    status = db.Column(db.TINYINT, default=1)  # 1-有效，0-已过期
+    status = db.Column(db.Integer, default=1)  # 1-有效，0-已过期
     
     # 关联关系
     recipients = db.relationship('MessageRecipient', backref='message', lazy=True)
@@ -62,7 +62,7 @@ class MessageRecipient(BaseModel):
     
     message_id = db.Column(db.BigInteger, db.ForeignKey('messages.id'), nullable=False)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
-    is_read = db.Column(db.TINYINT, default=0)  # 0-未读，1-已读
+    is_read = db.Column(db.Integer, default=0)  # 0-未读，1-已读
     
     def mark_read(self):
         """标记消息为已读"""

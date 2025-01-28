@@ -14,7 +14,7 @@ class Company(BaseModel):
     current_price = db.Column(db.DECIMAL(10, 2), nullable=False)
     cash_balance = db.Column(db.DECIMAL(20, 2), nullable=False)
     founder_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
-    status = db.Column(db.TINYINT, default=1)  # 1-正常，2-停牌，0-破产
+    status = db.Column(db.Integer, default=1)  # 1-正常，2-停牌，0-破产
     
     # 关联关系
     shareholdings = db.relationship('Shareholding', backref='company', lazy=True)
