@@ -64,24 +64,28 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """用户登录"""
-    data = request.get_json()
-    
-    if not all(k in data for k in ('username', 'password')):
-        return jsonify({'error': '缺少必要字段'}), 400
-    
-    user = User.query.filter_by(username=data['username']).first()
-    if not user or not user.check_password(data['password']):
-        return jsonify({'error': '用户名或密码错误'}), 401
-    
-    # 生成 JWT token
-    token = user.generate_token()  # 需要在 User 模型中实现此方法
-    
-    return jsonify({
-        'message': '登录成功',
-        'user': {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email
-        },
-        'token': token
-    }) 
+    try:
+        data = request.get_json()
+        
+        if not all(k in data for k in ('username', 'password')):
+            return jsonify({'message': '缺少必要字段'}), 400
+        
+        user = User.query.filter_by(username=data['username']).first()
+        if not user or not user.check_password(data['password']):
+            return jsonify({'message': '用户名或密码错误'}), 401
+        
+        # 生成 JWT token
+        token = user.generate_token()
+        
+        return jsonify({
+            'message': '登录成功',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email
+            },
+            'token': token
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"登录失败: {str(e)}")
+        return jsonify({'message': '服务器错误'}), 500 

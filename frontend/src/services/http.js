@@ -11,7 +11,7 @@ const http = axios.create({
 // 请求拦截器
 http.interceptors.request.use(
   config => {
-    const token = store.state.token
+    const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -25,31 +25,13 @@ http.interceptors.request.use(
 // 响应拦截器
 http.interceptors.response.use(
   response => {
-    return response
+    // 只返回响应数据部分
+    return response.data
   },
   error => {
-    if (error.response) {
-      switch (error.response.status) {
-        case 401:
-          store.dispatch('logout')
-          router.push('/login')
-          ElMessage.error('登录已过期，请重新登录')
-          break
-        case 403:
-          ElMessage.error('没有权限执行此操作')
-          break
-        case 404:
-          ElMessage.error('请求的资源不存在')
-          break
-        case 500:
-          ElMessage.error('服务器错误，请稍后重试')
-          break
-        default:
-          ElMessage.error(error.response.data.message || '请求失败')
-      }
-    } else {
-      ElMessage.error('网络错误，请检查网络连接')
-    }
+    // 统一错误处理
+    const message = error.response?.data?.message || '请求失败'
+    ElMessage.error(message)
     return Promise.reject(error)
   }
 )
