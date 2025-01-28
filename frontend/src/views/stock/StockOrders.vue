@@ -5,10 +5,10 @@
         <div class="card-header">
           <span>交易订单</span>
           <el-radio-group v-model="orderType" size="small">
-            <el-radio-button label="all">全部</el-radio-button>
-            <el-radio-button label="active">进行中</el-radio-button>
-            <el-radio-button label="completed">已完成</el-radio-button>
-            <el-radio-button label="cancelled">已取消</el-radio-button>
+            <el-radio-button :value="'all'">全部</el-radio-button>
+            <el-radio-button :value="'active'">进行中</el-radio-button>
+            <el-radio-button :value="'completed'">已完成</el-radio-button>
+            <el-radio-button :value="'cancelled'">已取消</el-radio-button>
           </el-radio-group>
         </div>
       </template>
@@ -20,26 +20,21 @@
           </template>
         </el-table-column>
         <el-table-column prop="company_name" label="公司名称" />
-        <el-table-column prop="type" label="交易类型" width="100">
+        <el-table-column prop="order_type" label="交易类型" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.type === 'buy' ? 'success' : 'danger'">
-              {{ row.type === 'buy' ? '买入' : '卖出' }}
+            <el-tag :type="row.order_type === 'buy' ? 'success' : 'danger'">
+              {{ row.order_type === 'buy' ? '买入' : '卖出' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="price" label="委托价格">
           <template #default="{ row }">
-            ¥{{ formatNumber(row.price) }}
+            ¥{{ formatNumber(row.price || 0) }}
           </template>
         </el-table-column>
-        <el-table-column prop="quantity" label="委托数量">
+        <el-table-column prop="amount" label="委托数量">
           <template #default="{ row }">
-            {{ formatNumber(row.quantity) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="filled_quantity" label="成交数量">
-          <template #default="{ row }">
-            {{ formatNumber(row.filled_quantity) }}
+            {{ formatNumber(row.amount || 0) }}
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
@@ -52,7 +47,7 @@
         <el-table-column label="操作" width="120">
           <template #default="{ row }">
             <el-button 
-              v-if="row.status === 'active'"
+              v-if="row.status === 'pending'"
               type="danger" 
               size="small" 
               @click="cancelOrder(row.id)">
@@ -86,10 +81,7 @@ export default {
 
     const filteredOrders = computed(() => {
       if (orderType.value === 'all') return orders.value
-      if (orderType.value === 'active') return orders.value.filter(o => o.status === 'active')
-      if (orderType.value === 'completed') return orders.value.filter(o => o.status === 'completed')
-      if (orderType.value === 'cancelled') return orders.value.filter(o => o.status === 'cancelled')
-      return orders.value
+      return orders.value.filter(o => o.status === orderType.value)
     })
 
     const fetchOrders = async () => {
@@ -124,7 +116,10 @@ export default {
         })
 
         const response = await fetch(`/api/stock/orders/${orderId}/cancel`, {
-          method: 'POST'
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         })
         const data = await response.json()
         
@@ -132,26 +127,32 @@ export default {
           ElMessage.success('订单已撤销')
           fetchOrders()
         } else {
-          ElMessage.error(data.error || '撤销订单失败')
+          ElMessage.error(data.message || '撤销订单失败')
         }
       } catch (error) {
         if (error !== 'cancel') {
+          console.error('撤销订单失败:', error)
           ElMessage.error('撤销订单失败')
         }
       }
     }
 
     const formatNumber = (num) => {
-      return num.toLocaleString('zh-CN')
+      if (num === undefined || num === null) return '0'
+      return Number(num).toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const formatDate = (date) => {
+      if (!date) return '-'
       return new Date(date).toLocaleString('zh-CN')
     }
 
     const getStatusType = (status) => {
       const types = {
-        active: 'warning',
+        pending: 'warning',
         completed: 'success',
         cancelled: 'info'
       }
@@ -160,7 +161,7 @@ export default {
 
     const getStatusText = (status) => {
       const texts = {
-        active: '进行中',
+        pending: '进行中',
         completed: '已完成',
         cancelled: '已取消'
       }

@@ -17,38 +17,19 @@
 
       <el-table :data="positions" v-loading="loading" stripe>
         <el-table-column prop="company_name" label="公司名称" />
-        <el-table-column prop="shares" label="持仓数量">
+        <el-table-column prop="amount" label="持仓数量">
           <template #default="{ row }">
-            {{ formatNumber(row.shares) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="cost_price" label="成本价">
-          <template #default="{ row }">
-            ¥{{ formatNumber(row.cost_price) }}
+            {{ formatNumber(row.amount || 0) }}
           </template>
         </el-table-column>
         <el-table-column prop="current_price" label="当前价">
           <template #default="{ row }">
-            ¥{{ formatNumber(row.current_price) }}
+            ¥{{ formatNumber(row.current_price || 0) }}
           </template>
         </el-table-column>
         <el-table-column prop="market_value" label="市值">
           <template #default="{ row }">
-            ¥{{ formatNumber(row.shares * row.current_price) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="profit" label="浮动盈亏">
-          <template #default="{ row }">
-            <span :class="row.profit >= 0 ? 'profit' : 'loss'">
-              ¥{{ formatNumber(row.profit) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="profit_ratio" label="盈亏比例">
-          <template #default="{ row }">
-            <span :class="row.profit >= 0 ? 'profit' : 'loss'">
-              {{ (row.profit_ratio * 100).toFixed(2) }}%
-            </span>
+            ¥{{ formatNumber(row.market_value || 0) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200">
@@ -79,11 +60,11 @@ export default {
     const positions = ref([])
 
     const totalValue = computed(() => {
-      return positions.value.reduce((sum, pos) => sum + pos.shares * pos.current_price, 0)
+      return positions.value.reduce((sum, pos) => sum + (pos.market_value || 0), 0)
     })
 
     const totalProfit = computed(() => {
-      return positions.value.reduce((sum, pos) => sum + pos.profit, 0)
+      return positions.value.reduce((sum, pos) => sum + (pos.profit || 0), 0)
     })
 
     const fetchPositions = async () => {
@@ -97,7 +78,11 @@ export default {
         const data = await response.json()
         
         if (response.ok) {
-          positions.value = data.data
+          positions.value = data.data.map(pos => ({
+            ...pos,
+            market_value: pos.amount * pos.current_price,
+            profit: 0 // 暂时设为0，后续可以添加成本价计算
+          }))
         } else {
           ElMessage.error(data.message || '获取持仓数据失败')
         }
@@ -110,7 +95,11 @@ export default {
     }
 
     const formatNumber = (num) => {
-      return num.toLocaleString('zh-CN')
+      if (num === undefined || num === null) return '0'
+      return Number(num).toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const goToTrade = (companyId) => {

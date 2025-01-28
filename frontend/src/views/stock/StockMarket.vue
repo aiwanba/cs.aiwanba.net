@@ -51,8 +51,8 @@
             <el-form :model="tradeForm" :rules="rules" ref="tradeFormRef" label-width="80px">
               <el-form-item label="交易类型">
                 <el-radio-group v-model="tradeForm.type">
-                  <el-radio label="buy">买入</el-radio>
-                  <el-radio label="sell">卖出</el-radio>
+                  <el-radio :value="'buy'">买入</el-radio>
+                  <el-radio :value="'sell'">卖出</el-radio>
                 </el-radio-group>
               </el-form-item>
 
@@ -365,28 +365,27 @@ export default {
         const response = await fetch('/api/stock/trade', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
-            company_id: companyId,
+            company_id: Number(companyId),
             type: tradeForm.type,
-            price: tradeForm.price,
-            quantity: tradeForm.quantity
+            price: Number(tradeForm.price),
+            quantity: Number(tradeForm.quantity)
           })
         })
 
         const data = await response.json()
-        if (response.ok) {
-          ElMessage.success('交易提交成功')
-          tradeForm.quantity = 100 // 重置数量
-        } else {
-          ElMessage.error(data.message || '交易提交失败')
+        if (!response.ok) {
+          throw new Error(data.message || '交易提交失败')
         }
+        
+        ElMessage.success('交易提交成功')
+        tradeForm.quantity = 100 // 重置数量
       } catch (error) {
-        if (error !== 'cancel') {
-          console.error('交易提交失败:', error)
-          ElMessage.error('交易提交失败')
-        }
+        console.error('交易提交失败:', error)
+        ElMessage.error(error.message || '交易提交失败')
       } finally {
         loading.value = false
       }

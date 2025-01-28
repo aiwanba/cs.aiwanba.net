@@ -7,6 +7,7 @@ from models.stock import Stock
 from models.order import Order
 from flask import current_app
 from middlewares.auth import login_required
+from services.matching_engine import MatchingEngine
 
 @stock_bp.route('/order/create', methods=['POST'])
 def create_order():
@@ -36,37 +37,62 @@ def create_order():
         return jsonify({'error': '创建卖单失败'}), 500
 
 @stock_bp.route('/trade', methods=['POST'])
+@login_required
 def execute_trade():
     """执行交易"""
-    data = request.get_json()
-    
-    required_fields = ['company_id', 'seller_id', 'buyer_id', 'amount', 'price']
-    if not all(k in data for k in required_fields):
-        return jsonify({'error': '缺少必要字段'}), 400
-        
     try:
-        transaction = StockService.execute_trade(
-            company_id=data['company_id'],
-            seller_id=data['seller_id'],
-            buyer_id=data['buyer_id'],
-            amount=data['amount'],
-            price=data['price']
+        data = request.get_json()
+        user_id = g.user_id
+        
+        # 验证必要字段
+        required_fields = ['company_id', 'type', 'price', 'quantity']
+        if not all(k in data for k in required_fields):
+            return jsonify({'message': '缺少必要字段'}), 400
+            
+        company_id = data['company_id']
+        trade_type = data['type']
+        price = float(data['price'])
+        quantity = int(data['quantity'])
+        
+        # 根据交易类型设置买卖方
+        if trade_type == 'buy':
+            buyer_id = user_id
+            seller_id = None  # 由撮合引擎匹配卖方
+        else:  # sell
+            seller_id = user_id
+            buyer_id = None  # 由撮合引擎匹配买方
+            
+        # 创建订单
+        order = Order(
+            company_id=company_id,
+            user_id=user_id,
+            order_type=trade_type,
+            amount=quantity,
+            price=price,
+            status='pending'
         )
         
+        db.session.add(order)
+        db.session.commit()
+        
+        # 尝试撮合
+        MatchingEngine.try_match(company_id)
+        
         return jsonify({
-            'message': '交易执行成功',
-            'transaction': {
-                'id': transaction.id,
-                'amount': transaction.amount,
-                'price': float(transaction.price),
-                'created_at': transaction.created_at.isoformat()
+            'message': '交易提交成功',
+            'data': {
+                'order_id': order.id,
+                'status': order.status
             }
         })
         
     except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+        current_app.logger.error(f"交易参数错误: {str(e)}")
+        return jsonify({'message': str(e)}), 400
     except Exception as e:
-        return jsonify({'error': '交易执行失败'}), 500
+        current_app.logger.error(f"交易提交失败: {str(e)}")
+        db.session.rollback()
+        return jsonify({'message': '交易提交失败'}), 500
 
 @stock_bp.route('/market', methods=['GET'])
 @login_required
