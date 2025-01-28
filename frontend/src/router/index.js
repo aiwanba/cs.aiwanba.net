@@ -84,17 +84,20 @@ const router = createRouter({
             {
               path: 'accounts',
               name: 'BankAccounts',
-              component: () => import('../views/bank/BankAccounts.vue')
+              component: () => import('@/views/bank/BankAccounts.vue'),
+              meta: { keepAlive: true }
             },
             {
               path: 'loan',
               name: 'BankLoan',
-              component: () => import('../views/bank/BankLoan.vue')
+              component: () => import('@/views/bank/BankLoan.vue'),
+              meta: { keepAlive: true }
             },
             {
               path: 'transfer',
               name: 'BankTransfer',
-              component: () => import('../views/bank/BankTransfer.vue')
+              component: () => import('@/views/bank/BankTransfer.vue'),
+              meta: { keepAlive: true }
             }
           ]
         },

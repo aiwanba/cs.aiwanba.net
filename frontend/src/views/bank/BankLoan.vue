@@ -51,13 +51,11 @@
             </el-form-item>
             
             <el-form-item label="贷款期限" prop="term">
-              <el-select v-model="loanForm.term" style="width: 200px">
-                <el-option label="7天" value="7" />
-                <el-option label="30天" value="30" />
-                <el-option label="90天" value="90" />
-                <el-option label="180天" value="180" />
-                <el-option label="360天" value="360" />
-              </el-select>
+              <el-radio-group v-model="loanForm.term">
+                <el-radio :value="12">12个月</el-radio>
+                <el-radio :value="24">24个月</el-radio>
+                <el-radio :value="36">36个月</el-radio>
+              </el-radio-group>
             </el-form-item>
             
             <el-form-item>
@@ -136,7 +134,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 export default {
@@ -147,9 +145,11 @@ export default {
     const loanRecords = ref([])
     const loanFormRef = ref(null)
 
-    const loanForm = ref({
-      amount: 1000,
-      term: '30'
+    const loans = ref([])
+    const loanForm = reactive({
+      amount: 10000,
+      term: 12,
+      purpose: ''
     })
 
     const rules = {
@@ -196,14 +196,14 @@ export default {
     }
 
     const calculateInterest = () => {
-      if (!loanForm.value.amount || !loanForm.value.term || !account.value.interest_rate) {
+      if (!loanForm.amount || !loanForm.term || !account.value.interest_rate) {
         return 0
       }
-      return loanForm.value.amount * account.value.interest_rate * (loanForm.value.term / 360)
+      return loanForm.amount * account.value.interest_rate * (loanForm.term / 360)
     }
 
     const calculateTotal = () => {
-      return loanForm.value.amount + calculateInterest()
+      return loanForm.amount + calculateInterest()
     }
 
     const handleLoan = async () => {
@@ -211,7 +211,7 @@ export default {
         await loanFormRef.value.validate()
         
         await ElMessageBox.confirm(
-          `确认申请贷款？\n贷款金额：¥${formatNumber(loanForm.value.amount)}\n贷款期限：${loanForm.value.term}天\n预计利息：¥${formatNumber(calculateInterest())}\n到期应还：¥${formatNumber(calculateTotal())}`,
+          `确认申请贷款？\n贷款金额：¥${formatNumber(loanForm.amount)}\n贷款期限：${loanForm.term}天\n预计利息：¥${formatNumber(calculateInterest())}\n到期应还：¥${formatNumber(calculateTotal())}`,
           '确认贷款',
           {
             confirmButtonText: '确认',
@@ -227,8 +227,8 @@ export default {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            amount: loanForm.value.amount,
-            term: parseInt(loanForm.value.term)
+            amount: loanForm.amount,
+            term: parseInt(loanForm.term)
           })
         })
         const data = await response.json()
@@ -250,7 +250,11 @@ export default {
     }
 
     const formatNumber = (num) => {
-      return num.toLocaleString('zh-CN')
+      if (num === undefined || num === null) return '0'
+      return Number(num).toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      })
     }
 
     const formatDate = (date) => {

@@ -196,15 +196,20 @@ export default {
     const fetchAccountInfo = async () => {
       try {
         loading.value = true
-        const response = await fetch('/api/bank/account')
+        const response = await fetch('/api/bank/account', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         const data = await response.json()
         
         if (response.ok) {
-          account.value = data.account
+          account.value = data.data || {}
         } else {
-          ElMessage.error(data.error || '获取账户信息失败')
+          ElMessage.error(data.message || '获取账户信息失败')
         }
       } catch (error) {
+        console.error('获取账户信息失败:', error)
         ElMessage.error('获取账户信息失败')
       } finally {
         loading.value = false
@@ -213,15 +218,20 @@ export default {
 
     const fetchRecentTransactions = async () => {
       try {
-        const response = await fetch('/api/bank/transactions/recent')
+        const response = await fetch('/api/bank/transactions/recent', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
         const data = await response.json()
         
         if (response.ok) {
-          recentTransactions.value = data.transactions
+          recentTransactions.value = data.data || []
         } else {
-          ElMessage.error(data.error || '获取交易记录失败')
+          ElMessage.error(data.message || '获取交易记录失败')
         }
       } catch (error) {
+        console.error('获取交易记录失败:', error)
         ElMessage.error('获取交易记录失败')
       }
     }
