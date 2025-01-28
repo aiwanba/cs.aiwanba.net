@@ -43,61 +43,44 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import companyService from '@/services/company'
 
-export default {
-  name: 'CompanyList',
-  setup() {
-    const router = useRouter()
-    const companies = ref([])
-    const loading = ref(false)
+const router = useRouter()
+const companies = ref([])
+const loading = ref(false)
 
-    const fetchCompanies = async () => {
-      try {
-        loading.value = true
-        const response = await fetch('/api/company/list')
-        const data = await response.json()
-        
-        if (response.ok) {
-          companies.value = data.companies
-        } else {
-          ElMessage.error(data.error || '获取公司列表失败')
-        }
-      } catch (error) {
-        ElMessage.error('获取公司列表失败')
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const formatNumber = (num) => {
-      return num.toLocaleString('zh-CN')
-    }
-
-    const viewDetail = (id) => {
-      router.push(`/company/detail/${id}`)
-    }
-
-    const goToTrade = (id) => {
-      router.push(`/stock/market?company=${id}`)
-    }
-
-    onMounted(() => {
-      fetchCompanies()
-    })
-
-    return {
-      companies,
-      loading,
-      formatNumber,
-      viewDetail,
-      goToTrade
-    }
+const fetchCompanies = async () => {
+  try {
+    loading.value = true
+    const response = await companyService.getCompanyList()
+    companies.value = response.data
+  } catch (error) {
+    console.error('获取公司列表失败:', error)
+    ElMessage.error('获取公司列表失败')
+  } finally {
+    loading.value = false
   }
 }
+
+const formatNumber = (num) => {
+  return num.toLocaleString('zh-CN')
+}
+
+const viewDetail = (id) => {
+  router.push(`/company/detail/${id}`)
+}
+
+const goToTrade = (id) => {
+  router.push(`/stock/market?company=${id}`)
+}
+
+onMounted(() => {
+  fetchCompanies()
+})
 </script>
 
 <style scoped>

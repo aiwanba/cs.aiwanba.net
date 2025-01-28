@@ -1,7 +1,8 @@
-from flask import jsonify, request
+from flask import jsonify, request, current_app
 from . import company_bp
 from services.company import CompanyService
 from app import db
+from models import Company
 
 @company_bp.route('/create', methods=['POST'])
 def create_company():
@@ -46,4 +47,17 @@ def get_company(company_id):
         company_info = CompanyService.get_company_info(company_id)
         return jsonify(company_info)
     except Exception as e:
-        return jsonify({'error': '获取公司信息失败'}), 500 
+        return jsonify({'error': '获取公司信息失败'}), 500
+
+@company_bp.route('/list', methods=['GET'])
+def get_company_list():
+    """获取公司列表"""
+    try:
+        companies = Company.query.all()
+        return jsonify({
+            'message': '获取成功',
+            'data': [company.to_dict() for company in companies]
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取公司列表失败: {str(e)}")
+        return jsonify({'message': '获取公司列表失败'}), 500 
