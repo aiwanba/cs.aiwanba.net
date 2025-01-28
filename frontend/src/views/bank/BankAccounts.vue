@@ -228,30 +228,50 @@ export default {
 
     const openAccount = async () => {
       try {
-        await ElMessageBox.confirm('确定要开立银行账户吗？', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'info'
+        // 先获取可用银行列表
+        const banksResponse = await fetch('/api/bank/banks', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
         })
-
-        loading.value = true
+        const banksData = await banksResponse.json()
+        
+        if (!banksResponse.ok) {
+          throw new Error(banksData.message || '获取银行列表失败')
+        }
+        
+        if (banksData.data.length === 0) {
+          ElMessage.warning('暂无可用银行')
+          return
+        }
+        
+        // 选择第一个银行开户
+        const bankId = banksData.data[0].id
+        
         const response = await fetch('/api/bank/account/open', {
-          method: 'POST'
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            bank_id: bankId
+          })
         })
+        
         const data = await response.json()
         
-        if (response.ok) {
-          ElMessage.success('账户开立成功')
-          fetchAccountInfo()
-        } else {
-          ElMessage.error(data.error || '开立账户失败')
+        if (!response.ok) {
+          throw new Error(data.message || '开户失败')
         }
+        
+        ElMessage.success('开户成功')
+        // 刷新账户信息
+        fetchAccountInfo()
+        
       } catch (error) {
-        if (error !== 'cancel') {
-          ElMessage.error('开立账户失败')
-        }
-      } finally {
-        loading.value = false
+        console.error('开户失败:', error)
+        ElMessage.error(error.message || '开户失败')
       }
     }
 

@@ -2,6 +2,7 @@ from models import Bank, BankAccount, BankTransaction, User
 from extensions import db
 from decimal import Decimal
 from services.websocket import WebSocketService
+import time
 
 class BankService:
     @staticmethod
@@ -25,21 +26,35 @@ class BankService:
     @staticmethod
     def open_account(bank_id, user_id):
         """开户"""
-        # 检查是否已有账户
-        if BankAccount.query.filter_by(bank_id=bank_id, user_id=user_id).first():
-            raise ValueError("该银行已有账户")
+        try:
+            # 检查银行是否存在
+            bank = Bank.query.get(bank_id)
+            if not bank:
+                raise ValueError("银行不存在")
             
-        account = BankAccount(
-            bank_id=bank_id,
-            user_id=user_id,
-            balance=Decimal('0'),
-            account_type='savings',
-            interest_rate=0.03  # 年利率3%
-        )
-        
-        db.session.add(account)
-        db.session.commit()
-        return account
+            # 检查是否已有账户
+            if BankAccount.query.filter_by(bank_id=bank_id, user_id=user_id).first():
+                raise ValueError("该银行已有账户")
+            
+            # 生成账号
+            account_number = f"B{bank_id}U{user_id}T{int(time.time())}"
+            
+            account = BankAccount(
+                bank_id=bank_id,
+                user_id=user_id,
+                account_number=account_number,
+                balance=Decimal('0'),
+                interest_rate=0.03  # 年利率3%
+            )
+            
+            db.session.add(account)
+            db.session.commit()
+            
+            return account
+            
+        except Exception as e:
+            db.session.rollback()
+            raise e
         
     @staticmethod
     def deposit(account_id, amount):
