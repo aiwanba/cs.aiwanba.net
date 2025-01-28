@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '../layouts/MainLayout.vue'
+import { ElMessage } from 'element-plus'
+import store from '../store'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
       path: '/',
-      redirect: '/login'
+      redirect: '/dashboard'
     },
     {
       path: '/login',
@@ -106,16 +108,30 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach(async (to, from, next) => {
+router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
+  const user = store.state.user
   
-  if (to.meta.requiresAuth && !token) {
-    next('/login')
-  } else if (token && (to.path === '/login' || to.path === '/register')) {
-    next('/dashboard')
-  } else {
-    next()
+  if (to.path === '/login' || to.path === '/register') {
+    if (token && user) {
+      next('/dashboard')
+    } else {
+      next()
+    }
+    return
   }
+  
+  if (to.meta.requiresAuth) {
+    if (!token || !user) {
+      ElMessage.warning('请先登录')
+      next('/login')
+    } else {
+      next()
+    }
+    return
+  }
+  
+  next()
 })
 
 export default router 

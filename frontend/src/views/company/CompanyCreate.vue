@@ -100,24 +100,28 @@ export default {
         const response = await fetch('/api/company/create', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
           body: JSON.stringify({
             ...formData,
-            owner_id: store.state.user.id
+            owner_id: store.state.user.id,
+            initial_price: Number(formData.initial_price),
+            total_shares: Number(formData.total_shares)
           })
         })
         
         const data = await response.json()
         
-        if (response.ok) {
-          ElMessage.success('公司创建成功')
-          router.push('/company/list')
-        } else {
-          ElMessage.error(data.error || '创建公司失败')
+        if (!response.ok) {
+          throw new Error(data.error || '创建公司失败')
         }
+        
+        ElMessage.success('公司创建成功')
+        router.push('/company/list')
       } catch (error) {
-        ElMessage.error('创建公司失败')
+        ElMessage.error(error.message || '创建公司失败')
+        console.error('创建公司错误:', error)
       } finally {
         loading.value = false
       }

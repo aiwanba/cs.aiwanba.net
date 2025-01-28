@@ -7,14 +7,24 @@ from models import Company
 @company_bp.route('/create', methods=['POST'])
 def create_company():
     """创建公司"""
-    data = request.get_json()
-    
-    # 验证必要字段
-    required_fields = ['owner_id', 'name', 'industry', 'total_shares', 'initial_price']
-    if not all(k in data for k in required_fields):
-        return jsonify({'error': '缺少必要字段'}), 400
-        
     try:
+        data = request.get_json()
+        
+        # 验证必要字段
+        required_fields = ['owner_id', 'name', 'industry', 'total_shares', 'initial_price']
+        if not all(k in data for k in required_fields):
+            return jsonify({'error': '缺少必要字段'}), 400
+            
+        # 添加详细的日志
+        current_app.logger.info(f"Creating company with data: {data}")
+        
+        # 验证数值范围
+        if not (100000 <= data['total_shares'] <= 1000000):
+            return jsonify({'error': '总股本必须在10万到100万股之间'}), 400
+            
+        if not (10 <= float(data['initial_price']) <= 100):
+            return jsonify({'error': '初始股价必须在10-100元之间'}), 400
+        
         company = CompanyService.create_company(
             owner_id=data['owner_id'],
             name=data['name'],
@@ -25,18 +35,14 @@ def create_company():
         
         return jsonify({
             'message': '公司创建成功',
-            'company': {
-                'id': company.id,
-                'name': company.name,
-                'industry': company.industry,
-                'total_shares': company.total_shares,
-                'current_price': float(company.current_price)
-            }
+            'company': company.to_dict()
         }), 201
         
     except ValueError as e:
+        current_app.logger.error(f"Value Error in company creation: {str(e)}")
         return jsonify({'error': str(e)}), 400
     except Exception as e:
+        current_app.logger.error(f"Error creating company: {str(e)}")
         db.session.rollback()
         return jsonify({'error': '创建公司失败'}), 500
 

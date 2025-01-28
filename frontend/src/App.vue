@@ -2,14 +2,15 @@
   <div id="app">
     <GlobalLoading />
     <router-view v-slot="{ Component }">
-      <transition name="fade" mode="out-in">
-        <component :is="Component" />
-      </transition>
+      <component :is="Component" />
     </router-view>
   </div>
 </template>
 
 <script>
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 import { provideLoading } from './composables/useLoading'
 import GlobalLoading from './components/GlobalLoading.vue'
 
@@ -19,7 +20,23 @@ export default {
     GlobalLoading
   },
   setup() {
+    const router = useRouter()
+    const store = useStore()
+    
     provideLoading()
+    
+    onMounted(() => {
+      // 检查登录状态
+      const token = localStorage.getItem('token')
+      const user = JSON.parse(localStorage.getItem('user'))
+      
+      if (token && user) {
+        store.dispatch('login', { user, token })
+      } else {
+        // 如果没有登录信息，清除可能存在的残留数据
+        store.dispatch('logout')
+      }
+    })
   }
 }
 </script>

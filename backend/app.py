@@ -21,7 +21,13 @@ def create_app(config_name='default'):
     # 初始化扩展
     db.init_app(app)
     cache.init_app(app)
-    cors.init_app(app)
+    cors.init_app(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"]
+        }
+    })
     socketio.init_app(app, cors_allowed_origins=["http://localhost:3000"])
     
     # 初始化数据库
