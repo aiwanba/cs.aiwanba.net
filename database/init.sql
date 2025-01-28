@@ -73,8 +73,8 @@ CREATE TABLE deposits (
     amount DECIMAL(20,2) NOT NULL COMMENT '存款金额',
     interest_rate DECIMAL(5,2) NOT NULL COMMENT '利率',
     term INT NOT NULL COMMENT '期限(天)',
-    start_date TIMESTAMP NOT NULL COMMENT '开始日期',
-    end_date TIMESTAMP NOT NULL COMMENT '到期日期',
+    start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '开始日期',
+    end_date TIMESTAMP NULL COMMENT '到期日期',
     status TINYINT DEFAULT 1 COMMENT '状态：1-正常，2-已支取，0-违约',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (bank_id) REFERENCES banks(id),
@@ -89,8 +89,8 @@ CREATE TABLE loans (
     amount DECIMAL(20,2) NOT NULL COMMENT '贷款金额',
     interest_rate DECIMAL(5,2) NOT NULL COMMENT '利率',
     term INT NOT NULL COMMENT '期限(天)',
-    start_date TIMESTAMP NOT NULL COMMENT '放款日期',
-    end_date TIMESTAMP NOT NULL COMMENT '到期日期',
+    start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '放款日期',
+    end_date TIMESTAMP NULL COMMENT '到期日期',
     collateral_type TINYINT COMMENT '抵押品类型：1-股票，2-存单',
     collateral_id BIGINT COMMENT '抵押品ID',
     status TINYINT DEFAULT 1 COMMENT '状态：1-正常，2-已还清，0-违约',
@@ -139,7 +139,7 @@ CREATE TABLE messages (
     related_id BIGINT COMMENT '关联ID',
     priority TINYINT DEFAULT 3 COMMENT '优先级：1-高，2-中，3-低',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expire_at TIMESTAMP COMMENT '过期时间',
+    expire_at TIMESTAMP NULL COMMENT '过期时间',
     status TINYINT DEFAULT 1 COMMENT '状态：1-有效，0-已过期'
 ) COMMENT '消息表';
 
