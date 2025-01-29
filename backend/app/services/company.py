@@ -28,6 +28,7 @@ class CompanyService:
                 founder_id=founder_id
             )
             db.session.add(company)
+            db.session.flush()
             
             # 创建创始人持股记录
             shareholding = Shareholding(
