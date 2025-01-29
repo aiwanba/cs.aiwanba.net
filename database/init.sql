@@ -77,6 +77,7 @@ CREATE TABLE deposits (
     end_date TIMESTAMP NULL COMMENT '到期日期',
     status TINYINT DEFAULT 1 COMMENT '状态：1-正常，2-已支取，0-违约',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (bank_id) REFERENCES banks(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
 ) COMMENT '存款表';
@@ -95,6 +96,7 @@ CREATE TABLE loans (
     collateral_id BIGINT COMMENT '抵押品ID',
     status TINYINT DEFAULT 1 COMMENT '状态：1-正常，2-已还清，0-违约',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (bank_id) REFERENCES banks(id),
     FOREIGN KEY (user_id) REFERENCES users(id)
 ) COMMENT '贷款表';
