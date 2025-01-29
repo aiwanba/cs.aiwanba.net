@@ -8,9 +8,9 @@ class Bank(BaseModel):
     name = db.Column(db.String(100), unique=True, nullable=False)
     owner_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
     capital = db.Column(db.DECIMAL(20, 2), nullable=False)  # 注册资本
-    reserve_ratio = db.Column(db.DECIMAL(5, 2), default=10.00)  # 准备金率
     deposit_rate = db.Column(db.DECIMAL(5, 2), nullable=False)  # 存款利率
     loan_rate = db.Column(db.DECIMAL(5, 2), nullable=False)  # 贷款利率
+    reserve_ratio = db.Column(db.DECIMAL(5, 2), default=10.00)  # 准备金率
     total_deposit = db.Column(db.DECIMAL(20, 2), default=0)  # 存款总额
     total_loan = db.Column(db.DECIMAL(20, 2), default=0)  # 贷款总额
     status = db.Column(db.Integer, default=1)  # 1-正常，0-破产
@@ -19,12 +19,13 @@ class Bank(BaseModel):
     deposits = db.relationship('Deposit', backref='bank', lazy=True)
     loans = db.relationship('Loan', backref='bank', lazy=True)
     
-    def __init__(self, name, owner_id, capital, deposit_rate, loan_rate):
+    def __init__(self, name, owner_id, capital, deposit_rate, loan_rate, reserve_ratio=10.00):
         self.name = name
         self.owner_id = owner_id
         self.capital = capital
         self.deposit_rate = deposit_rate
         self.loan_rate = loan_rate
+        self.reserve_ratio = reserve_ratio
     
     def get_available_funds(self):
         """获取可贷资金"""

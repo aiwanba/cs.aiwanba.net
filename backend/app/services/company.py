@@ -4,6 +4,8 @@ from app import db
 from app.models.company import Company
 from app.models.trade import Shareholding
 from app.models.message import Message
+from app.services.transaction import TransactionService
+from app.models.transaction import Transaction
 
 class CompanyService:
     @staticmethod
@@ -18,6 +20,9 @@ class CompanyService:
             return False, "股票代码已存在"
         
         try:
+            # 计算注册资本
+            capital = total_shares * initial_price
+            
             # 创建公司
             company = Company(
                 name=name,
@@ -28,7 +33,19 @@ class CompanyService:
                 founder_id=founder_id
             )
             db.session.add(company)
-            db.session.flush()
+            db.session.flush()  # 获取company.id
+            
+            # 创建资金流水
+            success, result = TransactionService.create_transaction(
+                user_id=founder_id,
+                type=Transaction.TYPE_CREATE_COMPANY,
+                amount=-capital,  # 负数表示支出
+                related_id=company.id,
+                description=f"创建公司：{name}"
+            )
+            if not success:
+                db.session.rollback()
+                return False, result
             
             # 创建创始人持股记录
             shareholding = Shareholding(

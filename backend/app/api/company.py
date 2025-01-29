@@ -24,15 +24,26 @@ def create_company():
     try:
         total_shares = int(total_shares)
         initial_price = float(initial_price)
+        capital = total_shares * initial_price
+        
         if not (100000 <= total_shares <= 1000000):
             return error_response("总股本必须在10万到100万股之间")
         if not (10 <= initial_price <= 100):
             return error_response("发行价必须在10到100元之间")
+            
+        # 检查用户现金是否足够
+        if g.current_user.cash < capital:
+            return error_response("现金余额不足以支付注册资本")
     except ValueError:
         return error_response("数值格式错误")
     
     success, result = CompanyService.create_company(
-        name, stock_code, industry, total_shares, initial_price, g.current_user.id
+        name=name,
+        stock_code=stock_code,
+        industry=industry,
+        total_shares=total_shares,
+        initial_price=initial_price,
+        founder_id=g.current_user.id
     )
     
     if success:

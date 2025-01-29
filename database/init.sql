@@ -155,6 +155,20 @@ CREATE TABLE message_recipients (
     FOREIGN KEY (user_id) REFERENCES users(id)
 ) COMMENT '消息接收表';
 
+-- 资金流水表
+CREATE TABLE transactions (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    user_id BIGINT NOT NULL COMMENT '用户ID',
+    type TINYINT NOT NULL COMMENT '类型：1-创建公司，2-创建银行，3-存款，4-取款，5-贷款，6-还款',
+    amount DECIMAL(20,2) NOT NULL COMMENT '金额',
+    balance DECIMAL(20,2) NOT NULL COMMENT '变动后余额',
+    related_id BIGINT COMMENT '关联ID',
+    description VARCHAR(200) COMMENT '说明',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) COMMENT '资金流水表';
+
 -- 创建必要的索引
 CREATE INDEX idx_companies_stock_code ON companies(stock_code);
 CREATE INDEX idx_shareholdings_user ON shareholdings(user_id);

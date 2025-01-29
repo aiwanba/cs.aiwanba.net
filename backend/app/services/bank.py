@@ -3,30 +3,49 @@ from decimal import Decimal
 from app import db
 from app.models.bank import Bank, Deposit, Loan
 from app.models.message import Message
+from app.services.transaction import TransactionService
+from app.models.transaction import Transaction
 
 class BankService:
     @staticmethod
-    def create_bank(name, owner_id, capital, deposit_rate, loan_rate):
+    def create_bank(name, owner_id, capital, deposit_rate, loan_rate, reserve_ratio=10.00):
         """创建银行"""
         # 检查银行名称是否已存在
         if Bank.query.filter_by(name=name).first():
             return False, "银行名称已存在"
         
         try:
+            # 创建银行
             bank = Bank(
                 name=name,
                 owner_id=owner_id,
                 capital=capital,
                 deposit_rate=deposit_rate,
-                loan_rate=loan_rate
+                loan_rate=loan_rate,
+                reserve_ratio=reserve_ratio
             )
             db.session.add(bank)
+            db.session.flush()  # 获取bank.id
+            
+            # 创建资金流水
+            success, result = TransactionService.create_transaction(
+                user_id=owner_id,
+                type=Transaction.TYPE_CREATE_BANK,
+                amount=-capital,  # 负数表示支出
+                related_id=bank.id,
+                description=f"创建银行：{name}"
+            )
+            if not success:
+                db.session.rollback()
+                return False, result
             
             # 创建银行开业公告
             message = Message(
                 type=1,  # 系统公告
                 title=f"新银行开业: {name}",
-                content=f"新银行{name}已开业，存款利率{deposit_rate}%，贷款利率{loan_rate}%",
+                content=f"新银行{name}已开业，注册资本{capital}元，"
+                       f"存款利率{deposit_rate}%，贷款利率{loan_rate}%，"
+                       f"准备金率{reserve_ratio}%",
                 priority=2  # 中等优先级
             )
             db.session.add(message)

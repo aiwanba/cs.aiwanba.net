@@ -14,6 +14,7 @@ def create_bank():
     capital = data.get('capital')
     deposit_rate = data.get('deposit_rate')
     loan_rate = data.get('loan_rate')
+    reserve_ratio = data.get('reserve_ratio', 10.00)  # 默认10%
     
     # 验证必要字段
     if not all([name, capital, deposit_rate, loan_rate]):
@@ -24,16 +25,28 @@ def create_bank():
         capital = float(capital)
         deposit_rate = float(deposit_rate)
         loan_rate = float(loan_rate)
+        reserve_ratio = float(reserve_ratio)
         
         if capital < 50000000:  # 最低注册资本5000万
             return error_response("注册资本不能低于5000万")
         if not (0 < deposit_rate < loan_rate):
             return error_response("存款利率必须大于0且小于贷款利率")
+        if not (0 < reserve_ratio <= 100):
+            return error_response("准备金率必须在0-100%之间")
+            
+        # 检查用户现金是否足够
+        if g.current_user.cash < capital:
+            return error_response("现金余额不足")
     except ValueError:
         return error_response("数值格式错误")
     
     success, result = BankService.create_bank(
-        name, g.current_user.id, capital, deposit_rate, loan_rate
+        name=name,
+        owner_id=g.current_user.id,
+        capital=capital,
+        deposit_rate=deposit_rate,
+        loan_rate=loan_rate,
+        reserve_ratio=reserve_ratio
     )
     
     if success:
