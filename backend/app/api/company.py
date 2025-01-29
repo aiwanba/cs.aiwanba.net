@@ -70,4 +70,22 @@ def update_company_status(company_id):
     success, result = CompanyService.update_company_status(company_id, status)
     if success:
         return success_response(result.to_dict(), "状态更新成功")
+    return error_response(result)
+
+@company_bp.route('/<int:company_id>', methods=['PUT'])
+@login_required
+def update_company(company_id):
+    """更新公司信息"""
+    data = request.get_json()
+    name = data.get('name')
+    industry = data.get('industry')
+    cash_balance = data.get('cash_balance')
+    
+    # 验证必要字段
+    if not any([name, industry, cash_balance]):
+        return error_response("至少需要提供一个更新字段")
+    
+    success, result = CompanyService.update_company(company_id, data)
+    if success:
+        return success_response(result.to_dict(), "公司信息更新成功")
     return error_response(result) 

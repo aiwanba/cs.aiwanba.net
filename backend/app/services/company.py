@@ -123,4 +123,47 @@ class CompanyService:
             return True, company
         except Exception as e:
             db.session.rollback()
+            return False, str(e)
+    
+    @staticmethod
+    def update_company(company_id, data):
+        """更新公司信息"""
+        company = Company.query.get(company_id)
+        if not company:
+            return False, "公司不存在"
+        
+        try:
+            # 只允许更新特定字段
+            if 'name' in data:
+                # 检查新名称是否已存在
+                if Company.query.filter(Company.id != company_id, Company.name == data['name']).first():
+                    return False, "公司名称已存在"
+                company.name = data['name']
+                
+            if 'industry' in data:
+                company.industry = data['industry']
+                
+            if 'cash_balance' in data:
+                try:
+                    cash_balance = float(data['cash_balance'])
+                    company.cash_balance = cash_balance
+                except ValueError:
+                    return False, "现金余额格式错误"
+            
+            db.session.commit()
+            
+            # 创建更新公告
+            message = Message(
+                type=2,  # 公司公告
+                title=f"公司信息更新: {company.name}",
+                content=f"公司{company.name}({company.stock_code})信息已更新",
+                related_id=company.id,
+                priority=2  # 中等优先级
+            )
+            db.session.add(message)
+            db.session.commit()
+            
+            return True, company
+        except Exception as e:
+            db.session.rollback()
             return False, str(e) 
