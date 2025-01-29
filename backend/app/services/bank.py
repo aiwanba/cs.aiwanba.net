@@ -67,12 +67,16 @@ class BankService:
             return False, "银行状态异常"
         
         try:
+            # 将 amount 转换为 Decimal
+            amount = Decimal(str(amount))
+            
             start_date = datetime.utcnow()
             end_date = start_date + timedelta(days=term)
+            
             deposit = Deposit(
                 bank_id=bank_id,
                 user_id=user_id,
-                amount=amount,
+                amount=amount,  # 已经是 Decimal 类型
                 interest_rate=bank.deposit_rate,
                 term=term,
                 start_date=start_date,
@@ -80,7 +84,7 @@ class BankService:
             )
             db.session.add(deposit)
             
-            # 更新银行存款总额
+            # 更新银行存款总额 (现在两者都是 Decimal 类型)
             bank.total_deposit += amount
             
             db.session.commit()
