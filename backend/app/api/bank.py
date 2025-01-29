@@ -2,6 +2,7 @@ from flask import Blueprint, request, g
 from app.services.bank import BankService
 from app.utils.response import success_response, error_response
 from app.utils.auth import login_required, admin_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 bank_bp = Blueprint('bank', __name__)
 
@@ -97,32 +98,30 @@ def create_deposit(bank_id):
     return error_response(result)
 
 @bank_bp.route('/<int:bank_id>/loan', methods=['POST'])
-@login_required
+@jwt_required()
 def create_loan(bank_id):
     """创建贷款"""
     data = request.get_json()
+    user_id = get_jwt_identity()
+    
     amount = data.get('amount')
-    term = data.get('term')  # 贷款期限(天)
+    term = data.get('term')
     collateral_type = data.get('collateral_type')
     collateral_id = data.get('collateral_id')
     
-    try:
-        amount = float(amount)
-        term = int(term)
-        if amount <= 0:
-            return error_response("贷款金额必须大于0")
-        if term <= 0:
-            return error_response("贷款期限必须大于0")
-    except ValueError:
-        return error_response("数值格式错误")
-    
     success, result = BankService.create_loan(
-        bank_id, g.current_user.id, amount, term, collateral_type, collateral_id
+        bank_id=bank_id,
+        user_id=user_id,
+        amount=amount,
+        term=term,
+        collateral_type=collateral_type,
+        collateral_id=collateral_id
     )
     
-    if success:
-        return success_response(result.to_dict(), "贷款成功")
-    return error_response(result)
+    if not success:
+        return error_response(result)
+    
+    return success_response(result)
 
 @bank_bp.route('/<int:bank_id>/rates', methods=['PUT'])
 @login_required

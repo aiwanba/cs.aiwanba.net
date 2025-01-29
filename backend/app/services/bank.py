@@ -5,6 +5,7 @@ from app.models.bank import Bank, Deposit, Loan
 from app.models.message import Message
 from app.services.transaction import TransactionService
 from app.models.transaction import Transaction
+from flask import current_app
 
 class BankService:
     @staticmethod
@@ -96,39 +97,57 @@ class BankService:
     @staticmethod
     def create_loan(bank_id, user_id, amount, term, collateral_type, collateral_id):
         """创建贷款"""
-        bank = Bank.query.get(bank_id)
-        if not bank:
-            return False, "银行不存在"
-        
-        if bank.status != 1:
-            return False, "银行状态异常"
-        
-        if not bank.can_loan(amount):
-            return False, "银行可贷资金不足"
-        
         try:
+            bank = Bank.query.get(bank_id)
+            if not bank:
+                return False, "银行不存在"
+            
+            if bank.status != 1:
+                return False, "银行状态异常"
+            
+            # 将 amount 转换为 Decimal
+            amount = Decimal(str(amount))
+            
+            if not bank.can_loan(amount):
+                return False, "银行可贷资金不足"
+            
             # 创建贷款记录
             loan = Loan(
                 bank_id=bank_id,
                 user_id=user_id,
-                amount=amount,
+                amount=amount,  # 已经是 Decimal 类型
                 interest_rate=bank.loan_rate,
                 term=term,
                 start_date=datetime.utcnow(),
                 end_date=datetime.utcnow() + timedelta(days=term),
                 collateral_type=collateral_type,
-                collateral_id=collateral_id
+                collateral_id=collateral_id,
+                status=1
             )
             db.session.add(loan)
             
             # 更新银行贷款总额
             bank.total_loan += amount
             
+            # 创建资金流水
+            success, result = TransactionService.create_transaction(
+                user_id=user_id,
+                type=Transaction.TYPE_LOAN,
+                amount=amount,
+                related_id=loan.id,
+                description=f"贷款：{amount}元，期限{term}天，利率{bank.loan_rate}%"
+            )
+            if not success:
+                db.session.rollback()
+                return False, result
+            
             db.session.commit()
-            return True, loan
+            return True, loan.to_dict()
+            
         except Exception as e:
             db.session.rollback()
-            return False, str(e)
+            current_app.logger.error(f"创建贷款失败: {str(e)}")
+            return False, "创建贷款失败"
     
     @staticmethod
     def get_bank_list(page=1, per_page=10):
