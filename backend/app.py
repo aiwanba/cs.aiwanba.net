@@ -3,6 +3,8 @@ from app import create_app, db
 from flask import current_app
 import pymysql
 from sqlalchemy import text, inspect
+from flask_jwt_extended import JWTManager
+from datetime import timedelta
 
 def check_db():
     """检查数据库状态"""
@@ -81,7 +83,13 @@ def init_database():
         print(f"数据库初始化失败：{str(e)}")
         return False
 
-app = create_app(os.getenv('FLASK_CONFIG', 'default'))
+app = create_app()
+
+# 确保JWT配置正确
+app.config["JWT_SECRET_KEY"] = os.getenv('JWT_SECRET_KEY', 'dev_secret_key')
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=30)
+jwt = JWTManager(app)
 
 @app.cli.command('init-db')
 def init_db_command():

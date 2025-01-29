@@ -38,9 +38,12 @@ class AuthService:
         if user.status != 1:
             return False, "账号已被禁用"
         
+        # 确保user.id转换为字符串
+        user_id = str(user.id)
+        
         # 生成访问令牌和刷新令牌
-        access_token = create_access_token(identity=user.id)
-        refresh_token = create_refresh_token(identity=user.id)
+        access_token = create_access_token(identity=user_id)
+        refresh_token = create_refresh_token(identity=user_id)
         
         return True, {
             "user": user.to_dict(),
@@ -51,9 +54,10 @@ class AuthService:
     @staticmethod
     def refresh_token(user_id):
         """刷新访问令牌"""
-        user = User.query.get(user_id)
-        if not user or user.status != 1:
-            return False, "用户不存在或已被禁用"
-        
-        access_token = create_access_token(identity=user.id)
-        return True, {"access_token": access_token} 
+        try:
+            # 确保user_id是字符串
+            user_id = str(user_id)
+            access_token = create_access_token(identity=user_id)
+            return True, {"access_token": access_token}
+        except Exception as e:
+            return False, str(e) 

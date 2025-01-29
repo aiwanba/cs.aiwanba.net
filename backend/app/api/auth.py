@@ -40,8 +40,21 @@ def login():
 @jwt_required(refresh=True)
 def refresh():
     """刷新访问令牌"""
-    user_id = get_jwt_identity()
-    success, result = AuthService.refresh_token(user_id)
-    if success:
-        return success_response(result, "令牌刷新成功")
-    return error_response(result) 
+    try:
+        # 打印调试信息
+        print("Received refresh request")
+        print(f"Headers: {request.headers}")
+        
+        user_id = get_jwt_identity()
+        print(f"User ID from token: {user_id}")
+        
+        if not user_id:
+            return error_response("Invalid token: no user identity", 401)
+            
+        success, result = AuthService.refresh_token(user_id)
+        if success:
+            return success_response(result, "令牌刷新成功")
+        return error_response(result)
+    except Exception as e:
+        print(f"Refresh error: {str(e)}")
+        return error_response(f"Token refresh failed: {str(e)}", 401) 
