@@ -192,7 +192,7 @@ BEGIN
 END//
 DELIMITER ;
 
--- 添加资金检查触发器
+-- 触发器部分整理
 DELIMITER $$
 
 -- 存款前检查用户资金
@@ -209,27 +209,126 @@ BEGIN
     UPDATE users SET cash = cash - NEW.amount WHERE id = NEW.user_id;
 END$$
 
--- 贷款后更新用户资金
+-- 存款后更新银行存款总额和记录资金流水
+CREATE TRIGGER after_deposit_insert
+AFTER INSERT ON deposits
+FOR EACH ROW
+BEGIN
+    -- 更新银行存款总额
+    UPDATE banks 
+    SET total_deposit = total_deposit + NEW.amount,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.bank_id;
+    
+    -- 创建存款资金流水记录
+    INSERT INTO transactions (
+        user_id, type, amount, balance, related_id, description
+    )
+    SELECT 
+        NEW.user_id,
+        3, -- 存款类型
+        -NEW.amount,
+        users.cash,
+        NEW.id,
+        CONCAT('存款：', NEW.amount, '元，期限', NEW.term, '天，利率', NEW.interest_rate, '%')
+    FROM users
+    WHERE id = NEW.user_id;
+END$$
+
+-- 存款支取时更新银行存款总额和记录资金流水
+CREATE TRIGGER after_deposit_update
+AFTER UPDATE ON deposits
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 2 AND OLD.status = 1 THEN
+        -- 更新银行存款总额
+        UPDATE banks 
+        SET total_deposit = total_deposit - OLD.amount,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = OLD.bank_id;
+        
+        -- 返还用户现金
+        UPDATE users 
+        SET cash = cash + OLD.amount 
+        WHERE id = OLD.user_id;
+        
+        -- 创建取款资金流水记录
+        INSERT INTO transactions (
+            user_id, type, amount, balance, related_id, description
+        )
+        SELECT 
+            OLD.user_id,
+            4, -- 取款类型
+            OLD.amount,
+            users.cash,
+            OLD.id,
+            CONCAT('取款：', OLD.amount, '元')
+        FROM users
+        WHERE id = OLD.user_id;
+    END IF;
+END$$
+
+-- 贷款后更新银行贷款总额和记录资金流水
 CREATE TRIGGER after_loan_insert
 AFTER INSERT ON loans
 FOR EACH ROW
 BEGIN
-    UPDATE users SET cash = cash + NEW.amount WHERE id = NEW.user_id;
+    -- 更新银行贷款总额
+    UPDATE banks 
+    SET total_loan = total_loan + NEW.amount,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = NEW.bank_id;
+    
+    -- 更新用户现金
+    UPDATE users 
+    SET cash = cash + NEW.amount 
+    WHERE id = NEW.user_id;
+    
+    -- 创建贷款资金流水记录
+    INSERT INTO transactions (
+        user_id, type, amount, balance, related_id, description
+    )
+    SELECT 
+        NEW.user_id,
+        5, -- 贷款类型
+        NEW.amount,
+        users.cash,
+        NEW.id,
+        CONCAT('贷款：', NEW.amount, '元，期限', NEW.term, '天，利率', NEW.interest_rate, '%')
+    FROM users
+    WHERE id = NEW.user_id;
 END$$
 
--- 还款时检查用户资金
-CREATE TRIGGER before_loan_update
-BEFORE UPDATE ON loans
+-- 贷款还款时更新银行贷款总额和记录资金流水
+CREATE TRIGGER after_loan_update
+AFTER UPDATE ON loans
 FOR EACH ROW
 BEGIN
     IF NEW.status = 2 AND OLD.status = 1 THEN
-        DECLARE user_cash DECIMAL(20,2);
-        SELECT cash INTO user_cash FROM users WHERE id = NEW.user_id;
-        IF user_cash < NEW.amount THEN
-            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '用户现金不足，无法还款';
-        END IF;
-        -- 如果资金充足，更新用户现金
-        UPDATE users SET cash = cash - NEW.amount WHERE id = NEW.user_id;
+        -- 更新银行贷款总额
+        UPDATE banks 
+        SET total_loan = total_loan - OLD.amount,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = OLD.bank_id;
+        
+        -- 扣减用户现金
+        UPDATE users 
+        SET cash = cash - OLD.amount 
+        WHERE id = OLD.user_id;
+        
+        -- 创建还款资金流水记录
+        INSERT INTO transactions (
+            user_id, type, amount, balance, related_id, description
+        )
+        SELECT 
+            OLD.user_id,
+            6, -- 还款类型
+            -OLD.amount,
+            users.cash,
+            OLD.id,
+            CONCAT('还款：', OLD.amount, '元')
+        FROM users
+        WHERE id = OLD.user_id;
     END IF;
 END$$
 
