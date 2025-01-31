@@ -85,4 +85,20 @@ def get_trade_list():
     company_id = request.args.get('company_id')
     
     result = TradeService.get_trade_list(company_id, page, per_page)
+    return success_response(result)
+
+@trade_bp.route('/holdings', methods=['GET'])
+@login_required
+def get_holdings():
+    """获取持仓信息"""
+    company_id = request.args.get('company_id', type=int)
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    
+    result = TradeService.get_holdings(
+        user_id=g.current_user.id,
+        company_id=company_id,
+        page=page,
+        per_page=per_page
+    )
     return success_response(result) 

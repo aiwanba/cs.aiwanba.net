@@ -195,4 +195,21 @@ class TradeService:
             'total': trades.total,
             'pages': trades.pages,
             'current_page': trades.page
+        }
+    
+    @staticmethod
+    def get_holdings(user_id, company_id=None, page=1, per_page=10):
+        """获取持仓信息"""
+        query = Shareholding.query.filter_by(user_id=user_id)
+        
+        if company_id:
+            query = query.filter_by(company_id=company_id)
+        
+        holdings = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        return {
+            'items': [holding.to_dict() for holding in holdings.items],
+            'total': holdings.total,
+            'pages': holdings.pages,
+            'current_page': holdings.page
         } 
