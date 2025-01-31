@@ -64,6 +64,11 @@ class MessageRecipient(BaseModel):
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.id'), nullable=False)
     is_read = db.Column(db.Integer, default=0)  # 0-未读，1-已读
     
+    # 移除 updated_at 字段的继承
+    __mapper_args__ = {
+        'exclude_properties': ['updated_at']
+    }
+    
     def mark_read(self):
         """标记消息为已读"""
         self.is_read = 1
