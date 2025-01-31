@@ -191,3 +191,46 @@ BEGIN
     WHERE id = NEW.company_id;
 END//
 DELIMITER ;
+
+-- 添加资金检查触发器
+DELIMITER $$
+
+-- 存款前检查用户资金
+CREATE TRIGGER before_deposit_insert
+BEFORE INSERT ON deposits
+FOR EACH ROW
+BEGIN
+    DECLARE user_cash DECIMAL(20,2);
+    SELECT cash INTO user_cash FROM users WHERE id = NEW.user_id;
+    IF user_cash < NEW.amount THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '用户现金不足';
+    END IF;
+    -- 如果资金充足，更新用户现金
+    UPDATE users SET cash = cash - NEW.amount WHERE id = NEW.user_id;
+END$$
+
+-- 贷款后更新用户资金
+CREATE TRIGGER after_loan_insert
+AFTER INSERT ON loans
+FOR EACH ROW
+BEGIN
+    UPDATE users SET cash = cash + NEW.amount WHERE id = NEW.user_id;
+END$$
+
+-- 还款时检查用户资金
+CREATE TRIGGER before_loan_update
+BEFORE UPDATE ON loans
+FOR EACH ROW
+BEGIN
+    IF NEW.status = 2 AND OLD.status = 1 THEN
+        DECLARE user_cash DECIMAL(20,2);
+        SELECT cash INTO user_cash FROM users WHERE id = NEW.user_id;
+        IF user_cash < NEW.amount THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '用户现金不足，无法还款';
+        END IF;
+        -- 如果资金充足，更新用户现金
+        UPDATE users SET cash = cash - NEW.amount WHERE id = NEW.user_id;
+    END IF;
+END$$
+
+DELIMITER ;
