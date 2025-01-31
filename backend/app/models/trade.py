@@ -118,14 +118,16 @@ class Trade(BaseModel):
     
     def calculate_amount(self):
         """计算成交金额"""
-        return float(self.price * self.quantity)
+        return self.price * self.quantity  # 返回Decimal类型
     
     def calculate_fee(self):
         """计算手续费"""
-        return float(self.calculate_amount() * Decimal('0.001'))  # 0.1%手续费
+        amount = self.calculate_amount()
+        return float(amount * Decimal('0.001'))  # 先计算后转float
     
     def to_dict(self):
         """转换为字典格式"""
+        amount = self.calculate_amount()
         return {
             'id': self.id,
             'company_id': self.company_id,
@@ -133,7 +135,7 @@ class Trade(BaseModel):
             'sell_order_id': self.sell_order_id,
             'price': float(self.price),
             'quantity': self.quantity,
-            'amount': self.calculate_amount(),
-            'fee': self.calculate_fee(),
+            'amount': float(amount),
+            'fee': float(amount * Decimal('0.001')),
             'created_at': self.created_at.isoformat() if self.created_at else None
         } 
