@@ -7,4 +7,15 @@ class BaseModel(db.Model):
     
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     created_at = db.Column(db.TIMESTAMP, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.TIMESTAMP, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow) 
+    
+    # 让子类可以选择是否继承 updated_at
+    def __init_subclass__(cls, **kwargs):
+        if not hasattr(cls, '__mapper_args__') or \
+           'exclude_properties' not in cls.__mapper_args__ or \
+           'updated_at' not in cls.__mapper_args__['exclude_properties']:
+            cls.updated_at = db.Column(
+                db.TIMESTAMP, 
+                nullable=False,
+                default=datetime.utcnow,
+                onupdate=datetime.utcnow
+            ) 

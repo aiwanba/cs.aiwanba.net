@@ -4,6 +4,7 @@ from app import db
 from app.models.trade import Order, Trade, Shareholding
 from app.models.company import Company
 from app.models.message import Message
+from flask import current_app
 
 class TradeService:
     @staticmethod
@@ -56,53 +57,58 @@ class TradeService:
     @staticmethod
     def match_orders(company_id):
         """撮合交易"""
-        # 获取未成交的买单和卖单
-        buy_orders = Order.query.filter_by(
-            company_id=company_id,
-            order_type=1,  # 买入
-            status=1  # 未成交
-        ).order_by(Order.price.desc(), Order.created_at.asc()).all()
-        
-        sell_orders = Order.query.filter_by(
-            company_id=company_id,
-            order_type=2,  # 卖出
-            status=1  # 未成交
-        ).order_by(Order.price.asc(), Order.created_at.asc()).all()
-        
-        for buy_order in buy_orders:
-            for sell_order in sell_orders:
-                # 检查价格是否匹配
-                if buy_order.price_type == 1 or sell_order.price_type == 1 or \
-                   buy_order.price >= sell_order.price:
-                    # 计算成交数量
-                    trade_quantity = min(
-                        buy_order.quantity - buy_order.filled_quantity,
-                        sell_order.quantity - sell_order.filled_quantity
-                    )
-                    
-                    if trade_quantity > 0:
-                        # 创建成交记录
-                        trade = Trade(
-                            company_id=company_id,
-                            buy_order_id=buy_order.id,
-                            sell_order_id=sell_order.id,
-                            price=sell_order.price,
-                            quantity=trade_quantity
+        try:
+            # 获取未成交的买单和卖单
+            buy_orders = Order.query.filter_by(
+                company_id=company_id,
+                order_type=1,  # 买入
+                status=1  # 未成交
+            ).order_by(Order.price.desc(), Order.created_at.asc()).all()
+            
+            sell_orders = Order.query.filter_by(
+                company_id=company_id,
+                order_type=2,  # 卖出
+                status=1  # 未成交
+            ).order_by(Order.price.asc(), Order.created_at.asc()).all()
+            
+            for buy_order in buy_orders:
+                for sell_order in sell_orders:
+                    # 检查价格是否匹配
+                    if buy_order.price_type == 1 or sell_order.price_type == 1 or \
+                       buy_order.price >= sell_order.price:
+                        # 计算成交数量
+                        trade_quantity = min(
+                            buy_order.quantity - buy_order.filled_quantity,
+                            sell_order.quantity - sell_order.filled_quantity
                         )
-                        db.session.add(trade)
                         
-                        # 更新订单状态
-                        buy_order.update_filled(trade_quantity)
-                        sell_order.update_filled(trade_quantity)
-                        
-                        # 更新持仓
-                        TradeService.update_shareholding(trade)
-                        
-                        # 更新公司股价
-                        company = Company.query.get(company_id)
-                        company.update_price(sell_order.price)
-                        
-                        db.session.commit()
+                        if trade_quantity > 0:
+                            # 创建成交记录
+                            trade = Trade(
+                                company_id=company_id,
+                                buy_order_id=buy_order.id,
+                                sell_order_id=sell_order.id,
+                                price=sell_order.price,
+                                quantity=trade_quantity
+                            )
+                            db.session.add(trade)
+                            
+                            # 更新订单状态
+                            buy_order.update_filled(trade_quantity)
+                            sell_order.update_filled(trade_quantity)
+                            
+                            # 更新持仓
+                            TradeService.update_shareholding(trade)
+                            
+                            # 更新公司股价
+                            company = Company.query.get(company_id)
+                            company.update_price(sell_order.price)
+                            
+                            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"撮合交易失败: {str(e)}")
+            raise e
     
     @staticmethod
     def update_shareholding(trade):

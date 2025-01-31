@@ -107,8 +107,14 @@ class Trade(BaseModel):
     company_id = db.Column(db.BigInteger, db.ForeignKey('companies.id'), nullable=False)
     buy_order_id = db.Column(db.BigInteger, db.ForeignKey('orders.id'), nullable=False)
     sell_order_id = db.Column(db.BigInteger, db.ForeignKey('orders.id'), nullable=False)
-    price = db.Column(db.DECIMAL(10, 2), nullable=False)  # 成交价格
-    quantity = db.Column(db.BigInteger, nullable=False)  # 成交数量
+    price = db.Column(db.DECIMAL(10, 2), nullable=False)
+    quantity = db.Column(db.BigInteger, nullable=False)
+    created_at = db.Column(db.TIMESTAMP, nullable=False, default=datetime.utcnow)
+    
+    # 移除 updated_at 字段的继承
+    __mapper_args__ = {
+        'exclude_properties': ['updated_at']
+    }
     
     def calculate_amount(self):
         """计算成交金额"""
@@ -129,5 +135,5 @@ class Trade(BaseModel):
             'quantity': self.quantity,
             'amount': self.calculate_amount(),
             'fee': self.calculate_fee(),
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         } 
