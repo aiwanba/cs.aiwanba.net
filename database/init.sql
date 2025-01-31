@@ -332,4 +332,14 @@ BEGIN
     END IF;
 END$$
 
+-- 添加资金检查触发器
+CREATE TRIGGER before_user_update
+BEFORE UPDATE ON users
+FOR EACH ROW
+BEGIN
+    IF NEW.cash < 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = '用户现金不能为负数';
+    END IF;
+END$$
+
 DELIMITER ;
