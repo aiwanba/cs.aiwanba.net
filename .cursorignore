@@ -1,2 +1,3 @@
 # 忽略venv目录
 .venv/
+.vscode/
