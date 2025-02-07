@@ -2,8 +2,8 @@ from flask import Blueprint, request, jsonify
 from models.transaction import Transaction, OrderBook
 from models.company import Company
 from models.shareholder import Shareholder
+from models import db
 from routes.notification import send_notification
-from app import db
 
 trading_bp = Blueprint('trading', __name__)
 

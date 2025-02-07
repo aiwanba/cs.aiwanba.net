@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from models.notification import Notification
-from app import db
+from models import db
 from datetime import datetime
 
 notification_bp = Blueprint('notification', __name__)

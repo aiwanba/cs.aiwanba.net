@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from models.bank import BankAccount, TimeDeposit, StockPledgeLoan
 from models.company import Company
 from models.shareholder import Shareholder
-from app import db
+from models import db
 from datetime import datetime, timedelta
 
 bank_bp = Blueprint('bank', __name__)

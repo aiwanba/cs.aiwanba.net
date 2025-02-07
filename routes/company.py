@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify
-from models.company import Company, db
+from models.company import Company
+from models.shareholder import Shareholder
+from models import db
 from routes.notification import send_notification
 from datetime import datetime
 
@@ -33,7 +35,6 @@ def create_company():
         db.session.commit()
         
         # 创建创始人股东记录
-        from models.shareholder import Shareholder
         founder_shares = int(data['initial_cash'] / (company.stock_price * company.total_shares) * company.total_shares)
         shareholder = Shareholder(
             company_id=company.id,
