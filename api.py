@@ -185,5 +185,35 @@ def new_conversation():
     }
     return jsonify({"success": True, "conversation_id": current_conversation['id']})
 
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    return jsonify({
+        'api_key': API_KEY,
+        'api_base_url': BASE_URL
+    })
+
+@app.route('/api/settings', methods=['POST'])
+def update_settings():
+    try:
+        data = request.get_json()
+        api_key = data.get('api_key')
+        api_base_url = data.get('api_base_url')
+        
+        # 更新环境变量
+        os.environ['NVIDIA_API_KEY'] = api_key
+        os.environ['NVIDIA_API_BASE_URL'] = api_base_url
+        
+        # 更新 .env 文件
+        with open('.env', 'w') as f:
+            f.write(f'NVIDIA_API_KEY={api_key}\n')
+            f.write(f'NVIDIA_API_BASE_URL={api_base_url}\n')
+        
+        # 重新加载环境变量
+        load_dotenv(override=True)
+        
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5010, debug=True) 
