@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --hover-color: #0056b3;
+            --bg-color: #f5f5f5;
+            --chat-bg: white;
+            --text-color: #333;
+            --border-color: #ddd;
+        }
+
+        .dark-theme {
+            --primary-color: #4a9eff;
+            --hover-color: #357abd;
+            --bg-color: #1a1a1a;
+            --chat-bg: #2d2d2d;
+            --text-color: #fff;
+            --border-color: #444;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .chat-container {
+            background-color: var(--chat-bg);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            height: 80vh;
+        }
+
+        .sidebar {
+            border-right: 1px solid var(--border-color);
+            padding-right: 20px;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background-color: var(--primary-color);
+            color: white;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            margin-right: auto;
+        }
+
+        .message-time {
+            font-size: 0.8em;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        #prompt {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 16px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: var(--hover-color);
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .settings {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .setting-item {
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        .history-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+
+        .history-item:hover {
+            background-color: var(--bg-color);
+        }
+
+        .history-item.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="sidebar">
+            <h2>设置</h2>
+            <div class="settings">
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="darkMode"> 深色模式
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <input type="checkbox" id="streamMode" checked> 流式响应
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>字体大小:</label>
+                    <select id="fontSize">
+                        <option value="14px">小</option>
+                        <option value="16px" selected>中</option>
+                        <option value="18px">大</option>
+                    </select>
+                </div>
+            </div>
+            <h2>历史记录</h2>
+            <div id="historyList"></div>
+        </div>
+        <div class="main-content">
+            <div class="chat-history" id="chatHistory"></div>
+            <div class="input-area">
+                <input type="text" id="prompt" placeholder="请输入您的问题...">
+                <button onclick="sendMessage()" id="sendBtn">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 深色模式切换
+        document.getElementById('darkMode').addEventListener('change', function(e) {
+            document.body.classList.toggle('dark-theme', e.target.checked);
+        });
+
+        // 字体大小调整
+        document.getElementById('fontSize').addEventListener('change', function(e) {
+            document.body.style.fontSize = e.target.value;
+        });
+
+        // 添加消息到聊天历史
+        function addMessage(content, isUser = false, time = null) {
+            const chatHistory = document.getElementById('chatHistory');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            messageDiv.innerHTML = `
+                ${content}
+                <div class="message-time">${time || new Date().toLocaleTimeString()}</div>
+            `;
+            chatHistory.appendChild(messageDiv);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // 发送消息
+        function sendMessage() {
+            const prompt = document.getElementById('prompt');
+            const sendBtn = document.getElementById('sendBtn');
+            const streamMode = document.getElementById('streamMode').checked;
+            
+            if (!prompt.value) return;
+            
+            // 禁用按钮和输入框
+            sendBtn.disabled = true;
+            prompt.disabled = true;
+            
+            // 添加用户消息
+            addMessage(prompt.value, true);
+            
+            if (streamMode) {
+                // 流式响应
+                const eventSource = new EventSource(`/api/chat?prompt=${encodeURIComponent(prompt.value)}&stream=true`);
+                let aiMessage = document.createElement('div');
+                aiMessage.className = 'message ai-message';
+                document.getElementById('chatHistory').appendChild(aiMessage);
+                
+                eventSource.onmessage = function(e) {
+                    const data = JSON.parse(e.data);
+                    aiMessage.innerHTML += data.content;
+                    aiMessage.scrollIntoView({ behavior: 'smooth' });
+                };
+                
+                eventSource.onerror = function() {
+                    eventSource.close();
+                    sendBtn.disabled = false;
+                    prompt.disabled = false;
+                    prompt.value = '';
+                    loadHistory();
+                };
+            } else {
+                // 普通响应
+                fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        prompt: prompt.value,
+                        stream: false
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        addMessage(data.response, false);
+                    } else {
+                        addMessage(`错误: ${data.error}`, false);
+                    }
+                })
+                .catch(err => {
+                    addMessage(`请求失败: ${err.message}`, false);
+                })
+                .finally(() => {
+                    sendBtn.disabled = false;
+                    prompt.disabled = false;
+                    prompt.value = '';
+                    loadHistory();
+                });
+            }
+        }
+
+        // 加载历史记录
+        function loadHistory() {
+            fetch('/api/history')
+                .then(res => res.json())
+                .then(data => {
+                    const historyList = document.getElementById('historyList');
+                    historyList.innerHTML = '';
+                    data.forEach(conv => {
+                        const div = document.createElement('div');
+                        div.className = 'history-item';
+                        div.innerHTML = `
+                            ${conv.messages[0].content.substring(0, 30)}...
+                            <div class="message-time">${conv.timestamp}</div>
+                        `;
+                        div.onclick = () => loadConversation(conv);
+                        historyList.appendChild(div);
+                    });
+                });
+        }
+
+        // 加载特定对话
+        function loadConversation(conv) {
+            const chatHistory = document.getElementById('chatHistory');
+            chatHistory.innerHTML = '';
+            conv.messages.forEach(msg => {
+                addMessage(msg.content, msg.role === 'user', msg.timestamp);
+            });
+        }
+
+        // 添加回车键发送功能
+        document.getElementById('prompt').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // 初始加载历史记录
+        loadHistory();
+    </script>
+</body>
+</html> 
