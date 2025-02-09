@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_file, Response, redirect
+from flask import Flask, jsonify, request, send_file, Response, redirect, send_from_directory
 from flask_cors import CORS
 import os
 from datetime import datetime, timedelta
@@ -76,8 +76,15 @@ def normalize_request():
 
 @app.route('/')
 def index():
-    """保留根路径作为兼容性入口"""
-    return redirect('/')
+    """主入口返回前端页面"""
+    return send_file('static/index.html')
+
+@app.route('/<path:path>')
+def static_files(path):
+    """处理静态文件请求"""
+    if path.startswith('static/'):
+        return send_from_directory('.', path)
+    return send_file('static/index.html')
 
 @app.route('/health')
 def health_check():
