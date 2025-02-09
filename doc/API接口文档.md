@@ -122,7 +122,7 @@ curl -X DELETE http://localhost:5010/api/conversations/a1e5f35e-2f8f-4641-be9d-9
 - `format`: json/csv
 
 ```bash
-curl -o output.json http://localhost:5010/api/conversations/550e8400-e29b-41d4-a716-446655440000/export?format=json
+curl -o output.json http://localhost:5010/api/conversations/524d5cf9-04d2-4d38-ad42-bb014a65e248/export?format=json
 ```
 
 ### 批量导出会话
@@ -133,7 +133,7 @@ curl -o output.json http://localhost:5010/api/conversations/550e8400-e29b-41d4-a
 - `format`: json/csv
 
 ```bash
-curl -o all.csv http://localhost:5010/api/conversations/export-all?start_date=2024-03-01&end_date=2024-03-21&format=csv
+curl -o all.csv http://localhost:5010/api/conversations/export-all?start_date=2024-03-01&end_date=2024-03-21&format=json
 ```
 
 ## 注意事项
