@@ -251,7 +251,7 @@ def chat_stream():
 @app.route('/api/conversations/<conversation_id>', methods=['GET'])
 def get_conversation_history(conversation_id):
     """获取特定会话的历史记录"""
-    conversation = Conversation.query.get(conversation_id)
+    conversation = db.session.get(Conversation, conversation_id)
     if not conversation:
         return jsonify({
             "status": "error",
@@ -269,7 +269,7 @@ def get_conversation_history(conversation_id):
 @app.route('/api/conversations/<conversation_id>', methods=['DELETE'])
 def clear_conversation(conversation_id):
     """清除特定会话的历史记录"""
-    conversation = Conversation.query.get(conversation_id)
+    conversation = db.session.get(Conversation, conversation_id)
     if not conversation:
         return jsonify({
             "status": "错误",
@@ -292,7 +292,7 @@ def clear_conversation(conversation_id):
 @app.route('/api/conversations/<conversation_id>/export', methods=['GET'])
 def export_conversation(conversation_id):
     """优化后的单会话导出"""
-    conversation = Conversation.query.get(conversation_id)
+    conversation = db.session.get(Conversation, conversation_id)
     if not conversation:
         return jsonify({
             "status": "error",
@@ -341,12 +341,12 @@ def export_conversation(conversation_id):
         # 新增JSON导出处理
         def generate_json():
             with app.app_context():
-                data = {
+                # 首行发送元数据
+                yield json.dumps({
                     'conversation_id': conversation.id,
                     'created_at': conversation.created_at.isoformat(),
-                    'last_active': conversation.last_active.isoformat(),
-                    'messages': []
-                }
+                    'last_active': conversation.last_active.isoformat()
+                }) + '\n'
                 
                 # 分批处理消息
                 query = Message.query.filter_by(
@@ -354,22 +354,16 @@ def export_conversation(conversation_id):
                 ).yield_per(100)
                 
                 for msg in query:
-                    data['messages'].append({
+                    yield json.dumps({
                         'timestamp': msg.timestamp.isoformat(),
                         'role': msg.role,
                         'content': msg.content
-                    })
-                    # 每100条生成部分JSON
-                    if len(data['messages']) % 100 == 0:
-                        yield json.dumps(data, ensure_ascii=False) + '\n'
-                
-                # 生成最终结果
-                yield json.dumps(data, ensure_ascii=False)
+                    }, ensure_ascii=False) + '\n'
         
         headers = {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/jsonl',
             'Content-Disposition': 
-                f'attachment; filename=conversation_{conversation_id}.json'
+                f'attachment; filename=conversation_{conversation_id}.jsonl'
         }
         return Response(generate_json(), headers=headers)
     
