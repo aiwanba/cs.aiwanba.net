@@ -21,6 +21,7 @@ class AIService:
         生成AI响应
         """
         try:
+            logging.info(f"Generating response for prompt: {prompt[:100]}...")
             completion = self.client.chat.completions.create(
                 model="deepseek-ai/deepseek-r1",
                 messages=[{"role": "user", "content": prompt}],
@@ -32,9 +33,13 @@ class AIService:
             
             if stream:
                 def response_generator():
-                    for chunk in completion:
-                        if chunk.choices[0].delta.content is not None:
-                            yield chunk.choices[0].delta.content
+                    try:
+                        for chunk in completion:
+                            if chunk.choices[0].delta.content is not None:
+                                yield chunk.choices[0].delta.content
+                    except Exception as e:
+                        logging.error(f"Error in stream generation: {str(e)}")
+                        yield f"Error: {str(e)}"
                 return response_generator()
             else:
                 return completion.choices[0].message.content

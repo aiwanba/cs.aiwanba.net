@@ -22,7 +22,13 @@ logging.basicConfig(
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:5010", "http://127.0.0.1:5010"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # 文件上传配置
 UPLOAD_FOLDER = 'uploads'
@@ -110,12 +116,18 @@ def health_check():
 def chat():
     """聊天接口"""
     try:
+        app.logger.info("Received chat request")
         data = request.get_json()
+        app.logger.info(f"Request data: {data}")
+        
         prompt = data.get('prompt')
         stream = data.get('stream', True)
         
         if not prompt:
+            app.logger.warning("Empty prompt received")
             return jsonify({'error': 'Prompt is required'}), 400
+            
+        app.logger.info(f"Processing prompt: {prompt[:100]}...")
         
         # 处理特殊命令
         if prompt.startswith('translate:'):
@@ -132,15 +144,22 @@ def chat():
             prompt = f"请解释并执行以下JavaScript代码:\n```javascript\n{code.strip()}\n```"
             
         if stream:
+            app.logger.info("Using streaming response")
             def generate():
-                for chunk in ai_service.generate_response(prompt, stream=True):
-                    yield chunk
+                try:
+                    for chunk in ai_service.generate_response(prompt, stream=True):
+                        app.logger.debug(f"Streaming chunk: {chunk[:50]}...")
+                        yield chunk
+                except Exception as e:
+                    app.logger.error(f"Error in stream generation: {str(e)}")
+                    yield f"Error: {str(e)}"
             
             return Response(
                 stream_with_context(generate()),
                 content_type='text/event-stream'
             )
         else:
+            app.logger.info("Using non-streaming response")
             response = ai_service.generate_response(prompt, stream=False)
             return jsonify({'response': response})
             
