@@ -16,33 +16,22 @@ worker_class = 'sync'
 # 绑定的ip与端口
 bind = '0.0.0.0:5010' 
 
-# 设置进程文件目录
+# 设置进程文件目录（用于停止服务和重启服务，请勿删除）
 pidfile = '/www/wwwroot/cs.aiwanba.net/gunicorn.pid'
 
 # 设置访问日志和错误信息日志路径
 accesslog = '/www/wwwlogs/python/cs_aiwanba_net/gunicorn_acess.log'
 errorlog = '/www/wwwlogs/python/cs_aiwanba_net/gunicorn_error.log'
 
-# 日志级别
-loglevel = 'info'
+# 日志级别，这个日志级别指的是错误日志的级别，而访问日志的级别无法设置
+# debug:调试级别，记录的信息最多；
+# info:普通级别；
+# warning:警告消息；
+# error:错误消息；
+# critical:严重错误消息；
+loglevel = 'info' 
 
-# 设置守护进程
-daemon = True
-
-# 设置超时时间
-timeout = 30
-
-# 设置最大并发量
-max_requests = 2000
-
-# 每个worker最大并发量
-worker_connections = 1000
-
-# 优雅重启时间
-graceful_timeout = 30
-
-# 重启时间
-reload_engine = 'auto'
-
-# 重启间隔
-reload_extra_files = [] 
+# 自定义设置项请写到该处
+# 最好以上面相同的格式 <注释 + 换行 + key = value> 进行书写， 
+# PS: gunicorn 的配置文件是python扩展形式，即".py"文件，需要注意遵从python语法，
+# 如：loglevel的等级是字符串作为配置的，需要用引号包裹起来
