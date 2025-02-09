@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_file, Response
+from flask import Flask, jsonify, request, send_file, Response, redirect
 from flask_cors import CORS
 import os
 from datetime import datetime, timedelta
@@ -11,8 +11,10 @@ import csv
 from io import StringIO
 import json
 import httpx
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)  # 添加这行
 CORS(app)  # 启用CORS支持
 
 # 数据库配置
@@ -55,6 +57,14 @@ def cleanup_expired_sessions():
 scheduler = BackgroundScheduler()
 scheduler.add_job(cleanup_expired_sessions, 'interval', hours=1)
 scheduler.start()
+
+# 在现有路由前添加URL预处理
+@app.before_request
+def normalize_request():
+    # 自动去除路径末尾的斜杠和空格
+    path = request.path.rstrip('/ ')
+    if path != request.path:
+        return redirect(path)
 
 @app.route('/')
 def index():
@@ -159,51 +169,65 @@ def chat_stream():
         data = request.json
         user_message = data.get('message', '')
         conversation_id = data.get('conversation_id')
-        
-        # 如果没有会话ID，创建新的会话
+
+        # 会话处理逻辑与普通接口相同
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
             conversation = Conversation(id=conversation_id)
             db.session.add(conversation)
         else:
-            conversation = Conversation.query.get(conversation_id)
+            conversation = Conversation.query.filter(
+                Conversation.id == conversation_id,
+                Conversation.last_active >= (datetime.utcnow() - SESSION_EXPIRY)
+            ).first()
             if not conversation:
-                return jsonify({
-                    "status": "error",
-                    "message": "Conversation not found"
-                }), 404
-        
-        # 更新最后活动时间
-        conversation.last_active = datetime.utcnow()
-        
-        # 获取历史消息
-        messages = [msg.to_dict() for msg in conversation.messages[-9:]]  # 获取最近9条消息
-        messages.append({"role": "user", "content": user_message})
-        
-        # 检查缓存
-        cache_key = f"{conversation_id}:{user_message}"
-        if cache_key in response_cache:
-            return jsonify({
-                "status": "success",
-                "response": response_cache[cache_key],
-                "conversation_id": conversation_id,
-                "cached": True
-            })
-        
-        # 创建生成器流式响应
-        def generate():
-            completion = client.chat.completions.create(
-                model="deepseek-ai/deepseek-r1",
-                messages=messages,
-                temperature=1,
-                top_p=1,
-                max_tokens=4096,
-                stream=True  # 启用流式模式
-            )
+                conversation_id = str(uuid.uuid4())
+                conversation = Conversation(id=conversation_id)
+                db.session.add(conversation)
 
-            for chunk in completion:
-                if chunk.choices[0].delta.content:
-                    yield f"data: {json.dumps({'content': chunk.choices[0].delta.content})}\n\n"
+        conversation.last_active = datetime.utcnow()
+        messages = [msg.to_dict() for msg in conversation.messages[-9:]]
+        messages.append({"role": "user", "content": user_message})
+
+        def generate():
+            with app.app_context():
+                # 确保会话对象已存在并提交
+                db.session.add(conversation)
+                db.session.commit()  # 强制立即提交会话
+                
+                # 创建用户消息并提交
+                user_msg = Message(conversation_id=conversation.id, role='user', content=user_message)
+                db.session.add(user_msg)
+                db.session.commit()  # 提交用户消息
+                
+                # 处理API响应...
+                completion = client.chat.completions.create(
+                    model="deepseek-ai/deepseek-r1",
+                    messages=messages,
+                    temperature=1,
+                    top_p=1,
+                    max_tokens=4096,
+                    stream=True
+                )
+                
+                full_response = []
+                for chunk in completion:
+                    if chunk.choices[0].delta.content:
+                        raw_content = chunk.choices[0].delta.content
+                        processed_content = raw_content.replace('**', '')
+                        content = json.dumps({'content': processed_content}, ensure_ascii=False)
+                        full_response.append(raw_content)  # 收集原始内容用于保存
+                        yield f"data: {content}\n\n"
+                
+                # 最后处理数据库
+                try:
+                    # 保存AI响应
+                    ai_msg = Message(conversation_id=conversation.id, role='assistant', content=''.join(full_response))
+                    db.session.add(ai_msg)
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    app.logger.error(f"保存消息失败: {str(e)}")
 
         return Response(generate(), mimetype='text/event-stream')
 

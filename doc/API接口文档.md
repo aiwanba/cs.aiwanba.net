@@ -63,13 +63,12 @@ curl -X POST http://localhost:5010/api/chat \
 
 ### 流式对话
 **POST /api/chat-stream**  
-（使用Server-Sent Events协议）
-```bash
-curl -X POST http://localhost:5010/api/chat-stream \
-  -H "Content-Type: application/json" \
-  -d '{"message":"请介绍人工智能"}'
-```
-实时响应示例：
+响应特性：
+1. 使用UTF-8编码，避免Unicode转义字符
+2. 自动过滤Markdown格式符号
+3. 保持自然中文标点
+
+示例响应：
 ```
 data: {"content": "人工"}
 data: {"content": "智能"}
