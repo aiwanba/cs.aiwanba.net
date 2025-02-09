@@ -50,11 +50,16 @@ curl -X POST http://localhost:5010/api/chat \
 ```json
 {
   "status": "success",
-  "response": "建议从Python语言开始学习...",
+  "response": "您好！很高兴为您服务。请问有什么可以帮助您的？",
   "conversation_id": "550e8400-e29b-41d4-a716-446655440000",
   "cached": false
 }
 ```
+
+注意事项：
+1. 响应内容可能包含Markdown格式（如**粗体**、`代码块`等）
+2. 换行符保持AI生成的原样格式
+3. 中文标点符号遵循AI生成习惯
 
 ### 流式对话
 **POST /api/chat-stream**  

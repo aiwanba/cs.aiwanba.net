@@ -84,12 +84,17 @@ def chat():
             conversation = Conversation(id=conversation_id)
             db.session.add(conversation)
         else:
-            conversation = Conversation.query.get(conversation_id)
+            # 检查会话是否存在且未过期
+            conversation = Conversation.query.filter(
+                Conversation.id == conversation_id,
+                Conversation.last_active >= (datetime.utcnow() - SESSION_EXPIRY)
+            ).first()
+            
             if not conversation:
-                return jsonify({
-                    "status": "error",
-                    "message": "Conversation not found"
-                }), 404
+                # 自动创建新会话而不是返回错误
+                conversation_id = str(uuid.uuid4())
+                conversation = Conversation(id=conversation_id)
+                db.session.add(conversation)
         
         # 更新最后活动时间
         conversation.last_active = datetime.utcnow()
@@ -108,20 +113,18 @@ def chat():
                 "cached": True
             })
         
-        # 调用API获取响应
+        # 调用API获取响应（非流式）
         completion = client.chat.completions.create(
             model="deepseek-ai/deepseek-r1",
             messages=messages,
             temperature=1,
             top_p=1,
-            max_tokens=4096
+            max_tokens=4096,
+            stream=False  # 明确设置为非流式
         )
-        
-        # 获取AI响应
-        response = ""
-        for chunk in completion:
-            if chunk.choices[0].delta.content is not None:
-                response += chunk.choices[0].delta.content
+
+        # 获取AI响应（直接获取完整响应）
+        response = completion.choices[0].message.content
         
         # 保存用户消息和AI响应到数据库
         user_msg = Message(conversation_id=conversation_id, role='user', content=user_message)
