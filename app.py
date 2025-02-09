@@ -84,12 +84,11 @@ def health_check():
     """整合健康检查和服务状态"""
     return jsonify({
         "status": "服务正常",
-        "version": "1.0.0",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "system": {
-            "database": "在线",
-            "cache": f"{len(response_cache)} 条记录",
-            "active_sessions": Conversation.query.count()
+            "database": "数据库连接正常",
+            "cache": f"缓存 {len(response_cache)} 条记录",
+            "active_sessions": f"当前活动会话数量 {Conversation.query.count()} 条记录"
         }
     })
 
