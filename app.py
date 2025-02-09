@@ -375,11 +375,10 @@ def export_conversation(conversation_id):
 
 @app.route('/api/conversations/export-all', methods=['GET'])
 def export_all_conversations():
-    """批量导出优化版"""
+    """支持JSON格式的批量导出"""
     try:
         export_format = request.args.get('format', 'json')
         
-        # 仅处理CSV格式
         if export_format == 'csv':
             def generate_csv():
                 # 创建应用上下文
@@ -414,7 +413,37 @@ def export_all_conversations():
             }
             return Response(generate_csv(), headers=headers)
         
-        # 其他格式保持不变...
+        elif export_format == 'json':
+            def generate_json():
+                with app.app_context():
+                    # 首行元数据
+                    yield json.dumps({
+                        "export_time": datetime.now().isoformat(),
+                        "total_conversations": Conversation.query.count()
+                    }) + '\n'
+                    
+                    # 分批处理会话
+                    query = Conversation.query.yield_per(50)  # 每次处理50个会话
+                    for conv in query:
+                        yield json.dumps({
+                            "id": conv.id,
+                            "created_at": conv.created_at.isoformat(),
+                            "last_active": conv.last_active.isoformat(),
+                            "message_count": len(conv.messages),
+                            "first_message": conv.messages[0].content if conv.messages else ""
+                        }, ensure_ascii=False) + '\n'
+            
+            headers = {
+                'Content-Type': 'application/x-ndjson',
+                'Content-Disposition': f'attachment; filename=conversations_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.ndjson'
+            }
+            return Response(generate_json(), headers=headers)
+        
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "不支持的导出格式，支持格式：csv, json"
+            }), 400
         
     except Exception as e:
         app.logger.error(f"导出异常: {str(e)}")

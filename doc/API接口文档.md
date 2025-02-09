@@ -92,14 +92,17 @@ data: {"content": "部分响应内容"}
 **URL** `/api/conversations/export-all`  
 **方法** GET  
 **参数**：
-- `format`: csv（仅支持CSV格式）
+- `format`: json/csv（默认json）
 
 **特殊说明**：
 - 使用流式响应处理大数据量
-- 自动分批处理（每批100条记录）
+- 自动分批处理（每批50条记录）
 - 内存优化设计
+- JSON格式采用NDJSON规范（换行分隔的JSON）
 
-**响应**：CSV文件流
+**响应**：
+- CSV：标准CSV格式
+- JSON：NDJSON格式，每行包含一个会话的元数据
 
 ## 系统状态
 
