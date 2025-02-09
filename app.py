@@ -59,15 +59,15 @@ scheduler.start()
 @app.route('/')
 def index():
     return jsonify({
-        "status": "success",
-        "message": "Server is running",
+        "status": "成功",
+        "message": "服务器正在运行",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
 
 @app.route('/health')
 def health_check():
     return jsonify({
-        "status": "healthy",
+        "status": "正常",
         "version": "1.0.0"
     })
 
