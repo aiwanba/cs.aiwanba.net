@@ -99,8 +99,18 @@ data: {"content": "部分响应内容"}
 **响应**：
 ```json
 {
-  "status": "正常",
-  "version": "1.0.0"
+  "status": "服务正常",
+  "version": "1.0.0",
+  "timestamp": "当前时间",
+  "endpoints": {
+    "chat": "/api/chat",
+    "documentation": "/doc"
+  },
+  "system": {
+    "database": "在线状态",
+    "cache": "缓存数量",
+    "active_sessions": "活跃会话数"
+  }
 }
 ```
 

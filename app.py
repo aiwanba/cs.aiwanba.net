@@ -76,17 +76,25 @@ def normalize_request():
 
 @app.route('/')
 def index():
-    return jsonify({
-        "status": "成功",
-        "message": "服务器正在运行",
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
+    """保留根路径作为兼容性入口"""
+    return redirect('/health')
 
 @app.route('/health')
 def health_check():
+    """整合健康检查和服务状态"""
     return jsonify({
-        "status": "正常",
-        "version": "1.0.0"
+        "status": "服务正常",
+        "version": "1.0.0",
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "endpoints": {
+            "chat": "/api/chat",
+            "documentation": "/doc"
+        },
+        "system": {
+            "database": "在线",
+            "cache": f"{len(response_cache)} 条记录",
+            "active_sessions": Conversation.query.count()
+        }
     })
 
 @app.route('/api/chat', methods=['POST'])
