@@ -129,11 +129,16 @@ def chat():
         # 如果没有会话ID，创建新会话
         if not session_id:
             session_id = str(uuid.uuid4())
-            title = prompt[:50] + "..."  # 使用首条消息作为标题
-            db_manager.create_session(session_id, title)
-        
+            title = prompt[:30] + "..."  # 使用首条消息作为标题
+            success = db_manager.create_session(session_id, title)
+            if not success:
+                app.logger.error("Failed to create session")
+                return jsonify({'error': 'Failed to create session'}), 500
+            
         # 保存用户消息
-        db_manager.save_message(session_id, 'user', prompt)
+        if not db_manager.save_message(session_id, 'user', prompt):
+            app.logger.error("Failed to save user message")
+            return jsonify({'error': 'Failed to save message'}), 500
             
         app.logger.info(f"Processing prompt: {prompt[:100]}...")
         
@@ -144,16 +149,17 @@ def chat():
             app.logger.info("Using streaming response")
             def generate():
                 try:
+                    response_content = ''
                     for chunk in ai_service.generate_response(prompt, history=history, stream=True):
                         app.logger.debug(f"Streaming chunk: {chunk[:50]}...")
+                        response_content += chunk
                         yield chunk
+                    
+                    # 保存AI响应
+                    db_manager.save_message(session_id, 'assistant', response_content)
                 except Exception as e:
                     app.logger.error(f"Error in stream generation: {str(e)}")
                     yield f"Error: {str(e)}"
-            
-            # 保存AI响应
-            response_content = "".join(list(generate()))
-            db_manager.save_message(session_id, 'assistant', response_content)
             
             return Response(
                 stream_with_context(generate()),
@@ -163,7 +169,8 @@ def chat():
             app.logger.info("Using non-streaming response")
             response = ai_service.generate_response(prompt, history=history, stream=False)
             # 保存AI响应
-            db_manager.save_message(session_id, 'assistant', response)
+            if not db_manager.save_message(session_id, 'assistant', response):
+                app.logger.error("Failed to save AI response")
             return jsonify({'response': response, 'session_id': session_id})
             
     except Exception as e:

@@ -101,28 +101,53 @@ class DatabaseManager:
                 connection.close()
 
     def save_message(self, session_id, role, content):
-        """保存聊天消息"""
+        """保存聊天消息并更新会话时间"""
+        connection = None
         try:
-            sql = """
+            connection = self.get_connection()
+            cursor = connection.cursor()
+            
+            # 保存消息
+            sql1 = """
                 INSERT INTO chat_history (session_id, role, content)
                 VALUES (%s, %s, %s)
             """
-            self.execute_query(sql, (session_id, role, content))
+            cursor.execute(sql1, (session_id, role, content))
+            
+            # 更新会话时间
+            sql2 = """
+                UPDATE chat_sessions 
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE session_id = %s
+            """
+            cursor.execute(sql2, (session_id,))
+            
+            connection.commit()
             return True
         except Exception as e:
+            if connection:
+                connection.rollback()
             logging.error(f"Error saving message: {str(e)}")
             return False
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
 
     def get_session_messages(self, session_id):
         """获取会话的所有消息"""
         try:
             sql = """
-                SELECT role, content, created_at
+                SELECT id, role, content, 
+                       DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at
                 FROM chat_history
                 WHERE session_id = %s
                 ORDER BY id ASC
             """
-            return self.fetch_all(sql, (session_id,))
+            messages = self.fetch_all(sql, (session_id,))
+            logging.info(f"Retrieved {len(messages)} messages for session {session_id}")
+            return messages
         except Exception as e:
             logging.error(f"Error getting session messages: {str(e)}")
             return []
@@ -144,7 +169,9 @@ class DatabaseManager:
         """获取所有会话"""
         try:
             sql = """
-                SELECT session_id, title, created_at, updated_at
+                SELECT session_id, title, 
+                       DATE_FORMAT(created_at, '%Y-%m-%d %H:%i:%s') as created_at,
+                       DATE_FORMAT(updated_at, '%Y-%m-%d %H:%i:%s') as updated_at
                 FROM chat_sessions
                 ORDER BY updated_at DESC
             """
