@@ -485,50 +485,6 @@ def export_all_conversations():
             "status": "error",
             "message": "服务器内部错误"
         }), 500
-
-@app.route('/doc')
-def serve_documentation():
-    """提供项目文档访问"""
-    doc_dir = 'doc'  # 文档目录
-    documents = []
-
-    # 遍历文档目录
-    try:
-        for filename in os.listdir(doc_dir):
-            if filename.endswith('.md'):  # 只选择 Markdown 文件
-                documents.append(filename)
-
-        if not documents:
-            return jsonify({
-                "status": "error",
-                "message": "没有找到文档"
-            }), 404
-
-        # 获取请求参数中的文档名称
-        doc_name = request.args.get('name')
-        
-        if doc_name:
-            if doc_name in documents:
-                return send_file(os.path.join(doc_dir, doc_name),
-                                 mimetype='text/markdown',
-                                 as_attachment=False)
-            else:
-                return jsonify({
-                    "status": "error",
-                    "message": "文档未找到"
-                }), 404
-
-        # 返回文档列表
-        return jsonify({
-            "status": "success",
-            "documents": documents
-        }), 200
-
-    except FileNotFoundError:
-        return jsonify({
-            "status": "error",
-            "message": "文档目录不存在"
-        }), 404
     
 # 创建数据库表
 with app.app_context():
