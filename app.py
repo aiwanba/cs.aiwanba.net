@@ -63,9 +63,16 @@ scheduler.start()
 @app.before_request
 def normalize_request():
     # 自动去除路径末尾的斜杠和空格
-    path = request.path.rstrip('/ ')
-    if path != request.path:
-        return redirect(path)
+    original_path = request.path
+    cleaned_path = original_path.rstrip('/ ').lstrip()  # 同时处理左右两侧的空格
+    
+    # 处理根路径的特殊情况
+    if not cleaned_path:
+        cleaned_path = '/'
+    
+    # 只有当清理后的路径有效时才重定向
+    if cleaned_path != original_path and len(cleaned_path) > 0:
+        return redirect(cleaned_path)
 
 @app.route('/')
 def index():
