@@ -12,53 +12,14 @@ from werkzeug.utils import secure_filename
 import hashlib
 import time
 import uuid
-from logging.handlers import RotatingFileHandler
+from config.logging_config import setup_logging
 
 # 创建 Flask 应用
 app = Flask(__name__)
 
-# 确保日志目录存在
+# 配置日志
 log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-os.makedirs(log_dir, exist_ok=True)
-
-# 配置应用日志
-app_log_file = os.path.join(log_dir, 'app.log')
-file_handler = RotatingFileHandler(
-    app_log_file,
-    maxBytes=10*1024*1024,  # 10MB
-    backupCount=5,
-    encoding='utf-8'
-)
-
-# 设置日志格式
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-file_handler.setFormatter(formatter)
-
-# 配置根日志记录器
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[file_handler],
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# 配置 Flask 应用日志
-app.logger.addHandler(file_handler)
-app.logger.setLevel(logging.INFO)
-
-# 配置 Werkzeug 访问日志
-werkzeug_logger = logging.getLogger('werkzeug')
-access_log_file = os.path.join(log_dir, 'access.log')
-access_handler = RotatingFileHandler(
-    access_log_file,
-    maxBytes=10*1024*1024,
-    backupCount=5,
-    encoding='utf-8'
-)
-access_handler.setFormatter(formatter)
-werkzeug_logger.addHandler(access_handler)
-werkzeug_logger.setLevel(logging.INFO)
+handlers = setup_logging(app, log_dir)
 
 # 加载环境变量
 load_dotenv()
@@ -321,6 +282,29 @@ def init_app():
 
 # 在应用启动前调用初始化
 init_app()
+
+# 优化请求日志中间件
+@app.before_request
+def log_request_info():
+    """记录请求信息"""
+    # 忽略静态文件和健康检查的日志
+    if not request.path.startswith('/static') and request.path != '/health':
+        app.logger.info('%s %s', request.method, request.path)
+        if request.is_json:
+            app.logger.debug('Request JSON: %s', request.get_json())
+
+@app.after_request
+def log_response_info(response):
+    """记录响应信息"""
+    # 忽略静态文件和健康检查的日志
+    if not request.path.startswith('/static') and request.path != '/health':
+        app.logger.info(
+            'Response: [%s] %s - %dB',
+            response.status_code,
+            request.path,
+            response.content_length or 0
+        )
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 
