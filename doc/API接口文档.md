@@ -1,7 +1,7 @@
 # API接口文档
 
 ## 基础信息
-- **基准地址**: `https://cs.aiwanba.net`
+- **基准地址**: `https://cs.aiwanba.net`和`http://localhost:5010`
 - **响应格式**: JSON
 - 错误代码：
   - 200 成功
