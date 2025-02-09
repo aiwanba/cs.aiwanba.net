@@ -134,7 +134,7 @@ def chat():
             if not success:
                 app.logger.error("Failed to create session")
                 return jsonify({'error': 'Failed to create session'}), 500
-            
+        
         # 保存用户消息
         if not db_manager.save_message(session_id, 'user', prompt):
             app.logger.error("Failed to save user message")
@@ -148,15 +148,17 @@ def chat():
         if stream:
             app.logger.info("Using streaming response")
             def generate():
+                full_response = ''
                 try:
-                    response_content = ''
                     for chunk in ai_service.generate_response(prompt, history=history, stream=True):
                         app.logger.debug(f"Streaming chunk: {chunk[:50]}...")
-                        response_content += chunk
+                        full_response += chunk
                         yield chunk
                     
-                    # 保存AI响应
-                    db_manager.save_message(session_id, 'assistant', response_content)
+                    # 在流式响应完成后保存AI响应
+                    app.logger.info("Stream completed, saving AI response")
+                    if not db_manager.save_message(session_id, 'assistant', full_response):
+                        app.logger.error("Failed to save AI response after streaming")
                 except Exception as e:
                     app.logger.error(f"Error in stream generation: {str(e)}")
                     yield f"Error: {str(e)}"
@@ -203,11 +205,51 @@ def delete_session(session_id):
 def get_session_messages(session_id):
     """获取会话的所有消息"""
     try:
+        app.logger.info(f"Getting messages for session: {session_id}")
         messages = db_manager.get_session_messages(session_id)
+        app.logger.info(f"Retrieved {len(messages)} messages")
         return jsonify(messages)
     except Exception as e:
         app.logger.error(f"Error getting session messages: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/debug/database', methods=['GET'])
+def debug_database():
+    """调试数据库内容"""
+    try:
+        db_manager.debug_database()
+        return jsonify({'message': 'Check server logs for database content'})
+    except Exception as e:
+        app.logger.error(f"Error in debug endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/debug/messages/<session_id>', methods=['GET'])
+def debug_messages(session_id):
+    """调试会话消息"""
+    try:
+        connection = db_manager.get_connection()
+        cursor = connection.cursor(dictionary=True)
+        
+        # 直接查询数据库
+        cursor.execute("""
+            SELECT * FROM chat_history 
+            WHERE session_id = %s 
+            ORDER BY id ASC
+        """, (session_id,))
+        
+        messages = cursor.fetchall()
+        return jsonify({
+            'count': len(messages),
+            'messages': messages
+        })
+    except Exception as e:
+        app.logger.error(f"Error in debug messages: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
 
 @app.errorhandler(404)
 def not_found(e):

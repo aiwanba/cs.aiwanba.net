@@ -467,6 +467,10 @@
                 <span class="material-icons">delete_outline</span>
                 <span class="tooltip">清空对话</span>
             </button>
+            <button class="action-button" onclick="debugMessages()">
+                <span class="material-icons">bug_report</span>
+                <span class="tooltip">调试消息</span>
+            </button>
         </div>
 
         <!-- 聊天区域 -->
@@ -605,19 +609,24 @@
             const div = document.createElement('div');
             div.className = `message ${role}-message`;
             
-            if (role === 'system') {
-                div.innerHTML = `<div class="system-message">${content}</div>`;
-            } else {
-                // 如果内容已经处理过，就不需要再次处理
-                const processedContent = skipProcessing ? content : processMessageContent(content);
-                div.innerHTML = `
-                    <div class="message-content">${processedContent}</div>
-                    <div class="message-time">${getFormattedTime()}</div>
-                `;
+            try {
+                if (role === 'system') {
+                    div.innerHTML = `<div class="system-message">${content}</div>`;
+                } else {
+                    // 处理 Markdown 和代码高亮
+                    const processedContent = skipProcessing ? processMessageContent(content) : content;
+                    div.innerHTML = `
+                        <div class="message-content">${processedContent}</div>
+                        <div class="message-time">${getFormattedTime()}</div>
+                    `;
+                }
+                
+                chatContainer.appendChild(div);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } catch (error) {
+                console.error('Error appending message:', error);
+                console.error('Message content:', content);
             }
-            
-            chatContainer.appendChild(div);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
         function appendTypingIndicator() {
@@ -702,63 +711,37 @@
 
         // 代码高亮处理
         function processMessageContent(content) {
-            // 配置 marked 选项
-            marked.setOptions({
-                renderer: new marked.Renderer(),
-                highlight: function(code, lang) {
-                    if (lang && Prism.languages[lang]) {
-                        return Prism.highlight(code, Prism.languages[lang], lang);
-                    }
-                    return code;
-                },
-                pedantic: false,
-                gfm: true,
-                breaks: true,
-                sanitize: false,
-                smartypants: false,
-                xhtml: false
-            });
+            try {
+                // 配置 marked 选项
+                marked.setOptions({
+                    renderer: new marked.Renderer(),
+                    highlight: function(code, lang) {
+                        try {
+                            if (lang && Prism.languages[lang]) {
+                                return Prism.highlight(code, Prism.languages[lang], lang);
+                            }
+                            return code;
+                        } catch (e) {
+                            console.error('Error highlighting code:', e);
+                            return code;
+                        }
+                    },
+                    pedantic: false,
+                    gfm: true,
+                    breaks: true,
+                    sanitize: false,
+                    smartypants: false,
+                    xhtml: false
+                });
 
-            // 自定义渲染规则
-            const renderer = {
-                // 优化标题渲染
-                heading(text, level) {
-                    return `<h${level} class="markdown-heading level-${level}">${text}</h${level}>`;
-                },
-                // 优化列表渲染
-                list(body, ordered) {
-                    const type = ordered ? 'ol' : 'ul';
-                    return `<${type} class="markdown-list">${body}</${type}>`;
-                },
-                // 优化列表项渲染
-                listitem(text) {
-                    return `<li class="markdown-list-item">${text}</li>`;
-                },
-                // 优化代码块渲染
-                code(code, language) {
-                    const validLanguage = Prism.languages[language] ? language : 'plaintext';
-                    const highlighted = Prism.highlight(
-                        code,
-                        Prism.languages[validLanguage],
-                        validLanguage
-                    );
-                    return `
-                        <div class="code-block-wrapper">
-                            <div class="code-block-header">
-                                <span class="code-language">${validLanguage}</span>
-                                <button class="copy-button" onclick="copyCode(this)">复制</button>
-                            </div>
-                            <pre class="language-${validLanguage}"><code class="language-${validLanguage}">${highlighted}</code></pre>
-                        </div>`;
-                },
-                // 优化段落渲染
-                paragraph(text) {
-                    return `<p class="markdown-paragraph">${text}</p>`;
-                }
-            };
-
-            marked.use({ renderer });
-            return marked.parse(content);
+                // 处理 think 标签
+                content = content.replace(/<think>([\s\S]*?)<\/think>/g, '');
+                
+                return marked.parse(content);
+            } catch (error) {
+                console.error('Error processing content:', error);
+                return content;
+            }
         }
 
         function copyCode(button) {
@@ -835,20 +818,27 @@
                 chatContainer.innerHTML = '';
                 appendTypingIndicator();
 
+                console.log('Loading session:', sessionId);
                 const response = await fetch(`/api/sessions/${sessionId}/messages`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 
                 const messages = await response.json();
+                console.log('Received messages:', messages);
                 removeTypingIndicator();
                 
                 if (messages && messages.length > 0) {
                     messages.forEach(msg => {
-                        // 使用 processMessageContent 处理消息内容
-                        const processedContent = processMessageContent(msg.content);
-                        appendMessage(msg.role, processedContent);
+                        console.log('Processing message:', msg);
+                        appendMessage(msg.role, msg.content, true);
                     });
+                    
+                    // 滚动到最新消息
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                } else {
+                    console.log('No messages found for session:', sessionId);
+                    appendMessage('system', '暂无消息记录');
                 }
                 
                 loadSessions(); // 刷新侧边栏，高亮当前会话
@@ -898,6 +888,22 @@
         window.addEventListener('load', () => {
             loadSessions();
         });
+
+        // 添加调试函数
+        async function debugMessages() {
+            if (!currentSessionId) {
+                console.log('No active session');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/debug/messages/${currentSessionId}`);
+                const data = await response.json();
+                console.log('Debug messages:', data);
+            } catch (error) {
+                console.error('Error debugging messages:', error);
+            }
+        }
     </script>
 </body>
 </html> 
