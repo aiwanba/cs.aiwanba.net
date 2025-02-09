@@ -587,6 +587,14 @@ def create_conversation():
             "message": "创建会话失败"
         }), 500
 
+@app.route('/api/new-conversation', methods=['GET'])
+def handle_invalid_new_conversation():
+    """拦截错误的GET请求"""
+    return jsonify({
+        "status": "error",
+        "message": "请使用POST方法创建新会话"
+    }), 405
+
 @app.route('/api/conversations/<conv_id>/messages', methods=['POST'])
 def save_message(conv_id):
     """保存消息到会话"""

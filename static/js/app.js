@@ -89,11 +89,18 @@ function addTimestamp(messageDiv) {
 // 获取会话ID
 async function fetchConversationId() {
     try {
-        const response = await fetch('/api/new-conversation');
+        const response = await fetch('/api/new-conversation', {
+            method: 'POST'
+        });
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(`HTTP错误 ${response.status}: ${error}`);
+        }
         const data = await response.json();
         return data.conversation_id;
     } catch (error) {
         console.error('获取会话ID失败:', error);
+        showError('无法创建新会话，请检查网络连接');
         return null;
     }
 }
