@@ -283,8 +283,14 @@
         /* 响应式设计 */
         @media (max-width: 768px) {
             .sidebar {
-                display: none;
+                transform: translateX(-100%);
+                transition: transform 0.3s;
             }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
             .main-content {
                 margin-left: 0;
             }
@@ -310,11 +316,17 @@
             display: flex;
             align-items: center;
             gap: 12px;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
+            position: relative;
         }
 
         .history-item:hover {
             background: var(--ai-message-bg);
+        }
+
+        .history-item.active {
+            background: var(--primary-color);
+            color: white;
         }
 
         .history-content {
@@ -331,8 +343,26 @@
 
         .history-time {
             font-size: 0.8rem;
-            color: #64748b;
-            margin-top: 4px;
+            opacity: 0.7;
+        }
+
+        .delete-btn {
+            opacity: 0;
+            background: transparent;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .history-item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            background: rgba(0, 0, 0, 0.1);
         }
 
         /* 优化滚动条样式 */
@@ -358,13 +388,13 @@
     <!-- 侧边栏 -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <button class="new-chat-btn">
+            <button class="new-chat-btn" onclick="startNewChat()">
                 <span class="material-icons">add</span>
                 新对话
             </button>
         </div>
         <div class="chat-history">
-            <!-- 历史对话列表 -->
+            <!-- 历史记录将在这里动态加载 -->
         </div>
     </div>
 
@@ -419,6 +449,7 @@
         const chatContainer = document.getElementById('chat-container');
         const promptInput = document.getElementById('prompt');
         let isProcessing = false;
+        let currentSessionId = null;
         let messageHistory = [];
 
         function getFormattedTime() {
@@ -436,29 +467,21 @@
             appendMessage('user', prompt);
             promptInput.value = '';
 
-            // 添加用户消息到历史
-            messageHistory.push({
-                role: "user",
-                content: prompt
-            });
-
             appendTypingIndicator();
 
             try {
-                console.log("Sending request to /api/chat");
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({ 
-                        prompt, 
-                        history: messageHistory.slice(-10), // 保留最近10条消息
+                        prompt,
+                        session_id: currentSessionId,
                         stream: true 
                     }),
                 });
 
-                console.log("Response received:", response);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -473,19 +496,14 @@
                     if (done) break;
 
                     const text = new TextDecoder().decode(value);
-                    console.log("Received chunk:", text);
                     aiMessage += text;
                     updateLastMessage('ai', aiMessage);
                 }
 
-                // 添加AI回复到历史
-                messageHistory.push({
-                    role: "assistant",
-                    content: aiMessage
-                });
-
-                // 更新侧边栏历史记录
-                updateChatHistory();
+                // 如果是新会话，更新会话列表
+                if (!currentSessionId) {
+                    loadSessions();
+                }
             } catch (error) {
                 console.error('Error:', error);
                 appendMessage('system', '发生错误，请重试');
@@ -680,39 +698,75 @@
             }
         });
 
-        // 添加历史记录管理功能
-        function updateChatHistory() {
-            const chatHistory = document.querySelector('.chat-history');
-            chatHistory.innerHTML = '';
+        // 加载历史会话
+        async function loadSessions() {
+            try {
+                const response = await fetch('/api/sessions');
+                const sessions = await response.json();
+                const chatHistory = document.querySelector('.chat-history');
+                chatHistory.innerHTML = '';
 
-            // 按对话分组显示历史记录
-            let currentGroup = [];
-            messageHistory.forEach((msg, index) => {
-                currentGroup.push(msg);
-                if (msg.role === 'assistant' || index === messageHistory.length - 1) {
-                    const groupDiv = document.createElement('div');
-                    groupDiv.className = 'history-group';
-                    groupDiv.innerHTML = `
-                        <div class="history-item" onclick="loadChat(${index - currentGroup.length + 1})">
+                sessions.forEach(session => {
+                    const sessionDiv = document.createElement('div');
+                    sessionDiv.className = 'history-group';
+                    sessionDiv.innerHTML = `
+                        <div class="history-item ${session.session_id === currentSessionId ? 'active' : ''}" 
+                             onclick="loadSession('${session.session_id}')">
                             <span class="material-icons">chat</span>
                             <div class="history-content">
-                                <div class="history-title">${currentGroup[0].content.substring(0, 30)}...</div>
-                                <div class="history-time">${getFormattedTime()}</div>
+                                <div class="history-title">${session.title}</div>
+                                <div class="history-time">${formatTime(new Date(session.created_at))}</div>
                             </div>
+                            <button class="delete-btn" onclick="deleteSession('${session.session_id}', event)">
+                                <span class="material-icons">delete</span>
+                            </button>
                         </div>
                     `;
-                    chatHistory.appendChild(groupDiv);
-                    currentGroup = [];
-                }
-            });
+                    chatHistory.appendChild(sessionDiv);
+                });
+            } catch (error) {
+                console.error('Error loading sessions:', error);
+            }
         }
 
-        // 加载历史对话
-        function loadChat(startIndex) {
+        // 加载特定会话的消息
+        async function loadSession(sessionId) {
+            currentSessionId = sessionId;
             chatContainer.innerHTML = '';
-            for (let i = startIndex; i < messageHistory.length; i++) {
-                const msg = messageHistory[i];
-                appendMessage(msg.role === 'user' ? 'user' : 'ai', msg.content);
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}/messages`);
+                const messages = await response.json();
+                messages.forEach(msg => {
+                    appendMessage(msg.role, msg.content);
+                });
+                loadSessions(); // 刷新侧边栏，高亮当前会话
+            } catch (error) {
+                console.error('Error loading session:', error);
+            }
+        }
+
+        // 开始新对话
+        function startNewChat() {
+            currentSessionId = null;
+            chatContainer.innerHTML = '';
+            messageHistory = [];
+            loadSessions();
+        }
+
+        // 删除会话
+        async function deleteSession(sessionId, event) {
+            event.stopPropagation();
+            if (!confirm('确定要删除这个对话吗？')) return;
+
+            try {
+                await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+                if (sessionId === currentSessionId) {
+                    startNewChat();
+                } else {
+                    loadSessions();
+                }
+            } catch (error) {
+                console.error('Error deleting session:', error);
             }
         }
 
@@ -721,15 +775,14 @@
             if (confirm('确定要清空所有对话吗？')) {
                 chatContainer.innerHTML = '';
                 messageHistory = [];
-                updateChatHistory();
+                currentSessionId = null;
+                loadSessions();
             }
         }
 
-        // 新对话按钮
-        document.querySelector('.new-chat-btn').addEventListener('click', () => {
-            chatContainer.innerHTML = '';
-            messageHistory = [];
-            updateChatHistory();
+        // 页面加载时获取会话列表
+        window.addEventListener('load', () => {
+            loadSessions();
         });
     </script>
 </body>

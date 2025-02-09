@@ -11,6 +11,7 @@ import logging
 from werkzeug.utils import secure_filename
 import hashlib
 import time
+import uuid
 
 # 配置日志
 logging.basicConfig(
@@ -35,9 +36,6 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'py', 'js', 'json', 'md'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB 限制
-
-# 确保上传目录存在
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # 初始化服务
 ai_service = AIService()
@@ -121,28 +119,26 @@ def chat():
         app.logger.info(f"Request data: {data}")
         
         prompt = data.get('prompt')
-        history = data.get('history', [])
+        session_id = data.get('session_id')
         stream = data.get('stream', True)
         
         if not prompt:
             app.logger.warning("Empty prompt received")
             return jsonify({'error': 'Prompt is required'}), 400
             
+        # 如果没有会话ID，创建新会话
+        if not session_id:
+            session_id = str(uuid.uuid4())
+            title = prompt[:50] + "..."  # 使用首条消息作为标题
+            db_manager.create_session(session_id, title)
+        
+        # 保存用户消息
+        db_manager.save_message(session_id, 'user', prompt)
+            
         app.logger.info(f"Processing prompt: {prompt[:100]}...")
         
-        # 处理特殊命令
-        if prompt.startswith('translate:'):
-            # 处理翻译命令
-            _, text = prompt.split(':', 1)
-            prompt = f"请将以下文本翻译: {text.strip()}"
-        elif prompt.startswith('py:'):
-            # 处理Python代码
-            _, code = prompt.split(':', 1)
-            prompt = f"请解释并执行以下Python代码:\n```python\n{code.strip()}\n```"
-        elif prompt.startswith('js:'):
-            # 处理JavaScript代码
-            _, code = prompt.split(':', 1)
-            prompt = f"请解释并执行以下JavaScript代码:\n```javascript\n{code.strip()}\n```"
+        # 获取历史消息
+        history = db_manager.get_session_messages(session_id)
             
         if stream:
             app.logger.info("Using streaming response")
@@ -155,6 +151,10 @@ def chat():
                     app.logger.error(f"Error in stream generation: {str(e)}")
                     yield f"Error: {str(e)}"
             
+            # 保存AI响应
+            response_content = "".join(list(generate()))
+            db_manager.save_message(session_id, 'assistant', response_content)
+            
             return Response(
                 stream_with_context(generate()),
                 content_type='text/event-stream'
@@ -162,10 +162,44 @@ def chat():
         else:
             app.logger.info("Using non-streaming response")
             response = ai_service.generate_response(prompt, history=history, stream=False)
-            return jsonify({'response': response})
+            # 保存AI响应
+            db_manager.save_message(session_id, 'assistant', response)
+            return jsonify({'response': response, 'session_id': session_id})
             
     except Exception as e:
         app.logger.error(f"Error in chat endpoint: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/sessions', methods=['GET'])
+def get_sessions():
+    """获取所有会话"""
+    try:
+        sessions = db_manager.get_all_sessions()
+        return jsonify(sessions)
+    except Exception as e:
+        app.logger.error(f"Error getting sessions: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/sessions/<session_id>', methods=['DELETE'])
+def delete_session(session_id):
+    """删除会话"""
+    try:
+        success = db_manager.delete_session(session_id)
+        if success:
+            return jsonify({'message': 'Session deleted'})
+        return jsonify({'error': 'Failed to delete session'}), 500
+    except Exception as e:
+        app.logger.error(f"Error deleting session: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/api/sessions/<session_id>/messages', methods=['GET'])
+def get_session_messages(session_id):
+    """获取会话的所有消息"""
+    try:
+        messages = db_manager.get_session_messages(session_id)
+        return jsonify(messages)
+    except Exception as e:
+        app.logger.error(f"Error getting session messages: {str(e)}")
         return jsonify({'error': 'Internal server error'}), 500
 
 @app.errorhandler(404)
@@ -175,6 +209,28 @@ def not_found(e):
 @app.errorhandler(500)
 def internal_error(e):
     return jsonify({'error': 'Internal server error'}), 500
+
+def init_app():
+    """应用初始化"""
+    # 确保上传目录存在
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    
+    # 初始化数据库表
+    try:
+        with open('sql/chat_history.sql', 'r', encoding='utf-8') as f:
+            sql_commands = f.read().split(';')
+        
+        for command in sql_commands:
+            if command.strip():
+                try:
+                    db_manager.execute_query(command)
+                except Exception as e:
+                    app.logger.error(f"Error creating table: {str(e)}")
+    except Exception as e:
+        app.logger.error(f"Error reading SQL file: {str(e)}")
+
+# 在应用启动前调用初始化
+init_app()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True) 

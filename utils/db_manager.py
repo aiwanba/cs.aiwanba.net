@@ -39,8 +39,8 @@ class DatabaseManager:
             logging.error(f"Error getting database connection: {str(e)}")
             raise
     
-    def execute_query(self, query, params=None):
-        """执行查询并返回结果"""
+    def fetch_all(self, query, params=None):
+        """执行查询并返回所有结果"""
         connection = None
         cursor = None
         try:
@@ -51,7 +51,28 @@ class DatabaseManager:
             return result
         except Exception as e:
             logging.error(f"Error executing query: {str(e)}")
-            raise
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+            if connection:
+                connection.close()
+    
+    def execute_query(self, query, params=None):
+        """执行更新操作"""
+        connection = None
+        cursor = None
+        try:
+            connection = self.get_connection()
+            cursor = connection.cursor()
+            cursor.execute(query, params or ())
+            connection.commit()
+            return True
+        except Exception as e:
+            if connection:
+                connection.rollback()
+            logging.error(f"Error executing update: {str(e)}")
+            return False
         finally:
             if cursor:
                 cursor.close()
@@ -77,4 +98,72 @@ class DatabaseManager:
             if cursor:
                 cursor.close()
             if connection:
-                connection.close() 
+                connection.close()
+
+    def save_message(self, session_id, role, content):
+        """保存聊天消息"""
+        try:
+            sql = """
+                INSERT INTO chat_history (session_id, role, content)
+                VALUES (%s, %s, %s)
+            """
+            self.execute_query(sql, (session_id, role, content))
+            return True
+        except Exception as e:
+            logging.error(f"Error saving message: {str(e)}")
+            return False
+
+    def get_session_messages(self, session_id):
+        """获取会话的所有消息"""
+        try:
+            sql = """
+                SELECT role, content, created_at
+                FROM chat_history
+                WHERE session_id = %s
+                ORDER BY id ASC
+            """
+            return self.fetch_all(sql, (session_id,))
+        except Exception as e:
+            logging.error(f"Error getting session messages: {str(e)}")
+            return []
+
+    def create_session(self, session_id, title):
+        """创建新会话"""
+        try:
+            sql = """
+                INSERT INTO chat_sessions (session_id, title)
+                VALUES (%s, %s)
+            """
+            self.execute_query(sql, (session_id, title))
+            return True
+        except Exception as e:
+            logging.error(f"Error creating session: {str(e)}")
+            return False
+
+    def get_all_sessions(self):
+        """获取所有会话"""
+        try:
+            sql = """
+                SELECT session_id, title, created_at, updated_at
+                FROM chat_sessions
+                ORDER BY updated_at DESC
+            """
+            return self.fetch_all(sql)
+        except Exception as e:
+            logging.error(f"Error getting sessions: {str(e)}")
+            return []
+
+    def delete_session(self, session_id):
+        """删除会话及其消息"""
+        try:
+            # 删除消息
+            sql1 = "DELETE FROM chat_history WHERE session_id = %s"
+            self.execute_query(sql1, (session_id,))
+            
+            # 删除会话
+            sql2 = "DELETE FROM chat_sessions WHERE session_id = %s"
+            self.execute_query(sql2, (session_id,))
+            return True
+        except Exception as e:
+            logging.error(f"Error deleting session: {str(e)}")
+            return False 
