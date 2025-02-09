@@ -516,6 +516,27 @@ def export_all_conversations():
             "message": "服务器内部错误"
         }), 500
     
+@app.route('/api/conversations')
+def get_conversations():
+    """获取会话列表"""
+    try:
+        conversations = Conversation.query.order_by(
+            Conversation.last_active.desc()
+        ).limit(50).all()
+        
+        return jsonify([{
+            "id": conv.id,
+            "last_active": conv.last_active.isoformat(),
+            "message_count": len(conv.messages)
+        } for conv in conversations])
+        
+    except Exception as e:
+        app.logger.error(f"获取会话列表失败: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "获取会话列表失败"
+        }), 500
+
 # 创建数据库表
 with app.app_context():
     db.create_all()
