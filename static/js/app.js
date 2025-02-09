@@ -31,7 +31,10 @@ function handleEnterKey(event) {
 async function loadConversationHistory() {
     try {
         const response = await fetch('/api/conversations');
-        if (!response.ok) throw new Error('请求失败');
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || '请求失败');
+        }
         
         const data = await response.json();
         const historyList = document.getElementById('historyList');
@@ -43,6 +46,7 @@ async function loadConversationHistory() {
         data.forEach(conv => {
             const item = document.createElement('div');
             item.className = 'history-item';
+            item.onclick = () => loadConversationMessages(conv.id);
             item.innerHTML = `
                 <div class="conv-id">${conv.id.slice(0,6)}...</div>
                 <div class="conv-info">
@@ -55,7 +59,42 @@ async function loadConversationHistory() {
         
     } catch (error) {
         console.error('加载历史记录失败:', error);
-        showError('暂时无法加载历史记录');
+        showError(`加载失败: ${error.message}`);
+    }
+}
+
+// 创建消息容器
+function createMessageContainer(role) {
+    const messagesDiv = document.getElementById('messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}`;
+    messageDiv.innerHTML = `
+        <div class="message-content"></div>
+        <div class="timestamp"></div>
+    `;
+    messagesDiv.appendChild(messageDiv);
+    return messageDiv;
+}
+
+// 添加时间戳
+function addTimestamp(messageDiv) {
+    const time = new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    messageDiv.querySelector('.timestamp').textContent = time;
+}
+
+// 获取会话ID
+async function fetchConversationId() {
+    try {
+        const response = await fetch('/api/new-conversation');
+        const data = await response.json();
+        return data.conversation_id;
+    } catch (error) {
+        console.error('获取会话ID失败:', error);
+        return null;
     }
 }
 
@@ -66,6 +105,23 @@ async function sendMessage() {
     const message = input.value.trim();
     if (!message) return;
 
+    // 创建新会话
+    if (!currentConversationId) {
+        try {
+            const response = await fetch('/api/new-conversation', {
+                method: 'POST'
+            });
+            const data = await response.json();
+            currentConversationId = data.conversation_id;
+        } catch (error) {
+            showError('创建会话失败');
+            return;
+        }
+    }
+
+    // 保存用户消息
+    await saveMessage(currentConversationId, 'user', message);
+    
     // 改用新消息容器
     const messageDiv = createMessageContainer('user');
     messageDiv.querySelector('.message-content').textContent = message;
@@ -112,6 +168,48 @@ async function sendMessage() {
         isStreaming = false;
         addTimestamp(messageDiv);
     }
+}
+
+async function saveMessage(convId, role, content) {
+    try {
+        await fetch(`/api/conversations/${convId}/messages`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ role, content })
+        });
+    } catch (error) {
+        console.error('保存消息失败:', error);
+    }
+}
+
+async function loadConversationMessages(convId) {
+    try {
+        const response = await fetch(`/api/conversations/${convId}/messages`);
+        const messages = await response.json();
+        
+        const messagesDiv = document.getElementById('messages');
+        messagesDiv.innerHTML = '';
+        
+        messages.forEach(msg => {
+            const messageDiv = createMessageContainer(msg.role);
+            messageDiv.querySelector('.message-content').textContent = msg.content;
+            messageDiv.querySelector('.timestamp').textContent = 
+                new Date(msg.timestamp).toLocaleTimeString();
+        });
+        
+    } catch (error) {
+        showError('加载消息失败');
+    }
+}
+
+// 显示错误提示
+function showError(message, duration=3000) {
+    const toast = document.getElementById('errorToast');
+    toast.textContent = message;
+    toast.style.display = 'block';
+    setTimeout(() => {
+        toast.style.display = 'none';
+    }, duration);
 }
 
 // 其他JS函数保持不变... 

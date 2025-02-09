@@ -74,6 +74,23 @@ def normalize_request():
     if cleaned_path != original_path and len(cleaned_path) > 0:
         return redirect(cleaned_path)
 
+@app.before_request
+def validate_conversation():
+    """验证会话ID有效性"""
+    if request.method == 'POST' and '/conversations/' in request.path:
+        path_segments = request.path.strip('/').split('/')
+        # 确保路径结构正确：/api/conversations/{conv_id}/messages
+        if len(path_segments) < 4 or path_segments[2] != 'conversations':
+            return  # 忽略无效路径
+        
+        conv_id = path_segments[3]  # 正确提取会话ID位置
+        
+        if not db.session.get(Conversation, conv_id):
+            return jsonify({
+                "status": "error",
+                "message": "无效的会话ID"
+            }), 400
+
 @app.route('/')
 def index():
     """主入口返回前端页面"""
@@ -109,26 +126,24 @@ def chat():
         # 如果没有会话ID，创建新的会话
         if not conversation_id:
             conversation_id = str(uuid.uuid4())
-            conversation = Conversation(id=conversation_id)
-            db.session.add(conversation)
+            conv = Conversation(id=conversation_id)
+            db.session.add(conv)
         else:
             # 检查会话是否存在且未过期
-            conversation = Conversation.query.filter(
-                Conversation.id == conversation_id,
-                Conversation.last_active >= (datetime.utcnow() - SESSION_EXPIRY)
-            ).first()
-            
-            if not conversation:
-                # 自动创建新会话而不是返回错误
+            conv = db.session.get(Conversation, conversation_id)
+            if not conv or conv.last_active < (datetime.utcnow() - SESSION_EXPIRY):
+                # 自动创建新会话
                 conversation_id = str(uuid.uuid4())
-                conversation = Conversation(id=conversation_id)
-                db.session.add(conversation)
+                conv = Conversation(id=conversation_id)
+                db.session.add(conv)
         
         # 更新最后活动时间
-        conversation.last_active = datetime.utcnow()
+        conv.last_active = datetime.utcnow()
         
         # 获取历史消息
-        messages = [msg.to_dict() for msg in conversation.messages[-9:]]  # 获取最近9条消息
+        messages = [msg.to_dict() for msg in conv.messages.order_by(
+            Message.timestamp.desc()
+        ).limit(9).all()][::-1]
         messages.append({"role": "user", "content": user_message})
         
         # 检查缓存
@@ -187,34 +202,47 @@ def chat_stream():
         data = request.json
         user_message = data.get('message', '')
         conversation_id = data.get('conversation_id')
-
-        # 会话处理逻辑与普通接口相同
-        if not conversation_id:
-            conversation_id = str(uuid.uuid4())
-            conversation = Conversation(id=conversation_id)
-            db.session.add(conversation)
-        else:
-            conversation = Conversation.query.filter(
-                Conversation.id == conversation_id,
-                Conversation.last_active >= (datetime.utcnow() - SESSION_EXPIRY)
-            ).first()
-            if not conversation:
-                conversation_id = str(uuid.uuid4())
-                conversation = Conversation(id=conversation_id)
-                db.session.add(conversation)
-
-        conversation.last_active = datetime.utcnow()
-        messages = [msg.to_dict() for msg in conversation.messages[-9:]]
-        messages.append({"role": "user", "content": user_message})
+        
+        # 会话验证
+        conv = db.session.get(Conversation, conversation_id)
+        if not conv:
+            return jsonify({
+                "status": "error",
+                "message": "无效的会话ID"
+            }), 400
+        
+        # 更新会话时间
+        conv.last_active = datetime.utcnow()
+        
+        # 保存用户消息
+        user_msg = Message(
+            conversation_id=conversation_id,
+            role='user',
+            content=user_message
+        )
+        db.session.add(user_msg)
+        db.session.commit()
 
         def generate():
             with app.app_context():
+                # 重新获取会话对象
+                conv = db.session.get(Conversation, conversation_id)
+                
+                # 获取最近9条消息（正序查询）
+                recent_messages = conv.messages.order_by(
+                    Message.timestamp.desc()
+                ).limit(9).all()
+                
+                # 反转顺序保持时间升序
+                messages = [msg.to_dict() for msg in reversed(recent_messages)]
+                messages.append({"role": "user", "content": user_message})
+                
                 # 确保会话对象已存在并提交
-                db.session.add(conversation)
+                db.session.add(conv)
                 db.session.commit()  # 强制立即提交会话
                 
                 # 创建用户消息并提交
-                user_msg = Message(conversation_id=conversation.id, role='user', content=user_message)
+                user_msg = Message(conversation_id=conv.id, role='user', content=user_message)
                 db.session.add(user_msg)
                 db.session.commit()  # 提交用户消息
                 
@@ -240,7 +268,7 @@ def chat_stream():
                 # 最后处理数据库
                 try:
                     # 保存AI响应
-                    ai_msg = Message(conversation_id=conversation.id, role='assistant', content=''.join(full_response))
+                    ai_msg = Message(conversation_id=conv.id, role='assistant', content=''.join(full_response))
                     db.session.add(ai_msg)
                     db.session.commit()
                 except Exception as e:
@@ -527,7 +555,7 @@ def get_conversations():
         return jsonify([{
             "id": conv.id,
             "last_active": conv.last_active.isoformat(),
-            "message_count": len(conv.messages)
+            "message_count": conv.messages.count()
         } for conv in conversations])
         
     except Exception as e:
@@ -535,6 +563,49 @@ def get_conversations():
         return jsonify({
             "status": "error",
             "message": "获取会话列表失败"
+        }), 500
+
+@app.route('/api/new-conversation', methods=['POST'])
+def create_conversation():
+    """创建新会话"""
+    try:
+        conv_id = str(uuid.uuid4())
+        conversation = Conversation(id=conv_id)
+        db.session.add(conversation)
+        db.session.commit()
+        # 确保会话立即可查询
+        db.session.expire_all()
+        return jsonify({
+            "status": "success",
+            "conversation_id": conv_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"创建会话失败: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "创建会话失败"
+        }), 500
+
+@app.route('/api/conversations/<conv_id>/messages', methods=['POST'])
+def save_message(conv_id):
+    """保存消息到会话"""
+    try:
+        data = request.json
+        message = Message(
+            conversation_id=conv_id,
+            role=data['role'],
+            content=data['content'],
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(message)
+        db.session.commit()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        app.logger.error(f"保存消息失败: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": "保存消息失败"
         }), 500
 
 # 创建数据库表
