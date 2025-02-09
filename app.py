@@ -291,7 +291,7 @@ def clear_conversation(conversation_id):
 
 @app.route('/api/conversations/<conversation_id>/export', methods=['GET'])
 def export_conversation(conversation_id):
-    """导出会话数据"""
+    """优化后的单会话导出"""
     conversation = Conversation.query.get(conversation_id)
     if not conversation:
         return jsonify({
@@ -299,72 +299,84 @@ def export_conversation(conversation_id):
             "message": "Conversation not found"
         }), 404
     
-    export_format = request.args.get('format', 'json')  # 支持 json 和 csv 格式
-    
-    if export_format == 'json':
-        # 准备JSON数据
-        data = {
-            'conversation_id': conversation.id,
-            'created_at': conversation.created_at.isoformat(),
-            'last_active': conversation.last_active.isoformat(),
-            'messages': [msg.to_dict() for msg in conversation.messages]
+    export_format = request.args.get('format', 'json')
+
+    if export_format == 'csv':
+        def generate():
+            # 创建应用上下文
+            with app.app_context():
+                # 创建内存写入器
+                mem = StringIO()
+                writer = csv.writer(mem)
+                
+                # 写入表头
+                writer.writerow(['Timestamp', 'Role', 'Content'])
+                yield mem.getvalue()
+                mem.seek(0)
+                mem.truncate(0)
+                
+                # 分批查询消息（每次100条）
+                query = Message.query.filter_by(
+                    conversation_id=conversation_id
+                ).yield_per(100)
+                
+                for msg in query:
+                    writer.writerow([
+                        msg.timestamp.isoformat(),
+                        msg.role,
+                        msg.content
+                    ])
+                    yield mem.getvalue()
+                    mem.seek(0)
+                    mem.truncate(0)
+
+        headers = {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': 
+                f'attachment; filename=conversation_{conversation_id}.csv'
         }
-        
-        # 创建内存文件（二进制模式）
-        mem = BytesIO()  # 改为使用BytesIO
-        mem.write(json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8'))
-        mem.seek(0)
-        
-        # 生成文件名
-        filename = f"conversation_{conversation_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        
-        return send_file(
-            mem,
-            mimetype='application/json',
-            as_attachment=True,
-            download_name=filename
-        )
+        return Response(generate(), headers=headers)
     
-    elif export_format == 'csv':
-        # 创建CSV内存文件（二进制模式）
-        mem = BytesIO()
-        try:
-            # 直接使用TextIOWrapper包装BytesIO
-            wrapper = TextIOWrapper(mem, 'utf-8', newline='', write_through=True)
-            writer = csv.writer(wrapper)
-            
-            # 写入头部
-            writer.writerow(['Timestamp', 'Role', 'Content'])
-            
-            # 写入消息
-            for message in conversation.messages:
-                writer.writerow([
-                    message.timestamp.isoformat(),
-                    message.role,
-                    message.content
-                ])
-            
-            # 刷新缓冲区并重置指针
-            wrapper.flush()
-            mem.seek(0)
-            
-            # 生成文件名
-            filename = f"conversation_{conversation_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            
-            return send_file(
-                mem,
-                mimetype='text/csv',
-                as_attachment=True,
-                download_name=filename
-            )
-        finally:
-            # 仅关闭BytesIO对象
-            mem.close()
+    elif export_format == 'json':
+        # 新增JSON导出处理
+        def generate_json():
+            with app.app_context():
+                data = {
+                    'conversation_id': conversation.id,
+                    'created_at': conversation.created_at.isoformat(),
+                    'last_active': conversation.last_active.isoformat(),
+                    'messages': []
+                }
+                
+                # 分批处理消息
+                query = Message.query.filter_by(
+                    conversation_id=conversation_id
+                ).yield_per(100)
+                
+                for msg in query:
+                    data['messages'].append({
+                        'timestamp': msg.timestamp.isoformat(),
+                        'role': msg.role,
+                        'content': msg.content
+                    })
+                    # 每100条生成部分JSON
+                    if len(data['messages']) % 100 == 0:
+                        yield json.dumps(data, ensure_ascii=False) + '\n'
+                
+                # 生成最终结果
+                yield json.dumps(data, ensure_ascii=False)
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Content-Disposition': 
+                f'attachment; filename=conversation_{conversation_id}.json'
+        }
+        return Response(generate_json(), headers=headers)
     
     else:
         return jsonify({
             "status": "error",
-            "message": "Unsupported export format"
+            "message": "Unsupported format, use csv or json"
         }), 400
 
 @app.route('/api/conversations/export-all', methods=['GET'])
