@@ -381,35 +381,79 @@ def export_all_conversations():
         
         if export_format == 'csv':
             def generate_csv():
-                # 创建应用上下文
                 with app.app_context():
-                    # 创建内存写入器
                     mem = StringIO()
                     writer = csv.writer(mem)
                     
-                    # 写入表头
-                    writer.writerow(['会话ID', '创建时间', '最后活跃时间', '消息数量'])
+                    # 写入会话表头
+                    writer.writerow([
+                        '会话ID', '创建时间', '最后活跃时间', 
+                        '消息数量', '第一条消息时间', '最后一条消息时间',
+                        '用户消息数量', 'AI消息数量'
+                    ])
                     yield mem.getvalue()
                     mem.seek(0)
                     mem.truncate(0)
                     
-                    # 分批查询数据库
-                    query = Conversation.query.yield_per(100)  # 每次处理100条
-                    for conv in query:
+                    # 分批处理会话（每次50个）
+                    conv_query = Conversation.query.yield_per(50)
+                    for conv in conv_query:
+                        # 统计消息信息
+                        first_msg = db.session.query(
+                            Message.timestamp
+                        ).filter_by(
+                            conversation_id=conv.id
+                        ).order_by(Message.timestamp.asc()).first()
+                        
+                        last_msg = db.session.query(
+                            Message.timestamp
+                        ).filter_by(
+                            conversation_id=conv.id
+                        ).order_by(Message.timestamp.desc()).first()
+                        
+                        user_count = Message.query.filter_by(
+                            conversation_id=conv.id,
+                            role='user'
+                        ).count()
+                        
+                        ai_count = Message.query.filter_by(
+                            conversation_id=conv.id,
+                            role='assistant'
+                        ).count()
+                        
+                        # 写入会话数据
                         writer.writerow([
                             conv.id,
                             conv.created_at.isoformat(),
                             conv.last_active.isoformat(),
-                            len(conv.messages)
+                            len(conv.messages),
+                            first_msg[0].isoformat() if first_msg else '',
+                            last_msg[0].isoformat() if last_msg else '',
+                            user_count,
+                            ai_count
                         ])
                         yield mem.getvalue()
                         mem.seek(0)
                         mem.truncate(0)
+                        
+                        # 写入消息明细
+                        msg_query = Message.query.filter_by(
+                            conversation_id=conv.id
+                        ).yield_per(100)
+                        for msg in msg_query:
+                            writer.writerow([
+                                '',  # 会话ID占位符
+                                msg.timestamp.isoformat(),
+                                msg.role,
+                                msg.content.replace('\n', '\\n')
+                            ])
+                            yield mem.getvalue()
+                            mem.seek(0)
+                            mem.truncate(0)
             
-            # 流式响应
             headers = {
                 'Content-Type': 'text/csv',
-                'Content-Disposition': f'attachment; filename=conversations_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+                'Content-Disposition': f'attachment; filename=full_conversations_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
             }
             return Response(generate_csv(), headers=headers)
         
