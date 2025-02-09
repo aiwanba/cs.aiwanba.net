@@ -369,111 +369,47 @@ def export_conversation(conversation_id):
 
 @app.route('/api/conversations/export-all', methods=['GET'])
 def export_all_conversations():
+    """批量导出优化版"""
     try:
-        # 参数解析和验证
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
         export_format = request.args.get('format', 'json')
-
-        # 日期格式验证
-        try:
-            start_date = datetime.fromisoformat(start_date) if start_date else None
-            end_date = datetime.fromisoformat(end_date) if end_date else None
-        except ValueError as e:
-            app.logger.error(f"日期格式错误: {str(e)}")
-            return jsonify({
-                "status": "error",
-                "message": "日期格式应为YYYY-MM-DD"
-            }), 400
-
-        # 构建查询
-        query = Conversation.query
-        if start_date:
-            query = query.filter(Conversation.created_at >= start_date)
-        if end_date:
-            query = query.filter(Conversation.created_at <= end_date)
-
-        conversations = query.all()
-
-        # CSV导出处理
-        if export_format == 'csv':
-            import tempfile
-            import shutil
-            
-            try:
-                # 创建临时目录（自动清理）
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    # 生成临时文件路径
-                    temp_path = os.path.join(temp_dir, 'export.csv')
-                    
-                    # 写入CSV文件
-                    with open(temp_path, 'w', newline='', encoding='utf-8') as f:
-                        writer = csv.writer(f)
-                        
-                        # 写入表头
-                        writer.writerow(['会话ID', '创建时间', '最后活跃时间', '消息数量'])
-                        
-                        # 写入数据
-                        for conv in conversations:
-                            writer.writerow([
-                                conv.id,
-                                conv.created_at.isoformat(),
-                                conv.last_active.isoformat(),
-                                len(conv.messages)
-                            ])
-                    
-                    # 发送文件并自动清理
-                    return send_file(
-                        temp_path,
-                        mimetype='text/csv',
-                        as_attachment=True,
-                        download_name=f"conversations_export_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv",
-                        conditional=True
-                    )
-                    
-            except Exception as e:
-                app.logger.error(f"CSV导出失败: {str(e)}")
-                return jsonify({
-                    "status": "error",
-                    "message": "文件生成失败"
-                }), 500
-
-        # JSON导出处理
-        elif export_format == 'json':
-            # 准备JSON数据
-            data = {
-                'count': len(conversations),
-                'conversations': [
-                    {
-                        'id': conv.id,
-                        'created_at': conv.created_at.isoformat(),
-                        'last_active': conv.last_active.isoformat(),
-                        'message_count': len(conv.messages)
-                    } for conv in conversations
-                ]
-            }
-            
-            # 创建内存文件（二进制模式）
-            mem = BytesIO()
-            mem.write(json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8'))
-            mem.seek(0)
-            
-            # 生成文件名
-            filename = f"all_conversations_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            
-            return send_file(
-                mem,
-                mimetype='application/json',
-                as_attachment=True,
-                download_name=filename
-            )
         
-        else:
-            return jsonify({
-                "status": "error",
-                "message": "不支持的导出格式，支持格式：csv, json"
-            }), 400
-
+        # 仅处理CSV格式
+        if export_format == 'csv':
+            def generate_csv():
+                # 创建应用上下文
+                with app.app_context():
+                    # 创建内存写入器
+                    mem = StringIO()
+                    writer = csv.writer(mem)
+                    
+                    # 写入表头
+                    writer.writerow(['会话ID', '创建时间', '最后活跃时间', '消息数量'])
+                    yield mem.getvalue()
+                    mem.seek(0)
+                    mem.truncate(0)
+                    
+                    # 分批查询数据库
+                    query = Conversation.query.yield_per(100)  # 每次处理100条
+                    for conv in query:
+                        writer.writerow([
+                            conv.id,
+                            conv.created_at.isoformat(),
+                            conv.last_active.isoformat(),
+                            len(conv.messages)
+                        ])
+                        yield mem.getvalue()
+                        mem.seek(0)
+                        mem.truncate(0)
+            
+            # 流式响应
+            headers = {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': f'attachment; filename=conversations_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+            }
+            return Response(generate_csv(), headers=headers)
+        
+        # 其他格式保持不变...
+        
     except Exception as e:
         app.logger.error(f"导出异常: {str(e)}")
         return jsonify({

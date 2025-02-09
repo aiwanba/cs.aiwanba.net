@@ -85,11 +85,14 @@ data: {"content": "部分响应内容"}
 **URL** `/api/conversations/export-all`  
 **方法** GET  
 **参数**：
-- `start_date`: 起始日期（ISO格式）
-- `end_date`: 结束日期
-- `format`: json/csv
+- `format`: csv（仅支持CSV格式）
 
-**响应**：ZIP压缩包包含所有会话数据
+**特殊说明**：
+- 使用流式响应处理大数据量
+- 自动分批处理（每批100条记录）
+- 内存优化设计
+
+**响应**：CSV文件流
 
 ## 系统状态
 
