@@ -86,10 +86,6 @@ def health_check():
         "status": "服务正常",
         "version": "1.0.0",
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "endpoints": {
-            "chat": "/api/chat",
-            "documentation": "/doc"
-        },
         "system": {
             "database": "在线",
             "cache": f"{len(response_cache)} 条记录",
