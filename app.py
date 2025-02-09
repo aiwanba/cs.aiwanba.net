@@ -261,8 +261,8 @@ def clear_conversation(conversation_id):
     conversation = Conversation.query.get(conversation_id)
     if not conversation:
         return jsonify({
-            "status": "error",
-            "message": "Conversation not found"
+            "status": "错误",
+            "message": "会话历史未找到"
         }), 404
     
     db.session.delete(conversation)
@@ -274,8 +274,8 @@ def clear_conversation(conversation_id):
             del response_cache[key]
     
     return jsonify({
-        "status": "success",
-        "message": "Conversation history cleared"
+        "status": "成功",
+        "message": "会话历史已清除"
     })
 
 @app.route('/api/conversations/<conversation_id>/export', methods=['GET'])

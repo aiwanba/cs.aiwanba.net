@@ -80,7 +80,7 @@ data: {"content": "是..."}
 ### 获取会话历史
 **GET /api/conversations/{conversation_id}**  
 ```bash
-curl http://localhost:5010/api/conversations/550e8400-e29b-41d4-a716-446655440000
+curl http://localhost:5010/api/conversations/a1e5f35e-2f8f-4641-be9d-94311d549e02
 ```
 响应示例：
 ```json
@@ -104,7 +104,7 @@ curl http://localhost:5010/api/conversations/550e8400-e29b-41d4-a716-44665544000
 ### 删除会话
 **DELETE /api/conversations/{conversation_id}**  
 ```bash
-curl -X DELETE http://localhost:5010/api/conversations/550e8400-e29b-41d4-a716-446655440000
+curl -X DELETE http://localhost:5010/api/conversations/a1e5f35e-2f8f-4641-be9d-94311d549e02
 ```
 响应示例：
 ```json
