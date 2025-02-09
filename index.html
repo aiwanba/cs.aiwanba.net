@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能聊天助手</title>
+    <style>
+        /* 基础样式 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #f0f2f5;
+            color: #1a1a1a;
+        }
+
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
+
+        /* 侧边栏 */
+        .sidebar {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* 聊天区域 */
+        .chat-area {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+        }
+
+        /* 消息显示区域 */
+        .messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        /* 单条消息样式 */
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: #f1f0f0;
+        }
+
+        .message.assistant .message-content {
+            background: #007bff;
+            color: white;
+        }
+
+        /* 输入区域 */
+        .input-area {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        /* 导出管理 */
+        .export-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .export-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* 加载状态 */
+        .loading {
+            display: none;
+            padding: 12px;
+            text-align: center;
+            color: #666;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* 错误提示 */
+        .error-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #ff4444;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            display: none;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+        /* 时间戳 */
+        .timestamp {
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 4px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <h2>会话管理</h2>
+            <div class="export-section">
+                <h3>数据导出</h3>
+                <div class="export-options">
+                    <select id="exportFormat">
+                        <option value="csv">CSV格式</option>
+                        <option value="json">JSON格式</option>
+                    </select>
+                    <button onclick="exportAllConversations()">批量导出</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主聊天区 -->
+        <div class="chat-area">
+            <div class="loading" id="loading">✍️ AI正在思考中...</div>
+            <div class="messages" id="messages"></div>
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="输入你的问题..." onkeydown="handleEnterKey(event)">
+                <button onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="error-toast" id="errorToast"></div>
+
+    <script>
+        let currentConversationId = null;
+        let isStreaming = false;
+
+        // 初始化加载会话列表
+        window.onload = () => {
+            loadConversationHistory();
+        };
+
+        // 发送消息
+        async function sendMessage() {
+            if (isStreaming) return;
+            
+            const input = document.getElementById('userInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // 添加用户消息
+            addMessage('user', message);
+            input.value = '';
+            
+            document.getElementById('loading').style.display = 'block';
+            isStreaming = true;
+
+            try {
+                const response = await fetch('/api/chat-stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        conversation_id: currentConversationId
+                    })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let aiResponse = '';
+                
+                // 创建消息容器
+                const messageDiv = createMessageContainer('assistant');
+                
+                while(true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    aiResponse += chunk;
+                    messageDiv.querySelector('.message-content').textContent = aiResponse;
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+                
+                // 获取会话ID（示例实现）
+                currentConversationId = await fetchConversationId();
+
+            } catch (error) {
+                console.error('发送消息失败:', error);
+                showError('消息发送失败，请检查网络后重试');
+                messageDiv.querySelector('.message-content').textContent = '⚠️ 请求失败，请重试';
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                isStreaming = false;
+                addTimestamp(messageDiv);
+            }
+        }
+
+        // 添加消息到界面
+        function addMessage(role, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `
+                <div class="message-content">${content}</div>
+                <div class="timestamp"></div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            messageDiv.querySelector('.timestamp').textContent = time;
+        }
+
+        // 批量导出
+        async function exportAllConversations() {
+            const format = document.getElementById('exportFormat').value;
+            const url = `/api/conversations/export-all?format=${format}`;
+            
+            try {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const filename = response.headers.get('Content-Disposition')
+                    .split('filename=')[1]
+                    .replace(/"/g, '');
+
+                // 创建下载链接
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+            } catch (error) {
+                console.error('导出失败:', error);
+                alert('导出失败，请检查控制台日志');
+            }
+        }
+
+        // 加载会话历史（示例代码）
+        async function loadConversationHistory() {
+            // 这里可以添加加载历史会话列表的代码
+        }
+
+        function createMessageContainer(role) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.innerHTML = `
+                <div class="message-content"></div>
+                <div class="timestamp"></div>
+            `;
+            messagesDiv.appendChild(messageDiv);
+            return messageDiv;
+        }
+
+        function addTimestamp(messageDiv) {
+            const time = new Date().toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false
+            });
+            messageDiv.querySelector('.timestamp').textContent = time;
+        }
+
+        function handleEnterKey(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function fetchConversationId() {
+            // 实现获取最新会话ID的逻辑
+            return 'new-conversation-id';
+        }
+
+        function showError(message) {
+            const toast = document.getElementById('errorToast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

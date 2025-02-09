@@ -77,7 +77,7 @@ def normalize_request():
 @app.route('/')
 def index():
     """保留根路径作为兼容性入口"""
-    return redirect('/health')
+    return redirect('/')
 
 @app.route('/health')
 def health_check():
