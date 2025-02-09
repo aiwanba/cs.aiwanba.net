@@ -16,15 +16,31 @@ class AIService:
             logging.error(f"Failed to initialize AI service: {str(e)}")
             raise
     
-    def generate_response(self, prompt, stream=True):
+    def generate_response(self, prompt, history=None, stream=True):
         """
         生成AI响应
         """
         try:
             logging.info(f"Generating response for prompt: {prompt[:100]}...")
+            
+            # 构建消息历史
+            messages = []
+            if history:
+                for msg in history:
+                    messages.append({
+                        "role": msg["role"],
+                        "content": msg["content"]
+                    })
+            
+            # 添加当前问题
+            messages.append({
+                "role": "user",
+                "content": prompt
+            })
+            
             completion = self.client.chat.completions.create(
                 model="deepseek-ai/deepseek-r1",
-                messages=[{"role": "user", "content": prompt}],
+                messages=messages,
                 temperature=1,
                 top_p=1,
                 max_tokens=4096,

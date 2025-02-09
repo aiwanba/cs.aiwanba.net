@@ -121,6 +121,7 @@ def chat():
         app.logger.info(f"Request data: {data}")
         
         prompt = data.get('prompt')
+        history = data.get('history', [])
         stream = data.get('stream', True)
         
         if not prompt:
@@ -147,7 +148,7 @@ def chat():
             app.logger.info("Using streaming response")
             def generate():
                 try:
-                    for chunk in ai_service.generate_response(prompt, stream=True):
+                    for chunk in ai_service.generate_response(prompt, history=history, stream=True):
                         app.logger.debug(f"Streaming chunk: {chunk[:50]}...")
                         yield chunk
                 except Exception as e:
@@ -160,7 +161,7 @@ def chat():
             )
         else:
             app.logger.info("Using non-streaming response")
-            response = ai_service.generate_response(prompt, stream=False)
+            response = ai_service.generate_response(prompt, history=history, stream=False)
             return jsonify({'response': response})
             
     except Exception as e:
