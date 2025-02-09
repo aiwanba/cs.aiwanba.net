@@ -375,7 +375,7 @@ def export_conversation(conversation_id):
 
 @app.route('/api/conversations/export-all', methods=['GET'])
 def export_all_conversations():
-    """支持JSON格式的批量导出"""
+    """支持完整消息导出的批量导出"""
     try:
         export_format = request.args.get('format', 'json')
         
@@ -422,20 +422,33 @@ def export_all_conversations():
                         "total_conversations": Conversation.query.count()
                     }) + '\n'
                     
-                    # 分批处理会话
-                    query = Conversation.query.yield_per(50)  # 每次处理50个会话
-                    for conv in query:
+                    # 分批处理会话（每次50个会话）
+                    conv_query = Conversation.query.yield_per(50)
+                    for conv in conv_query:
+                        # 分批加载消息（每次100条）
+                        messages = []
+                        msg_query = Message.query.filter_by(
+                            conversation_id=conv.id
+                        ).yield_per(100)
+                        for msg in msg_query:
+                            messages.append({
+                                "timestamp": msg.timestamp.isoformat(),
+                                "role": msg.role,
+                                "content": msg.content
+                            })
+                        
+                        # 构建完整会话数据
                         yield json.dumps({
                             "id": conv.id,
                             "created_at": conv.created_at.isoformat(),
                             "last_active": conv.last_active.isoformat(),
-                            "message_count": len(conv.messages),
-                            "first_message": conv.messages[0].content if conv.messages else ""
+                            "message_count": len(messages),
+                            "messages": messages  # 包含完整消息列表
                         }, ensure_ascii=False) + '\n'
             
             headers = {
                 'Content-Type': 'application/x-ndjson',
-                'Content-Disposition': f'attachment; filename=conversations_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.ndjson'
+                'Content-Disposition': f'attachment; filename=full_conversations_export_{datetime.now().strftime("%Y%m%d%H%M%S")}.ndjson'
             }
             return Response(generate_json(), headers=headers)
         

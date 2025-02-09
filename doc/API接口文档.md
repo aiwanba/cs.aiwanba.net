@@ -95,14 +95,35 @@ data: {"content": "部分响应内容"}
 - `format`: json/csv（默认json）
 
 **特殊说明**：
-- 使用流式响应处理大数据量
-- 自动分批处理（每批50条记录）
-- 内存优化设计
-- JSON格式采用NDJSON规范（换行分隔的JSON）
+- JSON格式包含完整消息历史
+- 采用双层分批加载机制（50会话/批 + 100消息/批）
+- 内存优化设计，支持大规模数据导出
 
-**响应**：
-- CSV：标准CSV格式
-- JSON：NDJSON格式，每行包含一个会话的元数据
+**响应示例**：
+```json
+{
+  "export_time": "2025-02-10T09:30:00.000000",
+  "total_conversations": 3587
+}
+{
+  "id": "abc123",
+  "created_at": "2024-05-28T10:00:00",
+  "last_active": "2024-05-30T14:25:00",
+  "message_count": 2,
+  "messages": [
+    {
+      "timestamp": "2024-05-28T10:01:00", 
+      "role": "user",
+      "content": "美国历史"
+    },
+    {
+      "timestamp": "2024-05-28T10:01:05",
+      "role": "assistant", 
+      "content": "美国历史概况..."
+    }
+  ]
+}
+```
 
 ## 系统状态
 
