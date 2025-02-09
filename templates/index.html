@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat</title>
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        #chat-container {
+            height: 400px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            overflow-y: auto;
+        }
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #prompt {
+            flex: 1;
+            padding: 5px;
+        }
+        button {
+            padding: 5px 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>AI Chat</h1>
+    <div id="chat-container"></div>
+    <div id="input-container">
+        <input type="text" id="prompt" placeholder="输入你的问题...">
+        <button onclick="sendMessage()">发送</button>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const promptInput = document.getElementById('prompt');
+
+        async function sendMessage() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) return;
+
+            // 显示用户消息
+            appendMessage('user', prompt);
+            promptInput.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt, stream: true }),
+                });
+
+                const reader = response.body.getReader();
+                let aiMessage = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const text = new TextDecoder().decode(value);
+                    aiMessage += text;
+                    updateLastMessage('ai', aiMessage);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                appendMessage('system', '发生错误，请重试');
+            }
+        }
+
+        function appendMessage(role, content) {
+            const div = document.createElement('div');
+            div.style.marginBottom = '10px';
+            div.innerHTML = `<strong>${role === 'user' ? '你' : 'AI'}:</strong> <span>${content}</span>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function updateLastMessage(role, content) {
+            const lastMessage = chatContainer.lastElementChild;
+            if (lastMessage && lastMessage.querySelector('strong').textContent === 'AI:') {
+                lastMessage.querySelector('span').textContent = content;
+            } else {
+                appendMessage(role, content);
+            }
+        }
+
+        // 支持回车发送
+        promptInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,7 +1,7 @@
 """
 主应用入口文件
 """
-from flask import Flask, request, jsonify, Response, stream_with_context
+from flask import Flask, request, jsonify, Response, stream_with_context, render_template
 from services.ai_service import AIService
 from utils.db_manager import DatabaseManager
 from flask_cors import CORS
@@ -25,6 +25,11 @@ CORS(app)  # 启用CORS
 # 初始化服务
 ai_service = AIService()
 db_manager = DatabaseManager()
+
+@app.route('/')
+def index():
+    """首页"""
+    return render_template('index.html')
 
 @app.route('/health', methods=['GET'])
 def health_check():
