@@ -3,8 +3,8 @@ flask-cors==4.0.0
 gunicorn==21.2.0
 PyMySQL==1.1.0
 python-dotenv==1.0.0
-openai>=1.12.0,<2.0.0
+openai==1.61.1
 Flask-SQLAlchemy==3.1.1
 apscheduler==3.10.4
-httpx>=0.26.0
+httpx==0.28.1
 waitress==2.1.2

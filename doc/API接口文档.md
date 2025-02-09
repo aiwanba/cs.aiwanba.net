@@ -5,7 +5,7 @@
 ### 服务状态检查
 **GET /**  
 ```bash
-curl http://localhost:5010/
+curl http://localhost:5010
 ```
 响应示例：
 ```json
