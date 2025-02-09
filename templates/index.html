@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Assistant</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prismjs/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prismjs/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prismjs/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prismjs/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -284,6 +289,97 @@
                 padding: 12px;
             }
         }
+
+        /* 添加新样式 */
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            background: var(--bg-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 8px;
+        }
+
+        .toolbar button {
+            background: transparent;
+            border: 1px solid #e2e8f0;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .toolbar button:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .file-upload {
+            display: none;
+        }
+
+        .message-content pre {
+            position: relative;
+        }
+
+        .copy-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #e2e8f0;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-button:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .command-list {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            right: 0;
+            background: var(--message-bg);
+            border-radius: var(--border-radius);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .command-list.show {
+            display: block;
+        }
+
+        .command-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .command-item:hover {
+            background: var(--bg-color);
+        }
+
+        .command-key {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .command-desc {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
@@ -303,13 +399,35 @@
 
     <div class="input-wrapper">
         <div id="input-container">
-            <button class="action-button" title="清空对话">
-                <span class="material-icons">delete_outline</span>
-            </button>
-            <input type="text" id="prompt" placeholder="输入您的问题，按回车发送...">
+            <div class="toolbar">
+                <button onclick="document.getElementById('file-upload').click()">
+                    <span class="material-icons">attach_file</span>
+                </button>
+                <button onclick="showCommands()">
+                    <span class="material-icons">code</span>
+                </button>
+                <button onclick="clearChat()">
+                    <span class="material-icons">delete_outline</span>
+                </button>
+            </div>
+            <input type="file" id="file-upload" class="file-upload" multiple>
+            <div class="command-list" id="command-list">
+                <div class="command-item" onclick="insertCommand('translate:')">
+                    <span class="command-key">translate:</span>
+                    <span class="command-desc">翻译文本 (例如: translate:english 你好)</span>
+                </div>
+                <div class="command-item" onclick="insertCommand('py:')">
+                    <span class="command-key">py:</span>
+                    <span class="command-desc">执行 Python 代码</span>
+                </div>
+                <div class="command-item" onclick="insertCommand('js:')">
+                    <span class="command-key">js:</span>
+                    <span class="command-desc">执行 JavaScript 代码</span>
+                </div>
+            </div>
+            <textarea id="prompt" placeholder="输入您的问题，按 Ctrl + Enter 发送..." rows="1"></textarea>
             <button class="send-button" onclick="sendMessage()">
                 <span class="material-icons">send</span>
-                发送
             </button>
         </div>
     </div>
@@ -418,23 +536,89 @@
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
-        // 支持回车发送
-        promptInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+        // 添加新功能
+        function showCommands() {
+            const commandList = document.getElementById('command-list');
+            commandList.classList.toggle('show');
+        }
+
+        function insertCommand(command) {
+            const prompt = document.getElementById('prompt');
+            prompt.value = command + ' ' + prompt.value;
+            prompt.focus();
+            document.getElementById('command-list').classList.remove('show');
+        }
+
+        async function handleFileUpload(event) {
+            const files = event.target.files;
+            if (files.length > 0) {
+                const formData = new FormData();
+                for (let file of files) {
+                    formData.append('files', file);
+                }
+                
+                appendMessage('system', '正在上传文件...');
+                
+                try {
+                    const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+                    if (result.files) {
+                        const fileLinks = result.files.map(file => 
+                            `[${file.original_name}](${file.url})`
+                        ).join('\n');
+                        
+                        promptInput.value += `\n${fileLinks}\n`;
+                        event.target.value = ''; // 清空文件选择
+                        appendMessage('system', '文件上传成功！');
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    appendMessage('system', '文件上传失败，请重试');
+                }
+            }
+        }
+
+        // 代码高亮处理
+        function processMessageContent(content) {
+            const html = marked.parse(content);
+            return html.replace(/<pre><code class="language-(\w+)">([\s\S]+?)<\/code><\/pre>/g, 
+                (_, lang, code) => {
+                    const highlighted = Prism.highlight(code, Prism.languages[lang] || Prism.languages.text, lang);
+                    return `<pre class="language-${lang}"><code class="language-${lang}">${highlighted}</code><button class="copy-button" onclick="copyCode(this)">复制</button></pre>`;
+                }
+            );
+        }
+
+        function copyCode(button) {
+            const code = button.parentElement.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                const originalText = button.textContent;
+                button.textContent = '已复制!';
+                setTimeout(() => button.textContent = originalText, 2000);
+            });
+        }
+
+        // 文件上传监听
+        document.getElementById('file-upload').addEventListener('change', handleFileUpload);
+
+        // 自动调整文本框高度
+        const textarea = document.getElementById('prompt');
+        textarea.addEventListener('input', () => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        });
+
+        // Ctrl + Enter 发送
+        textarea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
-
-        // 清空对话
-        document.querySelector('.action-button').addEventListener('click', () => {
-            if (confirm('确定要清空所有对话吗？')) {
-                chatContainer.innerHTML = '';
-            }
-        });
-
-        // 自动聚焦输入框
-        promptInput.focus();
     </script>
 </body>
 </html> 
