@@ -8,3 +8,4 @@ Flask-SQLAlchemy==3.1.1
 apscheduler==3.10.4
 httpx==0.28.1
 waitress==2.1.2
+markdown==3.6
